@@ -2,6 +2,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+import warnings
 import zipfile
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -72,6 +73,56 @@ class FolderDecryptionTests(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 safe_extract_folder_archive(malicious_zip, temp_root / "out")
+
+    def test_safe_extract_folder_archive_rejects_windows_drive_paths(self) -> None:
+        """ZIP members using drive-like path segments should not be extracted."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            malicious_zip = temp_root / "drive-path.zip"
+            with zipfile.ZipFile(malicious_zip, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+                zip_file.writestr("C:/escape.txt", "nope")
+
+            with self.assertRaisesRegex(ValueError, "unsafe path segments"):
+                safe_extract_folder_archive(malicious_zip, temp_root / "out")
+
+    def test_safe_extract_folder_archive_rejects_duplicate_members(self) -> None:
+        """Duplicate normalized ZIP member paths should fail before extraction."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            duplicate_zip = temp_root / "duplicate.zip"
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                with zipfile.ZipFile(duplicate_zip, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+                    zip_file.writestr("docs/file.txt", "first")
+                    zip_file.writestr("docs/file.txt", "second")
+
+            with self.assertRaisesRegex(ValueError, "duplicate member"):
+                safe_extract_folder_archive(duplicate_zip, temp_root / "out")
+
+            self.assertFalse((temp_root / "out" / "docs").exists())
+
+    def test_safe_extract_folder_archive_refuses_existing_output_root(self) -> None:
+        """Extraction should not overwrite a folder that already exists."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            archive_path = temp_root / "docs.zip"
+            with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+                zip_file.writestr("docs/new.txt", "new")
+
+            output_dir = temp_root / "out"
+            existing_root = output_dir / "docs"
+            existing_root.mkdir(parents=True)
+            existing_file = existing_root / "old.txt"
+            existing_file.write_text("old", encoding="utf-8")
+
+            with self.assertRaisesRegex(FileExistsError, "extraction target already exists"):
+                safe_extract_folder_archive(archive_path, output_dir)
+
+            self.assertEqual(existing_file.read_text(encoding="utf-8"), "old")
+            self.assertFalse((existing_root / "new.txt").exists())
 
     def test_decrypt_folder_archive_rejects_extra_internal_hse_entry(self) -> None:
         """内部 manifest 校验应拒绝意外出现的加密成员。"""
@@ -196,6 +247,49 @@ class FolderDecryptionTests(unittest.TestCase):
                 (result.extracted_root / "secret.txt").read_text(encoding="utf-8"),
                 "secret",
             )
+
+    def test_decrypt_folder_archive_cleans_up_when_inner_plaintext_conflicts(self) -> None:
+        """Malformed packages must not leave partial extracted folders behind."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            source_folder = temp_root / "docs"
+            source_folder.mkdir()
+            (source_folder / "secret.txt").write_text("secret", encoding="utf-8")
+
+            package_result = package_folder_to_encrypted_archive(
+                source_folder,
+                temp_root / "docs.zip.hse",
+                folder_password="outer-pass",
+                metadata_password="meta-pass",
+                individually_encrypted_relative_paths=["secret.txt"],
+                inner_passwords_by_relative_path={"secret.txt": "inner-pass"},
+            )
+
+            plaintext_zip_path = temp_root / "docs.zip"
+            decrypt_file_streaming(package_result.package_path, plaintext_zip_path, "outer-pass")
+            tampered_zip_path = temp_root / "tampered.zip"
+            with zipfile.ZipFile(plaintext_zip_path, "r") as source_zip, zipfile.ZipFile(
+                tampered_zip_path,
+                "w",
+                compression=zipfile.ZIP_DEFLATED,
+            ) as target_zip:
+                for member in source_zip.infolist():
+                    target_zip.writestr(member, source_zip.read(member.filename))
+                target_zip.writestr("docs/secret.txt", "malicious plaintext")
+
+            tampered_package_path = temp_root / "tampered.zip.hse"
+            encrypt_file_streaming(tampered_zip_path, tampered_package_path, "outer-pass")
+
+            with self.assertRaisesRegex(FileExistsError, "decrypted inner target already exists"):
+                decrypt_folder_archive(
+                    tampered_package_path,
+                    temp_root / "decrypted",
+                    folder_password="outer-pass",
+                    metadata_password="meta-pass",
+                )
+
+            self.assertFalse((temp_root / "decrypted" / "docs").exists())
 
 
 if __name__ == "__main__":

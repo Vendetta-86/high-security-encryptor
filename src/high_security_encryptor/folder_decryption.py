@@ -63,52 +63,58 @@ def decrypt_folder_archive(
 
     destination_dir.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_root = Path(temp_dir)
-        plaintext_zip_path = temp_root / _derive_plaintext_zip_name(source_package)
-        decrypt_file_streaming(source_package, plaintext_zip_path, folder_password)
-        extracted_root = safe_extract_folder_archive(plaintext_zip_path, destination_dir)
+    extracted_root: Path | None = None
+    try:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            plaintext_zip_path = temp_root / _derive_plaintext_zip_name(source_package)
+            decrypt_file_streaming(source_package, plaintext_zip_path, folder_password)
+            extracted_root = safe_extract_folder_archive(plaintext_zip_path, destination_dir)
 
-    manifest_path, password_table_path, template_path = discover_internal_sidecars(extracted_root)
-    discovered_binding: BatchBinding | None = None
-    internal_entry_comparison: EntrySetComparison | None = None
-    decrypted_inner_files: list[InnerFileDecryptionResult] = []
+        manifest_path, password_table_path, template_path = discover_internal_sidecars(extracted_root)
+        discovered_binding: BatchBinding | None = None
+        internal_entry_comparison: EntrySetComparison | None = None
+        decrypted_inner_files: list[InnerFileDecryptionResult] = []
 
-    if manifest_path is not None and metadata_password:
-        manifest_payload = deserialize_manifest_payload(read_encrypted_metadata_file(manifest_path, metadata_password))
-        discovered_binding = extract_binding(manifest_payload)
-        template_payload = deserialize_template_payload(read_encrypted_metadata_file(template_path, metadata_password)) if template_path else None
-        internal_entry_comparison = validate_entry_sets_match(
-            expected_entries=[str(entry["encrypted_name"]) for entry in manifest_payload.get("entries", [])],
-            actual_entries=collect_internal_encrypted_entries(extracted_root, INTERNAL_SIDECAR_DIRNAME),
-            context="folder-internal encrypted members",
+        if manifest_path is not None and metadata_password:
+            manifest_payload = deserialize_manifest_payload(read_encrypted_metadata_file(manifest_path, metadata_password))
+            discovered_binding = extract_binding(manifest_payload)
+            template_payload = deserialize_template_payload(read_encrypted_metadata_file(template_path, metadata_password)) if template_path else None
+            internal_entry_comparison = validate_entry_sets_match(
+                expected_entries=[str(entry["encrypted_name"]) for entry in manifest_payload.get("entries", [])],
+                actual_entries=collect_internal_encrypted_entries(extracted_root, INTERNAL_SIDECAR_DIRNAME),
+                context="folder-internal encrypted members",
+            )
+
+            if auto_decrypt_inner_files:
+                password_table_payload = _load_internal_password_payload(
+                    password_table_path=password_table_path,
+                    template_payload=template_payload,
+                    metadata_password=metadata_password,
+                    discovered_binding=discovered_binding,
+                    internal_runtime_password_plan=internal_runtime_password_plan,
+                    password_resolver=password_resolver,
+                )
+                decrypted_inner_files = decrypt_inner_hse_members(
+                    extracted_root,
+                    password_table_payload,
+                    inner_password_overrides=inner_password_overrides or {},
+                )
+
+        return FolderDecryptionResult(
+            package_path=source_package,
+            extracted_root=extracted_root,
+            discovered_binding=discovered_binding,
+            internal_manifest_path=manifest_path,
+            internal_password_table_path=password_table_path,
+            internal_template_path=template_path,
+            internal_entry_comparison=internal_entry_comparison,
+            decrypted_inner_files=decrypted_inner_files,
         )
-
-        if auto_decrypt_inner_files:
-            password_table_payload = _load_internal_password_payload(
-                password_table_path=password_table_path,
-                template_payload=template_payload,
-                metadata_password=metadata_password,
-                discovered_binding=discovered_binding,
-                internal_runtime_password_plan=internal_runtime_password_plan,
-                password_resolver=password_resolver,
-            )
-            decrypted_inner_files = decrypt_inner_hse_members(
-                extracted_root,
-                password_table_payload,
-                inner_password_overrides=inner_password_overrides or {},
-            )
-
-    return FolderDecryptionResult(
-        package_path=source_package,
-        extracted_root=extracted_root,
-        discovered_binding=discovered_binding,
-        internal_manifest_path=manifest_path,
-        internal_password_table_path=password_table_path,
-        internal_template_path=template_path,
-        internal_entry_comparison=internal_entry_comparison,
-        decrypted_inner_files=decrypted_inner_files,
-    )
+    except Exception:
+        if extracted_root is not None and extracted_root.exists():
+            shutil.rmtree(extracted_root, ignore_errors=True)
+        raise
 
 
 def safe_extract_folder_archive(zip_path: str | Path, output_dir: str | Path) -> Path:
@@ -119,29 +125,27 @@ def safe_extract_folder_archive(zip_path: str | Path, output_dir: str | Path) ->
     destination_dir.mkdir(parents=True, exist_ok=True)
 
     with zipfile.ZipFile(archive_path, "r") as zip_file:
-        members = zip_file.infolist()
-        if not members:
-            raise ValueError("archive is empty")
+        validated_members, root_name = _validate_zip_members(zip_file.infolist())
+        final_root = destination_dir / root_name
+        if final_root.exists():
+            raise FileExistsError(f"extraction target already exists: {final_root}")
 
-        root_names: set[str] = set()
-        for member in members:
-            normalized_member = _validate_zip_member(member)
-            root_names.add(PurePosixPath(normalized_member).parts[0])
-
-        if len(root_names) != 1:
-            raise ValueError("archive must contain exactly one top-level folder")
-
-        for member in members:
-            normalized_member = _validate_zip_member(member)
-            target_path = destination_dir / Path(*PurePosixPath(normalized_member).parts)
-            if member.is_dir():
-                target_path.mkdir(parents=True, exist_ok=True)
-                continue
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            with zip_file.open(member, "r") as source_file, target_path.open("wb") as target_file:
-                shutil.copyfileobj(source_file, target_file)
-
-    return destination_dir / next(iter(root_names))
+        staging_parent = Path(tempfile.mkdtemp(prefix=f".{root_name}.", dir=destination_dir))
+        try:
+            for member, normalized_member in validated_members:
+                target_path = staging_parent / Path(*PurePosixPath(normalized_member).parts)
+                if member.is_dir():
+                    target_path.mkdir(parents=True, exist_ok=True)
+                    continue
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                with zip_file.open(member, "r") as source_file, target_path.open("wb") as target_file:
+                    shutil.copyfileobj(source_file, target_file)
+            staged_root = staging_parent / root_name
+            staged_root.replace(final_root)
+            return final_root
+        finally:
+            if staging_parent.exists():
+                shutil.rmtree(staging_parent, ignore_errors=True)
 
 
 def discover_internal_sidecars(extracted_root: str | Path) -> tuple[Path | None, Path | None, Path | None]:
@@ -178,6 +182,8 @@ def decrypt_inner_hse_members(
         decrypted_relative_path = _remove_trailing_hse_suffix(encrypted_relative_path)
         decrypted_path = root_path / Path(*PurePosixPath(decrypted_relative_path).parts)
         password = overrides.get(encrypted_relative_path, str(record["password"]))
+        if decrypted_path.exists():
+            raise FileExistsError(f"decrypted inner target already exists: {decrypted_relative_path}")
         decrypt_file_streaming(encrypted_path, decrypted_path, password)
         results.append(
             InnerFileDecryptionResult(
@@ -256,7 +262,7 @@ def _validate_zip_member(member: zipfile.ZipInfo) -> str:
     pure_path = PurePosixPath(member_name)
     if pure_path.is_absolute():
         raise ValueError(f"zip member must be relative: {member.filename}")
-    if any(part in ("", ".", "..") for part in pure_path.parts):
+    if any(part in ("", ".", "..") or ":" in part for part in pure_path.parts):
         raise ValueError(f"zip member contains unsafe path segments: {member.filename}")
 
     unix_mode = member.external_attr >> 16
@@ -264,6 +270,28 @@ def _validate_zip_member(member: zipfile.ZipInfo) -> str:
     if file_type_bits == 0o120000:
         raise ValueError(f"zip member must not be a symlink: {member.filename}")
     return pure_path.as_posix()
+
+
+def _validate_zip_members(members: list[zipfile.ZipInfo]) -> tuple[list[tuple[zipfile.ZipInfo, str]], str]:
+    """Validate the complete ZIP member set before writing anything to disk."""
+
+    if not members:
+        raise ValueError("archive is empty")
+
+    validated_members: list[tuple[zipfile.ZipInfo, str]] = []
+    root_names: set[str] = set()
+    seen_names: set[str] = set()
+    for member in members:
+        normalized_member = _validate_zip_member(member)
+        if normalized_member in seen_names:
+            raise ValueError(f"zip archive contains duplicate member: {normalized_member}")
+        seen_names.add(normalized_member)
+        root_names.add(PurePosixPath(normalized_member).parts[0])
+        validated_members.append((member, normalized_member))
+
+    if len(root_names) != 1:
+        raise ValueError("archive must contain exactly one top-level folder")
+    return validated_members, next(iter(root_names))
 
 
 def _remove_trailing_hse_suffix(relative_path: str) -> str:
