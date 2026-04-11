@@ -1,3 +1,8 @@
+# This repository publishes only the high_security_encryptor project.
+/*
+!/.gitignore
+!/high_security_encryptor/
+
 __pycache__/
 *.py[cod]
 *$py.class
