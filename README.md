@@ -17,7 +17,7 @@ Python 3.11 or newer is required.
 python -m unittest discover -s tests
 ```
 
-The test suite currently contains 78 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
+The test suite currently contains 79 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
 
 ## CLI
 
@@ -62,6 +62,11 @@ Three named modes are supported:
 Explicit `write_password_table` or `write_internal_password_tables` values override the named mode defaults.
 
 For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_table_path` and provide passwords through `template_passwords_by_encrypted_name`, `template_passwords_by_source_name`, or folder runtime template mappings.
+
+## Security and Operations
+
+- [Security Model](docs/security_model.md): protection goals, non-goals, sidecar sensitivity, and provider risks.
+- [Operational Guidance](docs/operations.md): recommended modes, backup handling, password handling, rotation, and failure response.
 
 ## Exit Codes
 
