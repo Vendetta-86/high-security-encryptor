@@ -7,6 +7,7 @@ from pathlib import Path
 from argon2.low_level import Type, hash_secret_raw
 from Crypto.Cipher import AES
 
+from .atomic_io import write_bytes_atomically
 from .streaming_format import IntegrityError, LegacyFormatDetected
 
 LEGACY_MAGIC = b"GCM1"
@@ -29,7 +30,7 @@ def decrypt_legacy(source: str | Path, target: str | Path, password: str) -> Pat
     target_path = Path(target)
     blob = source_path.read_bytes()
     plaintext = decrypt_legacy_bytes(blob, password)
-    target_path.write_bytes(plaintext)
+    write_bytes_atomically(target_path, plaintext)
     return target_path
 
 

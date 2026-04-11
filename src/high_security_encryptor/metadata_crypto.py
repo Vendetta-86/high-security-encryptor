@@ -8,6 +8,8 @@ from pathlib import Path
 from argon2.low_level import Type, hash_secret_raw
 from Crypto.Cipher import AES
 
+from .atomic_io import write_bytes_atomically
+
 
 METADATA_MAGIC = b"HSM1"
 METADATA_VERSION = 1
@@ -86,7 +88,7 @@ def write_encrypted_metadata_file(path: str | Path, data: bytes, password: str) 
     """一步完成元数据加密并写入磁盘。"""
 
     target = Path(path)
-    target.write_bytes(encrypt_metadata_bytes(data, password))
+    write_bytes_atomically(target, encrypt_metadata_bytes(data, password))
     return target
 
 

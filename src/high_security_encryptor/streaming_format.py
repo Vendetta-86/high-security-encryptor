@@ -10,6 +10,8 @@ from pathlib import Path
 from argon2.low_level import Type, hash_secret_raw
 from Crypto.Cipher import AES
 
+from .atomic_io import atomic_output_path, flush_file
+
 HEADER_MAGIC = b"HSE1"
 VERSION = 1
 FLAGS = 0
@@ -118,7 +120,6 @@ def encrypt_streaming(source: str | Path, target: str | Path, password: str, chu
 
     source_path = Path(source)
     target_path = Path(target)
-    temp_target = target_path.with_suffix(target_path.suffix + ".tmp")
     if not source_path.is_file():
         raise FileNotFoundError(source_path)
     if not password:
@@ -134,7 +135,7 @@ def encrypt_streaming(source: str | Path, target: str | Path, password: str, chu
     chunk_count = 0
     plaintext_digest = hashlib.sha256()
 
-    try:
+    with atomic_output_path(target_path) as temp_target:
         with source_path.open("rb") as src, temp_target.open("wb") as dst:
             dst.write(header)
             while True:
@@ -160,12 +161,8 @@ def encrypt_streaming(source: str | Path, target: str | Path, password: str, chu
             trailer_cipher.update(header + trailer_meta)
             trailer_tag = trailer_cipher.encrypt_and_digest(b"")[1]
             dst.write(TRAILER_STRUCT.pack(chunk_count, total_plaintext_size, digest_bytes, trailer_tag))
-        temp_target.replace(target_path)
-        return target_path
-    except Exception:
-        if temp_target.exists():
-            temp_target.unlink()
-        raise
+            flush_file(dst)
+    return target_path
 
 
 def decrypt_streaming(source: str | Path, target: str | Path, password: str) -> Path:
@@ -173,7 +170,6 @@ def decrypt_streaming(source: str | Path, target: str | Path, password: str) -> 
 
     source_path = Path(source)
     target_path = Path(target)
-    temp_target = target_path.with_suffix(target_path.suffix + ".tmp")
     if not source_path.is_file():
         raise FileNotFoundError(source_path)
     if not password:
@@ -191,7 +187,7 @@ def decrypt_streaming(source: str | Path, target: str | Path, password: str) -> 
         chunk_index = 0
         total_plaintext_size = 0
         plaintext_digest = hashlib.sha256()
-        try:
+        with atomic_output_path(target_path) as temp_target:
             with temp_target.open("wb") as dst:
                 while src.tell() < payload_end:
                     meta = src.read(CHUNK_HEADER_STRUCT.size)
@@ -234,9 +230,5 @@ def decrypt_streaming(source: str | Path, target: str | Path, password: str) -> 
                     raise IntegrityError("plaintext size mismatch")
                 if expected_digest != plaintext_digest.digest():
                     raise IntegrityError("plaintext digest mismatch")
-            temp_target.replace(target_path)
-            return target_path
-        except Exception:
-            if temp_target.exists():
-                temp_target.unlink()
-            raise
+                flush_file(dst)
+    return target_path

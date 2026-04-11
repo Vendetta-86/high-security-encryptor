@@ -49,6 +49,35 @@ class Phase1StreamingTests(unittest.TestCase):
             decrypt_file_streaming(encrypted, decrypted, "secret")
             self.assertEqual(decrypted.read_bytes(), payload)
 
+    def test_encrypt_uses_unique_temporary_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "sample.bin"
+            encrypted = Path(temp_dir) / "sample.hse"
+            legacy_temp_name = encrypted.with_suffix(encrypted.suffix + ".tmp")
+            source.write_bytes(b"payload")
+            legacy_temp_name.write_bytes(b"do-not-touch")
+
+            encrypt_file_streaming(source, encrypted, "secret")
+
+            self.assertEqual(legacy_temp_name.read_bytes(), b"do-not-touch")
+            self.assertTrue(encrypted.exists())
+
+    def test_failed_decrypt_does_not_remove_existing_fixed_temp_name(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "sample.bin"
+            encrypted = Path(temp_dir) / "sample.hse"
+            decrypted = Path(temp_dir) / "sample.out"
+            legacy_temp_name = decrypted.with_suffix(decrypted.suffix + ".tmp")
+            source.write_bytes(b"payload")
+            legacy_temp_name.write_bytes(b"do-not-touch")
+            encrypt_file_streaming(source, encrypted, "right-password")
+
+            with self.assertRaises(IntegrityError):
+                decrypt_file_streaming(encrypted, decrypted, "wrong-password")
+
+            self.assertEqual(legacy_temp_name.read_bytes(), b"do-not-touch")
+            self.assertFalse(decrypted.exists())
+
     def test_decrypt_supports_legacy_gcm1_format(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "legacy.bin"
