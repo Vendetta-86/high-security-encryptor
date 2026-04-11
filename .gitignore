@@ -1,7 +1,18 @@
-# This repository publishes only the high_security_encryptor project.
+# This repository publishes only the high-security-encryptor project.
 /*
+!/.github/
+!/.github/**
 !/.gitignore
-!/high_security_encryptor/
+!/README.md
+!/pyproject.toml
+!/docs/
+!/docs/**
+!/examples/
+!/examples/**
+!/src/
+!/src/**
+!/tests/
+!/tests/**
 
 __pycache__/
 *.py[cod]
