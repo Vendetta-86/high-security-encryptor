@@ -1372,6 +1372,38 @@ class CliTests(unittest.TestCase):
             self.assertIn("error: encryption config is not valid JSON", result.stderr)
             self.assertNotIn("Traceback", result.stderr)
 
+    def test_cli_returns_config_exit_code_for_schema_errors(self) -> None:
+        """Malformed config field types should be normalized as config errors."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "invalid-schema.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "sources": ["note.txt"],
+                        "source_passwords": {"note.txt": "pw"},
+                        "metadata_password": "meta",
+                        "output_dir": "out",
+                        "write_password_table": "false",
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            result = _run_cli_expect_error(
+                "validate-config",
+                "--kind",
+                "encrypt",
+                "--config",
+                str(config_path),
+            )
+
+            self.assertEqual(result.returncode, 3)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("write_password_table must be a boolean", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
     def test_cli_debug_flag_prints_traceback_for_config_errors(self) -> None:
         """--debug should preserve tracebacks for development diagnostics."""
 

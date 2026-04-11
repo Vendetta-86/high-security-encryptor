@@ -17,7 +17,7 @@ Python 3.11 or newer is required.
 python -m unittest discover -s tests
 ```
 
-The test suite currently contains 79 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
+The test suite currently contains 86 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
 
 ## CLI
 
