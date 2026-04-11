@@ -17,7 +17,7 @@ Python 3.11 or newer is required.
 python -m unittest discover -s tests
 ```
 
-The test suite currently contains 73 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
+The test suite currently contains 78 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
 
 ## CLI
 
@@ -62,6 +62,30 @@ Three named modes are supported:
 Explicit `write_password_table` or `write_internal_password_tables` values override the named mode defaults.
 
 For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_table_path` and provide passwords through `template_passwords_by_encrypted_name`, `template_passwords_by_source_name`, or folder runtime template mappings.
+
+## Exit Codes
+
+CLI failures are normalized into stable exit codes:
+
+- `0`: command completed successfully
+- `1`: runtime workflow failure
+- `2`: `validate-config --report --exit-code-on-issues` found report issues
+- `3`: command input or config file error
+- `4`: password-source provider error
+- `5`: integrity or authentication failure
+
+By default, CLI errors are printed as concise `error: ...` messages without Python tracebacks. Use `--debug` before the subcommand, or set `HSE_DEBUG=1`, to print full tracebacks:
+
+```bash
+high-security-encryptor --debug validate-config --kind encrypt --config config.json
+```
+
+## Troubleshooting
+
+- `error: ... config file not found`: check the `--config` path.
+- `error: ... config is not valid JSON`: validate the config file syntax.
+- `error: environment variable not set`: set the named password-provider environment variable before running the command.
+- `error: chunk authentication failed` or another integrity error: verify the password, encrypted file, manifest, template, and password table all belong to the same batch.
 
 ## Project Layout
 

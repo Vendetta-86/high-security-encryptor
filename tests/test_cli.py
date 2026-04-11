@@ -1333,6 +1333,149 @@ class CliTests(unittest.TestCase):
             self.assertEqual(len(summary["issues"]), 1)
             self.assertEqual(summary["issues"][0]["code"], "missing-template-runtime-passwords")
 
+    def test_cli_returns_config_exit_code_for_missing_config_file(self) -> None:
+        """Missing config files should produce a concise config error."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing_config = Path(temp_dir) / "missing.json"
+
+            result = _run_cli_expect_error(
+                "validate-config",
+                "--kind",
+                "encrypt",
+                "--config",
+                str(missing_config),
+            )
+
+            self.assertEqual(result.returncode, 3)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("error: config file not found", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_returns_config_exit_code_for_invalid_json(self) -> None:
+        """Invalid JSON should be reported without a Python traceback by default."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "invalid.json"
+            config_path.write_text("{", encoding="utf-8")
+
+            result = _run_cli_expect_error(
+                "validate-config",
+                "--kind",
+                "encrypt",
+                "--config",
+                str(config_path),
+            )
+
+            self.assertEqual(result.returncode, 3)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("error: encryption config is not valid JSON", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_debug_flag_prints_traceback_for_config_errors(self) -> None:
+        """--debug should preserve tracebacks for development diagnostics."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = Path(temp_dir) / "invalid.json"
+            config_path.write_text("{", encoding="utf-8")
+
+            result = _run_cli_expect_error(
+                "--debug",
+                "validate-config",
+                "--kind",
+                "encrypt",
+                "--config",
+                str(config_path),
+            )
+
+            self.assertEqual(result.returncode, 3)
+            self.assertIn("Traceback", result.stderr)
+            self.assertIn("CliConfigError", result.stderr)
+
+    def test_cli_returns_password_exit_code_for_missing_env_password(self) -> None:
+        """Password provider failures should use the password-source exit code."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            plain_source = temp_root / "note.txt"
+            plain_source.write_text("secret", encoding="utf-8")
+            missing_env_name = "HSE_TEST_MISSING_PASSWORD_SOURCE_9F1B5275"
+
+            config_path = temp_root / "encrypt-missing-env.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "sources": [str(plain_source)],
+                        "source_passwords": {
+                            str(plain_source): {"type": "env", "name": missing_env_name}
+                        },
+                        "metadata_password": "meta-pass",
+                        "output_dir": str(temp_root / "encrypted"),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            result = _run_cli_expect_error("encrypt-batch", "--config", str(config_path))
+
+            self.assertEqual(result.returncode, 4)
+            self.assertEqual(result.stdout, "")
+            self.assertIn(f"environment variable not set: {missing_env_name}", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_cli_returns_integrity_exit_code_for_wrong_decryption_password(self) -> None:
+        """Streaming integrity failures should use the integrity exit code."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            plain_source = temp_root / "note.txt"
+            plain_source.write_text("decrypt me", encoding="utf-8")
+
+            encrypt_config_path = temp_root / "encrypt.json"
+            encrypt_config_path.write_text(
+                json.dumps(
+                    {
+                        "sources": [str(plain_source)],
+                        "source_passwords": {str(plain_source): "right-pass"},
+                        "metadata_password": "meta-pass",
+                        "output_dir": str(temp_root / "encrypted"),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+            encrypt_summary = json.loads(_run_cli("encrypt-batch", "--config", str(encrypt_config_path)).stdout)
+
+            decrypt_config_path = temp_root / "decrypt-wrong-password.json"
+            decrypt_config_path.write_text(
+                json.dumps(
+                    {
+                        "encrypted_files": encrypt_summary["encrypted_files"],
+                        "manifest_path": encrypt_summary["manifest_path"],
+                        "password_table_path": encrypt_summary["password_table_path"],
+                        "template_path": encrypt_summary["template_path"],
+                        "metadata_password": "meta-pass",
+                        "output_dir": str(temp_root / "decrypted"),
+                        "passwords_by_encrypted_name": {
+                            "note.txt.hse": "wrong-pass"
+                        },
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            result = _run_cli_expect_error("decrypt-batch", "--config", str(decrypt_config_path))
+
+            self.assertEqual(result.returncode, 5)
+            self.assertEqual(result.stdout, "")
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
 
 def _run_cli(*args: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     """在子进程中运行项目 CLI，并把 `src` 挂到 `PYTHONPATH`。"""

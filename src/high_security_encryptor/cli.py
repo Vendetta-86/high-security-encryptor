@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
+import sys
+import traceback
 from typing import Any
 
 from .batch_decryption import decrypt_batch_files
 from .batch_workflow import encrypt_batch_files
 from .config import BatchDecryptionConfig, BatchEncryptionConfig
-from .password_sources import create_default_password_resolver
+from .integrity import IntegrityValidationError
+from .password_sources import PasswordSourceError, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
 from .security_mode import (
     SECURITY_MODE_COMPATIBLE,
@@ -19,12 +23,29 @@ from .security_mode import (
     SecurityModeProfile,
     get_security_mode_profile,
 )
+from .streaming_format import IntegrityError
+
+
+EXIT_RUNTIME_ERROR = 1
+EXIT_VALIDATION_ISSUES = 2
+EXIT_CONFIG_ERROR = 3
+EXIT_PASSWORD_SOURCE_ERROR = 4
+EXIT_INTEGRITY_ERROR = 5
+
+
+class CliConfigError(Exception):
+    """Raised when CLI input or config files are invalid before workflow execution."""
 
 
 def build_parser() -> argparse.ArgumentParser:
     """创建顶层命令行解析器。"""
 
     parser = argparse.ArgumentParser(prog="high-security-encryptor")
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Print Python tracebacks for CLI errors.",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     encrypt_parser = subparsers.add_parser(
@@ -159,7 +180,10 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = build_parser()
     args = parser.parse_args(argv)
-    summary = args.handler(args)
+    try:
+        summary = args.handler(args)
+    except Exception as exc:  # noqa: BLE001 - CLI boundary intentionally normalizes failures.
+        return _handle_cli_exception(args, exc)
     exit_code_summary = summary
     if isinstance(summary, dict) and "__raw_stdout__" in summary:
         print(summary.pop("__raw_stdout__"))
@@ -167,14 +191,70 @@ def main(argv: list[str] | None = None) -> int:
     output_summary = summary.pop("__summary_payload__", summary) if isinstance(summary, dict) else summary
     print(json.dumps(output_summary, ensure_ascii=False, indent=2, sort_keys=True))
     if _should_return_issue_exit_code(args, exit_code_summary):
-        return 2
+        return EXIT_VALIDATION_ISSUES
     return 0
+
+
+def _load_config_file(path: str | Path, loader: Any, kind: str) -> Any:
+    """Load a config file and normalize file/JSON/schema failures for CLI output."""
+
+    config_path = Path(path)
+    if not config_path.is_file():
+        raise CliConfigError(f"{kind} config file not found: {config_path}")
+    try:
+        return loader(config_path)
+    except json.JSONDecodeError as exc:
+        raise CliConfigError(
+            f"{kind} config is not valid JSON: {config_path} "
+            f"(line {exc.lineno}, column {exc.colno})"
+        ) from exc
+    except OSError as exc:
+        raise CliConfigError(f"{kind} config could not be read: {config_path}") from exc
+    except ValueError as exc:
+        raise CliConfigError(f"{kind} config is invalid: {exc}") from exc
+
+
+def _handle_cli_exception(args: argparse.Namespace, exc: Exception) -> int:
+    """Print a concise CLI error by default and return a stable exit code."""
+
+    if _is_debug_enabled(args):
+        traceback.print_exception(type(exc), exc, exc.__traceback__, file=sys.stderr)
+    else:
+        print(f"error: {_format_exception_message(exc)}", file=sys.stderr)
+    return _classify_cli_exception(exc)
+
+
+def _is_debug_enabled(args: argparse.Namespace) -> bool:
+    """Return whether CLI errors should include tracebacks."""
+
+    return bool(getattr(args, "debug", False) or os.environ.get("HSE_DEBUG") == "1")
+
+
+def _format_exception_message(exc: Exception) -> str:
+    """Render exceptions without Python traceback noise."""
+
+    if isinstance(exc, KeyError) and exc.args:
+        return str(exc.args[0])
+    message = str(exc)
+    return message if message else exc.__class__.__name__
+
+
+def _classify_cli_exception(exc: Exception) -> int:
+    """Map known failure classes to stable CLI exit codes."""
+
+    if isinstance(exc, PasswordSourceError):
+        return EXIT_PASSWORD_SOURCE_ERROR
+    if isinstance(exc, (IntegrityError, IntegrityValidationError)):
+        return EXIT_INTEGRITY_ERROR
+    if isinstance(exc, (CliConfigError, json.JSONDecodeError, ValueError)):
+        return EXIT_CONFIG_ERROR
+    return EXIT_RUNTIME_ERROR
 
 
 def _handle_encrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
     """执行 `encrypt-batch` 命令并返回可序列化摘要。"""
 
-    config = BatchEncryptionConfig.from_json_file(args.config)
+    config = _load_config_file(args.config, BatchEncryptionConfig.from_json_file, "encryption")
     resolver = create_default_password_resolver()
     result = encrypt_batch_files(
         sources=config.sources,
@@ -213,7 +293,7 @@ def _handle_encrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
 def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
     """执行 `decrypt-batch` 命令并返回可序列化摘要。"""
 
-    config = BatchDecryptionConfig.from_json_file(args.config)
+    config = _load_config_file(args.config, BatchDecryptionConfig.from_json_file, "decryption")
     resolver = create_default_password_resolver()
     result = decrypt_batch_files(
         encrypted_files=config.encrypted_files,
@@ -330,6 +410,8 @@ def _handle_validate_config(args: argparse.Namespace) -> dict[str, Any]:
     """只校验配置文件，不执行加解密。"""
 
     config_path = Path(args.config)
+    if not config_path.is_file():
+        raise CliConfigError(f"config file not found: {config_path}")
     if args.report:
         summary = _build_validation_report(
             kind=args.kind,
@@ -357,11 +439,11 @@ def _handle_validate_config(args: argparse.Namespace) -> dict[str, Any]:
         return summary
 
     if args.kind == "encrypt":
-        config = BatchEncryptionConfig.from_json_file(config_path)
+        config = _load_config_file(config_path, BatchEncryptionConfig.from_json_file, "encryption")
         if args.strict:
             _raise_for_issues(_collect_encryption_config_strict_issues(config))
     else:
-        config = BatchDecryptionConfig.from_json_file(config_path)
+        config = _load_config_file(config_path, BatchDecryptionConfig.from_json_file, "decryption")
         if args.strict:
             _raise_for_issues(_collect_decryption_config_strict_issues(config))
     return {
@@ -482,7 +564,7 @@ def _build_validation_report(kind: str, config_path: Path, strict: bool) -> dict
         else:
             config = BatchDecryptionConfig.from_json_file(config_path)
         security_mode = config.security_mode
-    except ValueError as exc:
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
         issues.append(
             {
                 "code": "config-invalid",
