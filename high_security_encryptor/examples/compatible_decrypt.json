@@ -1,0 +1,15 @@
+{
+  "encrypted_files": [
+    "D:/encrypted/report.pdf.hse",
+    "D:/encrypted/photos.zip.hse"
+  ],
+  "manifest_path": "D:/encrypted/batch_manifest.hsm",
+  "password_table_path": "D:/encrypted/batch_password_table.hsm",
+  "template_path": "D:/encrypted/batch_template.hsm",
+  "metadata_password": {
+    "type": "env",
+    "name": "HSE_METADATA_PASSWORD"
+  },
+  "output_dir": "D:/decrypted",
+  "security_mode": "compatible"
+}
