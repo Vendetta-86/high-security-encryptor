@@ -74,17 +74,7 @@ class BatchWorkflowTests(unittest.TestCase):
                 load_password_table_artifact(result_b.password_table_path, "meta-secret", result_a.binding)
 
     def test_encrypt_batch_files_supports_folder_packages_with_inner_encrypted_files(self) -> None:
-        """Folder sources should become `.zip.hse` files with embedded inner sidecars.
-
-        This test covers the most security-sensitive folder path currently in
-        scope:
-
-        1. one folder is packaged as an encrypted outer archive
-        2. one inner file is converted into an independent `.hse` member
-        3. internal manifest/password-table/template sidecars are embedded
-        4. after outer decryption and extraction, those sidecars can be loaded
-           with the same artifact validation helpers used elsewhere
-        """
+        """文件夹输入应生成带内部 sidecar 的 `.zip.hse` 文件。"""
 
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_root = Path(temp_dir)
@@ -163,6 +153,52 @@ class BatchWorkflowTests(unittest.TestCase):
             inner_decrypted_path = temp_root / "secret.dec.txt"
             decrypt_file_streaming(package_root / "secret.txt.hse", inner_decrypted_path, "inner-pass")
             self.assertEqual(inner_decrypted_path.read_text(encoding="utf-8"), "hidden")
+
+    def test_encrypt_batch_files_can_skip_top_level_and_internal_password_tables(self) -> None:
+        """顶层和内部两个作用域的密码表 sidecar 都应可选。"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            plain_source = temp_root / "a.txt"
+            plain_source.write_text("alpha", encoding="utf-8")
+
+            folder_source = temp_root / "docs"
+            folder_source.mkdir()
+            (folder_source / "secret.txt").write_text("hidden", encoding="utf-8")
+
+            result = encrypt_batch_files(
+                [plain_source, folder_source],
+                {
+                    plain_source: "pw-a",
+                    folder_source: "folder-pass",
+                    (folder_source, "secret.txt"): "inner-pass",
+                },
+                metadata_password="meta-secret",
+                output_dir=temp_root / "out",
+                batch_id="no-password-tables",
+                individually_encrypted_files_by_folder={folder_source: ["secret.txt"]},
+                write_password_table=False,
+                write_internal_password_tables=False,
+            )
+
+            self.assertIsNone(result.password_table_path)
+            self.assertTrue(result.manifest_path.exists())
+            self.assertTrue(result.template_path.exists())
+
+            sidecars = load_batch_sidecars(result, "meta-secret")
+            self.assertIn("manifest", sidecars)
+            self.assertIn("template", sidecars)
+            self.assertNotIn("password_table", sidecars)
+
+            folder_package = result.folder_packages[0]
+            self.assertIsNone(folder_package.internal_password_table_relative_path)
+
+            decrypted_zip_path = temp_root / "docs.zip"
+            decrypt_file_streaming(folder_package.package_path, decrypted_zip_path, "folder-pass")
+            with zipfile.ZipFile(decrypted_zip_path) as zip_file:
+                archived_names = set(zip_file.namelist())
+            self.assertNotIn("docs/_hse_sidecars/batch_password_table.hsm", archived_names)
+            self.assertIn("docs/_hse_sidecars/batch_template.hsm", archived_names)
 
 
 if __name__ == "__main__":

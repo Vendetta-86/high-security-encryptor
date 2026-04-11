@@ -1,9 +1,4 @@
-"""Top-level file encryption API.
-
-This module keeps the external entrypoints very small. Callers use these helpers
- without needing to know whether the input file uses the new streaming format or
- the legacy `GCM1` blob layout.
-"""
+"""顶层文件加解密 API。"""
 
 from __future__ import annotations
 
@@ -14,11 +9,7 @@ from .streaming_format import HEADER_MAGIC, decrypt_streaming, encrypt_streaming
 
 
 def encrypt_file_streaming(source: str | Path, target: str | Path, password: str) -> Path:
-    """Encrypt a file into the new streaming container format.
-
-    The function performs lightweight argument validation and then delegates the
-    real work to the streaming-format implementation module.
-    """
+    """把文件加密为新的流式容器格式。"""
 
     source_path = Path(source)
     target_path = Path(target)
@@ -30,12 +21,7 @@ def encrypt_file_streaming(source: str | Path, target: str | Path, password: str
 
 
 def decrypt_file_streaming(source: str | Path, target: str | Path, password: str) -> Path:
-    """Decrypt a file by dispatching on the file magic.
-
-    `HSE1` files are handled by the new streaming reader. Everything else is
-    routed into the legacy compatibility path, which currently understands the
-    historical `GCM1` format.
-    """
+    """根据文件魔数分流到对应解密路径。"""
 
     source_path = Path(source)
     target_path = Path(target)

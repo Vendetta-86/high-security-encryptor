@@ -1,9 +1,4 @@
-"""Batch binding primitives.
-
-The purpose of this module is to bind manifests, password tables, and templates
-to the exact encrypted batch they belong to. This prevents a user from
-accidentally or maliciously reusing metadata from a different batch.
-"""
+"""批次绑定原语。"""
 
 from __future__ import annotations
 
@@ -15,21 +10,21 @@ from pathlib import Path
 
 
 class BindingValidationError(Exception):
-    """Raised when batch binding metadata is missing or does not match."""
+    """当批次绑定信息缺失或不匹配时抛出。"""
 
     pass
 
 
 @dataclass(frozen=True)
 class BatchBinding:
-    """Canonical binding metadata for one encrypted batch."""
+    """描述一个加密批次的标准绑定元数据。"""
 
     batch_id: str
     file_count: int
     manifest_fingerprint: str
 
     def as_dict(self) -> dict[str, str | int]:
-        """Convert the binding into a JSON/CSV-friendly dictionary shape."""
+        """把绑定信息转换成适合 JSON/CSV 的字典结构。"""
 
         return {
             "batch_id": self.batch_id,
@@ -39,13 +34,13 @@ class BatchBinding:
 
 
 def canonicalize_names(names: list[str]) -> list[str]:
-    """Normalize encrypted entry names into a deterministic path ordering."""
+    """把加密条目名称归一化为确定性的路径顺序。"""
 
     return sorted(str(Path(name).as_posix()) for name in names)
 
 
 def build_manifest_fingerprint(names: list[str]) -> str:
-    """Compute a deterministic fingerprint over the encrypted entry set."""
+    """对加密条目集合计算确定性指纹。"""
 
     canonical_names = canonicalize_names(names)
     digest = hashlib.sha256()
@@ -56,7 +51,7 @@ def build_manifest_fingerprint(names: list[str]) -> str:
 
 
 def create_batch_binding(names: list[str], batch_id: str | None = None) -> BatchBinding:
-    """Create binding metadata from the encrypted names of one batch."""
+    """根据一个批次的加密文件名创建绑定信息。"""
 
     canonical_names = canonicalize_names(names)
     return BatchBinding(
@@ -67,7 +62,7 @@ def create_batch_binding(names: list[str], batch_id: str | None = None) -> Batch
 
 
 def attach_binding(payload: dict, binding: BatchBinding) -> dict:
-    """Return a shallow copy of `payload` with binding metadata attached."""
+    """返回附带绑定信息的载荷浅拷贝。"""
 
     result = dict(payload)
     result["binding"] = binding.as_dict()
@@ -75,7 +70,7 @@ def attach_binding(payload: dict, binding: BatchBinding) -> dict:
 
 
 def extract_binding(payload: dict) -> BatchBinding:
-    """Parse binding metadata from a previously attached payload."""
+    """从已附带绑定信息的载荷中解析绑定元数据。"""
 
     binding = payload.get("binding")
     if not isinstance(binding, dict):
@@ -94,7 +89,7 @@ def extract_binding(payload: dict) -> BatchBinding:
 
 
 def validate_binding(expected: BatchBinding, actual_payload: dict) -> None:
-    """Reject payloads whose binding metadata does not match the expected batch."""
+    """拒绝绑定信息与预期批次不一致的载荷。"""
 
     actual = extract_binding(actual_payload)
     if actual.batch_id != expected.batch_id:
@@ -106,6 +101,6 @@ def validate_binding(expected: BatchBinding, actual_payload: dict) -> None:
 
 
 def serialize_binding_payload(payload: dict) -> bytes:
-    """Serialize a payload deterministically for hashing or storage."""
+    """以确定性方式序列化载荷，用于哈希或存储。"""
 
     return json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")

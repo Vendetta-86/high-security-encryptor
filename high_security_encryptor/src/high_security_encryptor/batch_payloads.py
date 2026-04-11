@@ -1,9 +1,4 @@
-"""Structured payload helpers for batch metadata files.
-
-These helpers define the in-memory and serialized representations for manifests,
-password tables, and templates. They are intentionally pure-data helpers so they
-can be tested independently from file encryption and UI code.
-"""
+"""批次元数据载荷的结构化辅助逻辑。"""
 
 from __future__ import annotations
 
@@ -24,14 +19,14 @@ from .batch_binding import (
 
 @dataclass(frozen=True)
 class PasswordRecord:
-    """One row in a password table artifact."""
+    """密码表副产物中的一行记录。"""
 
     source_name: str
     encrypted_name: str
     password: str
 
     def as_dict(self) -> dict[str, str]:
-        """Convert the record into a serializable dictionary."""
+        """把记录转换成可序列化字典。"""
 
         return {
             "source_name": self.source_name,
@@ -41,7 +36,7 @@ class PasswordRecord:
 
 
 def create_manifest_payload(encrypted_names: list[str], mode: str, batch_id: str | None = None) -> dict:
-    """Create a manifest payload and attach binding metadata."""
+    """创建 manifest 载荷并附加绑定信息。"""
 
     binding = create_batch_binding(encrypted_names, batch_id=batch_id)
     payload = {
@@ -53,7 +48,7 @@ def create_manifest_payload(encrypted_names: list[str], mode: str, batch_id: str
 
 
 def validate_manifest_payload(payload: dict, expected_binding: BatchBinding) -> None:
-    """Ensure a manifest payload belongs to the expected batch."""
+    """确保 manifest 载荷属于预期批次。"""
 
     if payload.get("kind") != "manifest":
         raise BindingValidationError("payload is not a manifest")
@@ -61,13 +56,13 @@ def validate_manifest_payload(payload: dict, expected_binding: BatchBinding) -> 
 
 
 def serialize_manifest_payload(payload: dict) -> bytes:
-    """Serialize a manifest payload into stable JSON bytes."""
+    """把 manifest 载荷序列化成稳定的 JSON 字节串。"""
 
     return json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
 
 
 def deserialize_manifest_payload(blob: bytes) -> dict:
-    """Deserialize JSON bytes back into a manifest payload dictionary."""
+    """把 JSON 字节串反序列化回 manifest 载荷字典。"""
 
     return json.loads(blob.decode("utf-8"))
 
@@ -77,7 +72,7 @@ def create_password_table_payload(
     encrypted_names: list[str],
     batch_id: str | None = None,
 ) -> tuple[dict, BatchBinding]:
-    """Create a password table payload plus the binding used for it."""
+    """创建密码表载荷，并返回其绑定信息。"""
 
     binding = create_batch_binding(encrypted_names, batch_id=batch_id)
     payload = {
@@ -88,7 +83,7 @@ def create_password_table_payload(
 
 
 def validate_password_table_payload(payload: dict, expected_binding: BatchBinding) -> None:
-    """Ensure a password table payload belongs to the expected batch."""
+    """确保密码表载荷属于预期批次。"""
 
     if payload.get("kind") != "password_table":
         raise BindingValidationError("payload is not a password table")
@@ -96,7 +91,7 @@ def validate_password_table_payload(payload: dict, expected_binding: BatchBindin
 
 
 def serialize_password_table_payload(payload: dict) -> bytes:
-    """Serialize a password table payload into a CSV-based byte stream."""
+    """把密码表载荷序列化成基于 CSV 的字节流。"""
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -112,7 +107,7 @@ def serialize_password_table_payload(payload: dict) -> bytes:
 
 
 def deserialize_password_table_payload(blob: bytes) -> dict:
-    """Parse a CSV-based password table payload from bytes."""
+    """从字节串中解析基于 CSV 的密码表载荷。"""
 
     reader = csv.reader(io.StringIO(blob.decode("utf-8")))
     meta: dict[str, str] = {}
@@ -147,7 +142,7 @@ def create_template_payload(
     encrypted_names: list[str],
     batch_id: str | None = None,
 ) -> tuple[dict, BatchBinding]:
-    """Create a bound template payload for later password entry."""
+    """创建一个带绑定信息、供后续填写密码的模板载荷。"""
 
     binding = create_batch_binding(encrypted_names, batch_id=batch_id)
     payload = {
@@ -165,7 +160,7 @@ def create_template_payload(
 
 
 def validate_template_payload(payload: dict, expected_binding: BatchBinding) -> None:
-    """Ensure a template payload belongs to the expected batch."""
+    """确保模板载荷属于预期批次。"""
 
     if payload.get("kind") != "template":
         raise BindingValidationError("payload is not a template")
@@ -173,7 +168,7 @@ def validate_template_payload(payload: dict, expected_binding: BatchBinding) -> 
 
 
 def serialize_template_payload(payload: dict) -> bytes:
-    """Serialize a template payload into CSV bytes."""
+    """把模板载荷序列化成 CSV 字节串。"""
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -189,7 +184,7 @@ def serialize_template_payload(payload: dict) -> bytes:
 
 
 def deserialize_template_payload(blob: bytes) -> dict:
-    """Parse a template payload from CSV bytes."""
+    """从 CSV 字节串中解析模板载荷。"""
 
     reader = csv.reader(io.StringIO(blob.decode("utf-8")))
     meta: dict[str, str] = {}

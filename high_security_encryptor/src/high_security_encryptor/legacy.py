@@ -1,9 +1,4 @@
-"""Compatibility path for the legacy `GCM1` container.
-
-The original project used a single-blob authenticated format. This module keeps
-that data readable while the new project migrates to a streaming container for
-large files.
-"""
+"""旧版 `GCM1` 容器的兼容解密路径。"""
 
 from __future__ import annotations
 
@@ -28,7 +23,7 @@ LEGACY_ARGON_PARALLELISM = 4
 
 
 def decrypt_legacy(source: str | Path, target: str | Path, password: str) -> Path:
-    """Decrypt a legacy `GCM1` file and write the plaintext target."""
+    """解密旧版 `GCM1` 文件并写出明文目标文件。"""
 
     source_path = Path(source)
     target_path = Path(target)
@@ -39,11 +34,7 @@ def decrypt_legacy(source: str | Path, target: str | Path, password: str) -> Pat
 
 
 def decrypt_legacy_bytes(blob: bytes, password: str) -> bytes:
-    """Decrypt a raw legacy blob entirely in memory.
-
-    This is acceptable for compatibility mode because the legacy format itself is
-    non-streaming. The caller is expected to use the new format for future files.
-    """
+    """在内存中完整解密旧版 blob。"""
 
     if len(blob) < LEGACY_MIN_BLOB_LEN:
         raise IntegrityError("legacy ciphertext is too short")

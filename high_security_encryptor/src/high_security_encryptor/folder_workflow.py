@@ -1,17 +1,4 @@
-"""Folder packaging helpers for the hardened batch workflow.
-
-This module handles the folder-specific mechanics that do not belong inside the
-generic batch orchestration layer:
-
-- copying a source folder into an isolated staging area
-- optionally converting selected inner files into independently encrypted
-  `.hse` files before packaging
-- emitting encrypted sidecars inside the package so later import and password
-  resolution can still validate batch binding for those inner encrypted files
-- building a temporary zip archive and immediately wrapping it in the outer
-  streaming encryption container, so no persistent plaintext archive is left in
-  the caller's output directory
-"""
+"""文件夹打包辅助逻辑。"""
 
 from __future__ import annotations
 
@@ -36,12 +23,7 @@ INTERNAL_SIDECAR_DIRNAME = "_hse_sidecars"
 
 @dataclass(frozen=True)
 class FolderPackageResult:
-    """Describe the outputs created while packaging one encrypted folder.
-
-    `package_path` is the final outer encrypted archive. The inner sidecar paths
-    are stored as relative package paths because the actual files only exist
-    transiently inside the zip until a caller decrypts and extracts it.
-    """
+    """描述一个加密文件夹打包过程产生的输出。"""
 
     source_folder: Path
     package_path: Path
@@ -53,7 +35,7 @@ class FolderPackageResult:
 
 
 def get_folder_package_target_path(source_folder: str | Path, output_dir: str | Path | None = None) -> Path:
-    """Compute the final target path for one encrypted folder package."""
+    """计算单个加密文件夹包的最终输出路径。"""
 
     source_path = Path(source_folder)
     base_dir = Path(output_dir) if output_dir is not None else source_path.parent
@@ -67,16 +49,9 @@ def package_folder_to_encrypted_archive(
     metadata_password: str,
     individually_encrypted_relative_paths: list[str] | None = None,
     inner_passwords_by_relative_path: dict[str, str] | None = None,
+    write_internal_password_table: bool = True,
 ) -> FolderPackageResult:
-    """Package one folder into an encrypted archive.
-
-    The function stages the whole folder tree in a temporary directory. Files
-    listed in `individually_encrypted_relative_paths` are replaced in that
-    staging tree by independently encrypted `.hse` files before the folder is
-    zipped. If any such inner encrypted files exist, encrypted sidecars are
-    written into the package so later tooling can validate and import the inner
-    password table and template against a dedicated binding.
-    """
+    """把一个文件夹打包成加密归档。"""
 
     source_path = Path(source_folder)
     destination_path = Path(target_path)
@@ -138,8 +113,8 @@ def package_folder_to_encrypted_archive(
             sidecar_root.mkdir(parents=True, exist_ok=True)
 
             manifest_path = sidecar_root / "batch_manifest.hsm"
-            password_table_path = sidecar_root / "batch_password_table.hsm"
             template_path = sidecar_root / "batch_template.hsm"
+            password_table_path = sidecar_root / "batch_password_table.hsm"
 
             internal_binding = write_manifest_artifact(
                 manifest_path,
@@ -147,13 +122,14 @@ def package_folder_to_encrypted_archive(
                 mode="folder_internal_selection",
                 password=metadata_password,
             )
-            write_password_table_artifact(
-                password_table_path,
-                internal_records,
-                internal_encrypted_names,
-                password=metadata_password,
-                batch_id=internal_binding.batch_id,
-            )
+            if write_internal_password_table:
+                write_password_table_artifact(
+                    password_table_path,
+                    internal_records,
+                    internal_encrypted_names,
+                    password=metadata_password,
+                    batch_id=internal_binding.batch_id,
+                )
             write_template_artifact(
                 template_path,
                 internal_source_names,
@@ -163,7 +139,11 @@ def package_folder_to_encrypted_archive(
             )
 
             manifest_relative_path = manifest_path.relative_to(staged_folder_root).as_posix()
-            password_table_relative_path = password_table_path.relative_to(staged_folder_root).as_posix()
+            password_table_relative_path = (
+                password_table_path.relative_to(staged_folder_root).as_posix()
+                if write_internal_password_table
+                else None
+            )
             template_relative_path = template_path.relative_to(staged_folder_root).as_posix()
 
         plaintext_zip_path = temp_root / f"{source_path.name}.zip"
@@ -182,12 +162,7 @@ def package_folder_to_encrypted_archive(
 
 
 def _normalize_relative_path_list(source_folder: Path, relative_paths: list[str]) -> list[str]:
-    """Validate and normalize caller-provided folder-relative file paths.
-
-    The workflow stores relative paths in package metadata, so the normalized
-    representation must be stable and platform-neutral. Posix separators are
-    used even on Windows to keep manifests deterministic.
-    """
+    """校验并归一化调用方提供的文件夹相对路径列表。"""
 
     normalized: list[str] = []
     seen: set[str] = set()
@@ -200,7 +175,7 @@ def _normalize_relative_path_list(source_folder: Path, relative_paths: list[str]
 
 
 def _normalize_inner_password_mapping(passwords_by_relative_path: dict[str, str]) -> dict[str, str]:
-    """Normalize the mapping used for individually encrypted folder entries."""
+    """归一化文件夹内部独立加密条目的密码映射。"""
 
     normalized: dict[str, str] = {}
     for raw_relative_path, password in passwords_by_relative_path.items():
@@ -210,7 +185,7 @@ def _normalize_inner_password_mapping(passwords_by_relative_path: dict[str, str]
 
 
 def _normalize_relative_path(source_folder: Path, raw_relative_path: str) -> str:
-    """Convert one user-supplied relative path into a safe normalized form."""
+    """把用户输入的相对路径转换成安全且规范的形式。"""
 
     candidate = PurePosixPath(str(raw_relative_path).replace("\\", "/"))
     if candidate.is_absolute():
@@ -226,7 +201,7 @@ def _normalize_relative_path(source_folder: Path, raw_relative_path: str) -> str
 
 
 def _write_zip_from_directory(source_root: Path, zip_path: Path) -> None:
-    """Write a deterministic folder zip that retains the folder's root name."""
+    """写出一个保留根目录名称的确定性 ZIP 文件。"""
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
         for file_path in sorted(path for path in source_root.rglob("*") if path.is_file()):

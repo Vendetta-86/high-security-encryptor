@@ -1,15 +1,4 @@
-"""Non-UI batch encryption workflow.
-
-This module is the first orchestration layer that turns the lower-level
-streaming encryption primitives and metadata artifact helpers into a usable
-batch process. It now supports both plain files and folders:
-
-- plain files become standalone `.hse` outputs
-- folders become `.zip.hse` outputs
-- selected inner folder files may be converted into independent `.hse` members
-  before packaging, with encrypted sidecars embedded inside the package so
-  later tooling can validate and import their password metadata
-"""
+"""无界面的批量加密工作流。"""
 
 from __future__ import annotations
 
@@ -32,18 +21,18 @@ from .folder_workflow import FolderPackageResult, get_folder_package_target_path
 
 @dataclass(frozen=True)
 class BatchEncryptionResult:
-    """Summarize all files produced by one batch encryption run."""
+    """汇总一次批量加密运行产出的所有文件。"""
 
     encrypted_files: list[Path]
     folder_packages: list[FolderPackageResult]
     manifest_path: Path
-    password_table_path: Path
+    password_table_path: Path | None
     template_path: Path
     binding: BatchBinding
 
 
 def get_encrypted_target_path(source: str | Path, output_dir: str | Path | None = None) -> Path:
-    """Compute the output path for one encrypted file."""
+    """计算单个加密文件的输出路径。"""
 
     source_path = Path(source)
     base_dir = Path(output_dir) if output_dir is not None else source_path.parent
@@ -57,16 +46,10 @@ def encrypt_batch_files(
     output_dir: str | Path | None = None,
     batch_id: str | None = None,
     individually_encrypted_files_by_folder: dict[str | Path, list[str]] | None = None,
+    write_password_table: bool = True,
+    write_internal_password_tables: bool = True,
 ) -> BatchEncryptionResult:
-    """Encrypt a batch of files and folders and emit bound metadata artifacts.
-
-    Each top-level source uses its own encryption password, while metadata
-    artifacts are protected by a separate metadata password. Folder sources may
-    optionally list inner relative file paths that should be independently
-    encrypted before the folder is zipped and wrapped in the outer `.hse`
-    container. Inner folder passwords are resolved from `passwords_by_source`
-    using tuple keys of the form `(folder_source, "relative/path.txt")`.
-    """
+    """批量加密文件和文件夹，并生成带绑定关系的元数据副产物。"""
 
     if not sources:
         raise ValueError("at least one source is required")
@@ -103,6 +86,7 @@ def encrypt_batch_files(
                 metadata_password=metadata_password,
                 individually_encrypted_relative_paths=individually_encrypted_relative_paths,
                 inner_passwords_by_relative_path=inner_passwords,
+                write_internal_password_table=write_internal_password_tables,
             )
             folder_packages.append(folder_package)
         elif source_path.is_file():
@@ -133,13 +117,14 @@ def encrypt_batch_files(
         password=metadata_password,
         batch_id=batch_id,
     )
-    write_password_table_artifact(
-        password_table_path,
-        password_records,
-        encrypted_names,
-        password=metadata_password,
-        batch_id=binding.batch_id,
-    )
+    if write_password_table:
+        write_password_table_artifact(
+            password_table_path,
+            password_records,
+            encrypted_names,
+            password=metadata_password,
+            batch_id=binding.batch_id,
+        )
     write_template_artifact(
         template_path,
         source_names,
@@ -152,37 +137,38 @@ def encrypt_batch_files(
         encrypted_files=encrypted_files,
         folder_packages=folder_packages,
         manifest_path=manifest_path,
-        password_table_path=password_table_path,
+        password_table_path=password_table_path if write_password_table else None,
         template_path=template_path,
         binding=binding,
     )
 
 
 def load_batch_sidecars(result: BatchEncryptionResult, metadata_password: str) -> dict[str, dict]:
-    """Load and validate the manifest, password table, and template for one batch."""
+    """加载并校验一个批次对应的 manifest、密码表和模板。"""
 
-    return {
+    sidecars = {
         "manifest": load_manifest_artifact(result.manifest_path, metadata_password, result.binding),
-        "password_table": load_password_table_artifact(result.password_table_path, metadata_password, result.binding),
         "template": load_template_artifact(result.template_path, metadata_password, result.binding),
     }
+    if result.password_table_path is not None:
+        sidecars["password_table"] = load_password_table_artifact(
+            result.password_table_path,
+            metadata_password,
+            result.binding,
+        )
+    return sidecars
 
 
 def _normalize_folder_selection_mapping(
     individually_encrypted_files_by_folder: dict[str | Path, list[str]],
 ) -> dict[str, list[str]]:
-    """Normalize the folder-selection mapping so folder lookup is stable.
-
-    The public workflow accepts both `Path` and `str` keys. Internally the
-    folder path is normalized to `str(Path(...))` so later resolution can use
-    the same comparison regardless of which key type the caller used.
-    """
+    """归一化文件夹选择映射，确保后续查找稳定。"""
 
     return {str(Path(folder)): list(relative_paths) for folder, relative_paths in individually_encrypted_files_by_folder.items()}
 
 
 def _resolve_top_level_password(passwords_by_source: dict, source_path: Path) -> str:
-    """Resolve the outer password for one top-level source path."""
+    """解析一个顶层输入项对应的外层密码。"""
 
     try:
         return passwords_by_source[source_path]
@@ -198,17 +184,7 @@ def _resolve_inner_passwords(
     source_path: Path,
     individually_encrypted_relative_paths: list[str],
 ) -> dict[str, str]:
-    """Resolve passwords for folder members selected for independent encryption.
-
-    The supported key formats deliberately stay simple and explicit:
-
-    - `(Path(folder_source), "relative/path.txt")`
-    - `(str(folder_source), "relative/path.txt")`
-    - `"{folder_source}::relative/path.txt"`
-
-    This keeps the API easy to express from tests and future UI code while
-    still making the folder/source relationship unambiguous.
-    """
+    """解析被标记为独立加密的文件夹成员密码。"""
 
     inner_passwords: dict[str, str] = {}
     for relative_path in individually_encrypted_relative_paths:

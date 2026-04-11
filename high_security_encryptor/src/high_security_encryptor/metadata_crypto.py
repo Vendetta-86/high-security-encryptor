@@ -1,10 +1,4 @@
-"""Helpers for encrypting and decrypting small metadata payloads.
-
-These helpers intentionally use a compact authenticated blob format instead of the
-streaming container because manifests, password tables, and templates are expected
-to remain small. Keeping this separate makes the file-level streaming code simpler
-while still enforcing authenticated encryption for metadata artifacts.
-"""
+"""小型元数据载荷的加解密辅助逻辑。"""
 
 from __future__ import annotations
 
@@ -27,11 +21,11 @@ ARGON_PARALLELISM = 4
 
 
 class MetadataIntegrityError(Exception):
-    """Raised when a metadata payload fails authentication or format validation."""
+    """当元数据载荷认证失败或格式非法时抛出。"""
 
 
 def _derive_key(password: str, salt: bytes) -> bytes:
-    """Derive a metadata encryption key from the user password and random salt."""
+    """根据用户密码和随机盐派生元数据加密密钥。"""
 
     return hash_secret_raw(
         secret=password.encode("utf-8"),
@@ -45,12 +39,7 @@ def _derive_key(password: str, salt: bytes) -> bytes:
 
 
 def encrypt_metadata_bytes(data: bytes, password: str) -> bytes:
-    """Encrypt a small metadata payload into a single authenticated blob.
-
-    Metadata files are intentionally kept out of the streaming container path:
-    they are small enough that a compact authenticated blob is simpler and more
-    convenient for manifests and batch sidecar files.
-    """
+    """把小型元数据载荷加密成单个带认证的 blob。"""
 
     if not password:
         raise ValueError("password is required")
@@ -65,11 +54,7 @@ def encrypt_metadata_bytes(data: bytes, password: str) -> bytes:
 
 
 def decrypt_metadata_bytes(blob: bytes, password: str) -> bytes:
-    """Decrypt and authenticate a metadata blob produced by this module.
-
-    The metadata header is authenticated as AAD so an attacker cannot switch the
-    blob type or version without being detected.
-    """
+    """解密并认证由本模块生成的元数据 blob。"""
 
     if not password:
         raise ValueError("password is required")
@@ -98,7 +83,7 @@ def decrypt_metadata_bytes(blob: bytes, password: str) -> bytes:
 
 
 def write_encrypted_metadata_file(path: str | Path, data: bytes, password: str) -> Path:
-    """Encrypt and write metadata to disk in one step."""
+    """一步完成元数据加密并写入磁盘。"""
 
     target = Path(path)
     target.write_bytes(encrypt_metadata_bytes(data, password))
@@ -106,7 +91,7 @@ def write_encrypted_metadata_file(path: str | Path, data: bytes, password: str) 
 
 
 def read_encrypted_metadata_file(path: str | Path, password: str) -> bytes:
-    """Read and decrypt an encrypted metadata artifact from disk."""
+    """从磁盘读取并解密加密元数据副产物。"""
 
     source = Path(path)
     return decrypt_metadata_bytes(source.read_bytes(), password)

@@ -1,10 +1,4 @@
-"""Streaming AES-GCM container implementation.
-
-This module implements the new `HSE1` file format. Large files are processed in
-chunks so plaintext and ciphertext do not need to live in memory all at once.
-Each chunk is authenticated independently, and the trailer authenticates the
-whole-file digest plus summary metadata.
-"""
+"""流式 AES-GCM 容器实现。"""
 
 from __future__ import annotations
 
@@ -36,31 +30,31 @@ TRAILER_NONCE_INDEX = (1 << 64) - 1
 
 
 class StreamingFormatError(Exception):
-    """Base error for streaming-format failures."""
+    """流式格式相关错误的基类。"""
 
     pass
 
 
 class LegacyFormatDetected(StreamingFormatError):
-    """Raised when a file should be handed to the legacy compatibility layer."""
+    """当文件应转交旧版兼容层处理时抛出。"""
 
     pass
 
 
 class IntegrityError(StreamingFormatError):
-    """Raised when authentication, structure, or consistency checks fail."""
+    """当认证、结构或一致性校验失败时抛出。"""
 
     pass
 
 
 class HeaderError(StreamingFormatError):
-    """Raised when the container header is malformed or unsupported."""
+    """当容器头损坏或版本不受支持时抛出。"""
 
     pass
 
 
 def build_header(chunk_size: int, salt: bytes, base_nonce: bytes) -> bytes:
-    """Build the fixed header plus random salt and base nonce."""
+    """构造固定头部、随机盐和基础 nonce。"""
 
     if len(salt) != SALT_LEN:
         raise ValueError("invalid salt length")
@@ -79,7 +73,7 @@ def build_header(chunk_size: int, salt: bytes, base_nonce: bytes) -> bytes:
 
 
 def parse_header(file_obj) -> tuple[bytes, bytes, int]:
-    """Read and validate the container header from an open binary file."""
+    """从已打开的二进制文件中读取并校验容器头。"""
 
     fixed = file_obj.read(HEADER_STRUCT.size)
     if len(fixed) != HEADER_STRUCT.size:
@@ -99,7 +93,7 @@ def parse_header(file_obj) -> tuple[bytes, bytes, int]:
 
 
 def derive_key(password: str, salt: bytes) -> bytes:
-    """Derive the file encryption key using Argon2id."""
+    """使用 Argon2id 派生文件加密密钥。"""
 
     return hash_secret_raw(
         secret=password.encode("utf-8"),
@@ -113,19 +107,14 @@ def derive_key(password: str, salt: bytes) -> bytes:
 
 
 def derive_nonce(base_nonce: bytes, chunk_index: int) -> bytes:
-    """Derive a per-chunk nonce from the file base nonce and chunk index."""
+    """根据基础 nonce 和分块索引派生每块的 nonce。"""
 
     nonce_int = int.from_bytes(base_nonce, "big") ^ chunk_index
     return nonce_int.to_bytes(len(base_nonce), "big")
 
 
 def encrypt_streaming(source: str | Path, target: str | Path, password: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> Path:
-    """Encrypt a file into the `HSE1` streaming container.
-
-    Each chunk is encrypted and authenticated separately. A running SHA-256 of
-    the plaintext is also maintained so the trailer can bind the final file
-    contents as a whole.
-    """
+    """把文件加密为 `HSE1` 流式容器。"""
 
     source_path = Path(source)
     target_path = Path(target)
@@ -152,8 +141,7 @@ def encrypt_streaming(source: str | Path, target: str | Path, password: str, chu
                 plaintext = src.read(chunk_size)
                 if not plaintext:
                     break
-                # The chunk index and plaintext length become part of the AAD so
-                # chunks cannot be silently reordered or length-swapped.
+                # 分块索引和明文长度会进入 AAD，防止分块被静默调换顺序或长度。
                 meta = CHUNK_HEADER_STRUCT.pack(chunk_count, len(plaintext))
                 cipher = AES.new(key, AES.MODE_GCM, nonce=derive_nonce(base_nonce, chunk_count))
                 cipher.update(header + meta)
@@ -165,7 +153,7 @@ def encrypt_streaming(source: str | Path, target: str | Path, password: str, chu
                 plaintext_digest.update(plaintext)
                 chunk_count += 1
 
-            # The trailer binds the full plaintext digest and summary counters.
+            # trailer 会绑定完整明文摘要以及汇总计数信息。
             digest_bytes = plaintext_digest.digest()
             trailer_meta = struct.pack(">QQ32s", chunk_count, total_plaintext_size, digest_bytes)
             trailer_cipher = AES.new(key, AES.MODE_GCM, nonce=derive_nonce(base_nonce, TRAILER_NONCE_INDEX))
@@ -181,7 +169,7 @@ def encrypt_streaming(source: str | Path, target: str | Path, password: str, chu
 
 
 def decrypt_streaming(source: str | Path, target: str | Path, password: str) -> Path:
-    """Decrypt an `HSE1` streaming container and verify all integrity checks."""
+    """解密 `HSE1` 流式容器并验证全部完整性校验。"""
 
     source_path = Path(source)
     target_path = Path(target)
