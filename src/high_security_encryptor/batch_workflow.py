@@ -16,6 +16,12 @@ from .batch_artifacts import (
 )
 from .batch_binding import BatchBinding
 from .batch_payloads import PasswordRecord
+from .batch_workflow_inputs import (
+    get_encrypted_target_path,
+    normalize_folder_selection_mapping,
+    resolve_inner_passwords,
+    resolve_top_level_password,
+)
 from .folder_workflow import FolderPackageResult, get_folder_package_target_path, package_folder_to_encrypted_archive
 
 
@@ -29,14 +35,6 @@ class BatchEncryptionResult:
     password_table_path: Path | None
     template_path: Path
     binding: BatchBinding
-
-
-def get_encrypted_target_path(source: str | Path, output_dir: str | Path | None = None) -> Path:
-    """计算单个加密文件的输出路径。"""
-
-    source_path = Path(source)
-    base_dir = Path(output_dir) if output_dir is not None else source_path.parent
-    return base_dir / f"{source_path.name}.hse"
 
 
 def encrypt_batch_files(
@@ -59,7 +57,7 @@ def encrypt_batch_files(
     normalized_sources = [Path(source) for source in sources]
     destination_dir = Path(output_dir) if output_dir is not None else normalized_sources[0].parent
     destination_dir.mkdir(parents=True, exist_ok=True)
-    normalized_folder_selection = _normalize_folder_selection_mapping(individually_encrypted_files_by_folder or {})
+    normalized_folder_selection = normalize_folder_selection_mapping(individually_encrypted_files_by_folder or {})
 
     encrypted_files: list[Path] = []
     folder_packages: list[FolderPackageResult] = []
@@ -70,10 +68,10 @@ def encrypt_batch_files(
     for source_path in normalized_sources:
         if not source_path.exists():
             raise FileNotFoundError(source_path)
-        file_password = _resolve_top_level_password(passwords_by_source, source_path)
+        file_password = resolve_top_level_password(passwords_by_source, source_path)
         if source_path.is_dir():
             individually_encrypted_relative_paths = normalized_folder_selection.get(str(source_path), [])
-            inner_passwords = _resolve_inner_passwords(
+            inner_passwords = resolve_inner_passwords(
                 passwords_by_source,
                 source_path,
                 individually_encrypted_relative_paths,
@@ -157,46 +155,3 @@ def load_batch_sidecars(result: BatchEncryptionResult, metadata_password: str) -
             result.binding,
         )
     return sidecars
-
-
-def _normalize_folder_selection_mapping(
-    individually_encrypted_files_by_folder: dict[str | Path, list[str]],
-) -> dict[str, list[str]]:
-    """归一化文件夹选择映射，确保后续查找稳定。"""
-
-    return {str(Path(folder)): list(relative_paths) for folder, relative_paths in individually_encrypted_files_by_folder.items()}
-
-
-def _resolve_top_level_password(passwords_by_source: dict, source_path: Path) -> str:
-    """解析一个顶层输入项对应的外层密码。"""
-
-    try:
-        return passwords_by_source[source_path]
-    except KeyError:
-        try:
-            return passwords_by_source[str(source_path)]
-        except KeyError as exc:
-            raise KeyError(f"missing password for source: {source_path}") from exc
-
-
-def _resolve_inner_passwords(
-    passwords_by_source: dict,
-    source_path: Path,
-    individually_encrypted_relative_paths: list[str],
-) -> dict[str, str]:
-    """解析被标记为独立加密的文件夹成员密码。"""
-
-    inner_passwords: dict[str, str] = {}
-    for relative_path in individually_encrypted_relative_paths:
-        tuple_key_path = (source_path, relative_path)
-        tuple_key_str = (str(source_path), relative_path)
-        combined_key = f"{source_path}::{relative_path}"
-        if tuple_key_path in passwords_by_source:
-            inner_passwords[relative_path] = passwords_by_source[tuple_key_path]
-        elif tuple_key_str in passwords_by_source:
-            inner_passwords[relative_path] = passwords_by_source[tuple_key_str]
-        elif combined_key in passwords_by_source:
-            inner_passwords[relative_path] = passwords_by_source[combined_key]
-        else:
-            raise KeyError(f"missing password for folder entry: {source_path}::{relative_path}")
-    return inner_passwords

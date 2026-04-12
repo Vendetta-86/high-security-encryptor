@@ -12,6 +12,12 @@ from .batch_artifacts import (
     load_template_artifact,
 )
 from .batch_binding import BatchBinding
+from .batch_decryption_inputs import (
+    build_top_level_password_mapping,
+    derive_plain_file_output_name,
+    discover_binding,
+    extract_manifest_entries,
+)
 from .folder_decryption import FolderDecryptionResult, decrypt_folder_archive
 from .integrity import EntrySetComparison, validate_entry_sets_match
 from .runtime_password_plan import RuntimePasswordPlan, resolve_password_plan_from_template
@@ -64,7 +70,7 @@ def decrypt_batch_files(
 
     destination_dir.mkdir(parents=True, exist_ok=True)
 
-    discovered_binding = _discover_binding(manifest_path, metadata_password)
+    discovered_binding = discover_binding(manifest_path, metadata_password)
     manifest_payload = load_manifest_artifact(manifest_path, metadata_password, discovered_binding)
     template_payload = load_template_artifact(template_path, metadata_password, discovered_binding)
     if password_table_path is not None:
@@ -80,12 +86,12 @@ def decrypt_batch_files(
             "binding": discovered_binding.as_dict(),
         }
     top_level_entry_comparison = validate_entry_sets_match(
-        expected_entries=_extract_manifest_entries(manifest_payload),
+        expected_entries=extract_manifest_entries(manifest_payload),
         actual_entries=[path.name for path in normalized_encrypted_files],
         context="top-level batch",
     )
 
-    top_level_passwords = _build_top_level_password_mapping(password_table_payload, passwords_by_encrypted_name or {})
+    top_level_passwords = build_top_level_password_mapping(password_table_payload, passwords_by_encrypted_name or {})
     if runtime_password_plan is not None:
         if password_resolver is None:
             raise ValueError("password_resolver is required when runtime_password_plan is used")
@@ -125,7 +131,7 @@ def decrypt_batch_files(
             )
             decrypted_folder_packages.append(folder_result)
         else:
-            decrypted_path = destination_dir / _derive_plain_file_output_name(encrypted_name)
+            decrypted_path = destination_dir / derive_plain_file_output_name(encrypted_name)
             decrypt_file_streaming(encrypted_path, decrypted_path, password)
             decrypted_files.append(
                 DecryptedTopLevelFile(
@@ -143,42 +149,3 @@ def decrypt_batch_files(
         decrypted_files=decrypted_files,
         decrypted_folder_packages=decrypted_folder_packages,
     )
-
-
-def _discover_binding(manifest_path: str | Path, metadata_password: str) -> BatchBinding:
-    """先读取 manifest，以获得该批次的权威绑定信息。"""
-
-    from .batch_payloads import deserialize_manifest_payload
-    from .batch_binding import extract_binding
-    from .metadata_crypto import read_encrypted_metadata_file
-
-    manifest_payload = deserialize_manifest_payload(read_encrypted_metadata_file(manifest_path, metadata_password))
-    return extract_binding(manifest_payload)
-
-
-def _build_top_level_password_mapping(
-    password_table_payload: dict,
-    password_overrides: dict[str, str],
-) -> dict[str, str]:
-    """构建顶层输出使用的密码映射。"""
-
-    mapping = {
-        str(record["encrypted_name"]): str(record["password"])
-        for record in password_table_payload.get("records", [])
-    }
-    mapping.update({str(name): password for name, password in password_overrides.items()})
-    return mapping
-
-
-def _derive_plain_file_output_name(encrypted_name: str) -> str:
-    """推导普通 `.hse` 输出对应的明文文件名。"""
-
-    if not encrypted_name.endswith(".hse"):
-        raise ValueError(f"expected .hse file name, got: {encrypted_name}")
-    return encrypted_name[:-4]
-
-
-def _extract_manifest_entries(manifest_payload: dict) -> list[str]:
-    """从 manifest 载荷中提取加密条目名称。"""
-
-    return [str(entry["encrypted_name"]) for entry in manifest_payload.get("entries", [])]

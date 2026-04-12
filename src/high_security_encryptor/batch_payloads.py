@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import csv
-import io
-import json
 from dataclasses import dataclass
 
 from .batch_binding import (
@@ -12,8 +9,15 @@ from .batch_binding import (
     BindingValidationError,
     attach_binding,
     create_batch_binding,
-    extract_binding,
     validate_binding,
+)
+from .batch_payload_serialization import (
+    deserialize_manifest_payload,
+    deserialize_password_table_payload,
+    deserialize_template_payload,
+    serialize_manifest_payload,
+    serialize_password_table_payload,
+    serialize_template_payload,
 )
 
 
@@ -55,18 +59,6 @@ def validate_manifest_payload(payload: dict, expected_binding: BatchBinding) -> 
     validate_binding(expected_binding, payload)
 
 
-def serialize_manifest_payload(payload: dict) -> bytes:
-    """把 manifest 载荷序列化成稳定的 JSON 字节串。"""
-
-    return json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-
-
-def deserialize_manifest_payload(blob: bytes) -> dict:
-    """把 JSON 字节串反序列化回 manifest 载荷字典。"""
-
-    return json.loads(blob.decode("utf-8"))
-
-
 def create_password_table_payload(
     records: list[PasswordRecord],
     encrypted_names: list[str],
@@ -88,53 +80,6 @@ def validate_password_table_payload(payload: dict, expected_binding: BatchBindin
     if payload.get("kind") != "password_table":
         raise BindingValidationError("payload is not a password table")
     validate_binding(expected_binding, payload)
-
-
-def serialize_password_table_payload(payload: dict) -> bytes:
-    """把密码表载荷序列化成基于 CSV 的字节流。"""
-
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    binding = extract_binding(payload)
-    writer.writerow(["meta", "kind", payload["kind"]])
-    writer.writerow(["meta", "batch_id", binding.batch_id])
-    writer.writerow(["meta", "file_count", str(binding.file_count)])
-    writer.writerow(["meta", "manifest_fingerprint", binding.manifest_fingerprint])
-    writer.writerow(["data", "source_name", "encrypted_name", "password"])
-    for record in payload.get("records", []):
-        writer.writerow(["data", record["source_name"], record["encrypted_name"], record["password"]])
-    return buffer.getvalue().encode("utf-8")
-
-
-def deserialize_password_table_payload(blob: bytes) -> dict:
-    """从字节串中解析基于 CSV 的密码表载荷。"""
-
-    reader = csv.reader(io.StringIO(blob.decode("utf-8")))
-    meta: dict[str, str] = {}
-    records: list[dict[str, str]] = []
-    for row in reader:
-        if not row:
-            continue
-        if row[0] == "meta" and len(row) >= 3:
-            meta[row[1]] = row[2]
-        elif row[0] == "data" and len(row) >= 4 and row[1] != "source_name":
-            records.append(
-                {
-                    "source_name": row[1],
-                    "encrypted_name": row[2],
-                    "password": row[3],
-                }
-            )
-    payload = {
-        "kind": meta.get("kind", ""),
-        "records": records,
-        "binding": {
-            "batch_id": meta.get("batch_id", ""),
-            "file_count": int(meta.get("file_count", "0")),
-            "manifest_fingerprint": meta.get("manifest_fingerprint", ""),
-        },
-    }
-    return payload
 
 
 def create_template_payload(
@@ -166,48 +111,3 @@ def validate_template_payload(payload: dict, expected_binding: BatchBinding) -> 
         raise BindingValidationError("payload is not a template")
     validate_binding(expected_binding, payload)
 
-
-def serialize_template_payload(payload: dict) -> bytes:
-    """把模板载荷序列化成 CSV 字节串。"""
-
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    binding = extract_binding(payload)
-    writer.writerow(["meta", "kind", payload["kind"]])
-    writer.writerow(["meta", "batch_id", binding.batch_id])
-    writer.writerow(["meta", "file_count", str(binding.file_count)])
-    writer.writerow(["meta", "manifest_fingerprint", binding.manifest_fingerprint])
-    writer.writerow(["data", "source_name", "encrypted_name", "password"])
-    for row in payload.get("rows", []):
-        writer.writerow(["data", row["source_name"], row["encrypted_name"], row["password"]])
-    return buffer.getvalue().encode("utf-8")
-
-
-def deserialize_template_payload(blob: bytes) -> dict:
-    """从 CSV 字节串中解析模板载荷。"""
-
-    reader = csv.reader(io.StringIO(blob.decode("utf-8")))
-    meta: dict[str, str] = {}
-    rows: list[dict[str, str]] = []
-    for row in reader:
-        if not row:
-            continue
-        if row[0] == "meta" and len(row) >= 3:
-            meta[row[1]] = row[2]
-        elif row[0] == "data" and len(row) >= 4 and row[1] != "source_name":
-            rows.append(
-                {
-                    "source_name": row[1],
-                    "encrypted_name": row[2],
-                    "password": row[3],
-                }
-            )
-    return {
-        "kind": meta.get("kind", ""),
-        "rows": rows,
-        "binding": {
-            "batch_id": meta.get("batch_id", ""),
-            "file_count": int(meta.get("file_count", "0")),
-            "manifest_fingerprint": meta.get("manifest_fingerprint", ""),
-        },
-    }

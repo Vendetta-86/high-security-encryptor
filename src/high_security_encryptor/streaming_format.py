@@ -7,112 +7,28 @@ import os
 import struct
 from pathlib import Path
 
-from argon2.low_level import Type, hash_secret_raw
 from Crypto.Cipher import AES
 
 from .atomic_io import atomic_output_path, flush_file
-
-HEADER_MAGIC = b"HSE1"
-VERSION = 1
-FLAGS = 0
-SALT_LEN = 16
-NONCE_LEN = 12
-TAG_LEN = 16
-DIGEST_LEN = 32
-KEY_LEN = 32
-DEFAULT_CHUNK_SIZE = 1024 * 1024
-ARGON_TIME_COST = 3
-ARGON_MEMORY_COST = 65536
-ARGON_PARALLELISM = 4
-
-HEADER_STRUCT = struct.Struct(">4sBBBBII")
-CHUNK_HEADER_STRUCT = struct.Struct(">QI")
-TRAILER_STRUCT = struct.Struct(">QQ32s16s")
-TRAILER_NONCE_INDEX = (1 << 64) - 1
-
-
-class StreamingFormatError(Exception):
-    """流式格式相关错误的基类。"""
-
-    pass
-
-
-class LegacyFormatDetected(StreamingFormatError):
-    """当文件应转交旧版兼容层处理时抛出。"""
-
-    pass
-
-
-class IntegrityError(StreamingFormatError):
-    """当认证、结构或一致性校验失败时抛出。"""
-
-    pass
-
-
-class HeaderError(StreamingFormatError):
-    """当容器头损坏或版本不受支持时抛出。"""
-
-    pass
-
-
-def build_header(chunk_size: int, salt: bytes, base_nonce: bytes) -> bytes:
-    """构造固定头部、随机盐和基础 nonce。"""
-
-    if len(salt) != SALT_LEN:
-        raise ValueError("invalid salt length")
-    if len(base_nonce) != NONCE_LEN:
-        raise ValueError("invalid nonce length")
-    fixed = HEADER_STRUCT.pack(
-        HEADER_MAGIC,
-        VERSION,
-        FLAGS,
-        SALT_LEN,
-        NONCE_LEN,
-        chunk_size,
-        0,
-    )
-    return fixed + salt + base_nonce
-
-
-def parse_header(file_obj) -> tuple[bytes, bytes, int]:
-    """从已打开的二进制文件中读取并校验容器头。"""
-
-    fixed = file_obj.read(HEADER_STRUCT.size)
-    if len(fixed) != HEADER_STRUCT.size:
-        raise HeaderError("truncated header")
-    magic, version, _flags, salt_len, nonce_len, chunk_size, _reserved = HEADER_STRUCT.unpack(fixed)
-    if magic != HEADER_MAGIC:
-        raise LegacyFormatDetected("legacy or unknown format; legacy dispatch path must be implemented")
-    if version != VERSION:
-        raise HeaderError(f"unsupported version: {version}")
-    if salt_len != SALT_LEN or nonce_len != NONCE_LEN:
-        raise HeaderError("unexpected salt or nonce size")
-    salt = file_obj.read(salt_len)
-    base_nonce = file_obj.read(nonce_len)
-    if len(salt) != salt_len or len(base_nonce) != nonce_len:
-        raise HeaderError("truncated header payload")
-    return fixed + salt + base_nonce, salt, chunk_size
-
-
-def derive_key(password: str, salt: bytes) -> bytes:
-    """使用 Argon2id 派生文件加密密钥。"""
-
-    return hash_secret_raw(
-        secret=password.encode("utf-8"),
-        salt=salt,
-        time_cost=ARGON_TIME_COST,
-        memory_cost=ARGON_MEMORY_COST,
-        parallelism=ARGON_PARALLELISM,
-        hash_len=KEY_LEN,
-        type=Type.ID,
-    )
-
-
-def derive_nonce(base_nonce: bytes, chunk_index: int) -> bytes:
-    """根据基础 nonce 和分块索引派生每块的 nonce。"""
-
-    nonce_int = int.from_bytes(base_nonce, "big") ^ chunk_index
-    return nonce_int.to_bytes(len(base_nonce), "big")
+from .streaming_primitives import (
+    CHUNK_HEADER_STRUCT,
+    DEFAULT_CHUNK_SIZE,
+    HEADER_MAGIC,
+    HEADER_STRUCT,
+    NONCE_LEN,
+    SALT_LEN,
+    TAG_LEN,
+    TRAILER_NONCE_INDEX,
+    TRAILER_STRUCT,
+    HeaderError,
+    IntegrityError,
+    LegacyFormatDetected,
+    StreamingFormatError,
+    build_header,
+    derive_key,
+    derive_nonce,
+    parse_header,
+)
 
 
 def encrypt_streaming(source: str | Path, target: str | Path, password: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> Path:

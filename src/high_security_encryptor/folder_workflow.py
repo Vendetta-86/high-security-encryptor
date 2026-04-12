@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 import shutil
 import tempfile
-import zipfile
 
 from .api import encrypt_file_streaming
 from .batch_artifacts import (
@@ -16,6 +15,11 @@ from .batch_artifacts import (
 )
 from .batch_binding import BatchBinding
 from .batch_payloads import PasswordRecord
+from .folder_package_utils import (
+    normalize_inner_password_mapping,
+    normalize_relative_path_list,
+    write_zip_from_directory,
+)
 
 
 INTERNAL_SIDECAR_DIRNAME = "_hse_sidecars"
@@ -62,11 +66,11 @@ def package_folder_to_encrypted_archive(
     if not source_path.is_dir():
         raise FileNotFoundError(source_path)
 
-    normalized_relative_paths = _normalize_relative_path_list(
+    normalized_relative_paths = normalize_relative_path_list(
         source_path,
         individually_encrypted_relative_paths or [],
     )
-    normalized_inner_passwords = _normalize_inner_password_mapping(inner_passwords_by_relative_path or {})
+    normalized_inner_passwords = normalize_inner_password_mapping(inner_passwords_by_relative_path or {})
 
     destination_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -147,7 +151,7 @@ def package_folder_to_encrypted_archive(
             template_relative_path = template_path.relative_to(staged_folder_root).as_posix()
 
         plaintext_zip_path = temp_root / f"{source_path.name}.zip"
-        _write_zip_from_directory(staged_folder_root, plaintext_zip_path)
+        write_zip_from_directory(staged_folder_root, plaintext_zip_path)
         encrypt_file_streaming(plaintext_zip_path, destination_path, folder_password)
 
     return FolderPackageResult(
@@ -160,50 +164,3 @@ def package_folder_to_encrypted_archive(
         internal_template_relative_path=template_relative_path,
     )
 
-
-def _normalize_relative_path_list(source_folder: Path, relative_paths: list[str]) -> list[str]:
-    """校验并归一化调用方提供的文件夹相对路径列表。"""
-
-    normalized: list[str] = []
-    seen: set[str] = set()
-    for raw_relative_path in relative_paths:
-        posix_relative_path = _normalize_relative_path(source_folder, raw_relative_path)
-        if posix_relative_path not in seen:
-            seen.add(posix_relative_path)
-            normalized.append(posix_relative_path)
-    return sorted(normalized)
-
-
-def _normalize_inner_password_mapping(passwords_by_relative_path: dict[str, str]) -> dict[str, str]:
-    """归一化文件夹内部独立加密条目的密码映射。"""
-
-    normalized: dict[str, str] = {}
-    for raw_relative_path, password in passwords_by_relative_path.items():
-        posix_relative_path = PurePosixPath(str(raw_relative_path).replace("\\", "/")).as_posix()
-        normalized[posix_relative_path] = password
-    return normalized
-
-
-def _normalize_relative_path(source_folder: Path, raw_relative_path: str) -> str:
-    """把用户输入的相对路径转换成安全且规范的形式。"""
-
-    candidate = PurePosixPath(str(raw_relative_path).replace("\\", "/"))
-    if candidate.is_absolute():
-        raise ValueError(f"folder entry must be relative: {raw_relative_path}")
-    if any(part in ("", ".", "..") for part in candidate.parts):
-        raise ValueError(f"folder entry contains unsafe path segments: {raw_relative_path}")
-
-    normalized = candidate.as_posix()
-    concrete_path = source_folder / Path(normalized)
-    if not concrete_path.exists():
-        raise FileNotFoundError(concrete_path)
-    return normalized
-
-
-def _write_zip_from_directory(source_root: Path, zip_path: Path) -> None:
-    """写出一个保留根目录名称的确定性 ZIP 文件。"""
-
-    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
-        for file_path in sorted(path for path in source_root.rglob("*") if path.is_file()):
-            archive_name = Path(source_root.name) / file_path.relative_to(source_root)
-            zip_file.write(file_path, archive_name.as_posix())

@@ -17,7 +17,7 @@ Python 3.11 or newer is required.
 python -m unittest discover -s tests
 ```
 
-The test suite currently contains 92 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
+The test suite currently contains 112 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
 
 ## CLI
 
@@ -67,6 +67,7 @@ For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_t
 
 - [Security Model](docs/security_model.md): protection goals, non-goals, sidecar sensitivity, and provider risks.
 - [Operational Guidance](docs/operations.md): recommended modes, backup handling, password handling, rotation, and failure response.
+- [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 
 ## Exit Codes
 
@@ -108,3 +109,4 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Mixed batch decryption and folder auto-decryption are implemented.
 - Runtime password providers and no-password-table flows are implemented.
 - JSON config validation and report output are implemented.
+- Third-stage hardening, modularization cleanup, and focused helper coverage are complete.
