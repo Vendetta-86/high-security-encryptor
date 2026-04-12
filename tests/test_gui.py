@@ -81,6 +81,12 @@ class GuiTests(unittest.TestCase):
             ],
         )
 
+    def test_gui_input_errors_are_chinese(self) -> None:
+        """GUI input validation messages should be user-facing Chinese text."""
+
+        with self.assertRaisesRegex(ValueError, "请选择配置文件"):
+            build_batch_args(command="encrypt-batch", config_path="")
+
     def test_config_uses_prompt_provider_finds_nested_provider(self) -> None:
         """GUI should detect prompt providers before launching batch workflows."""
 

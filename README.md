@@ -22,7 +22,7 @@ the `high-security-encryptor-<tag>-windows-x64.zip` asset, extract it, and run:
 ```
 
 Double-clicking the executable shows help and keeps the console open on Windows.
-Double-clicking `high-security-encryptor-gui.exe` opens the GUI for config validation,
+Double-clicking `high-security-encryptor-gui.exe` opens the Chinese GUI for config validation,
 batch encryption, batch decryption, and example config generation.
 
 ## Run Tests
@@ -32,7 +32,7 @@ python -m compileall -q src tests
 python -m unittest discover -s tests
 ```
 
-The test suite currently contains 120 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed.
+The test suite currently contains 121 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed.
 
 ## CLI
 
@@ -133,3 +133,4 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Windows executable release automation is available for version `0.2.1`.
 - Windows double-click help behavior is fixed for version `0.2.2`.
 - GUI release automation is available for version `0.3.0`.
+- Chinese GUI text is available for version `0.3.1`.

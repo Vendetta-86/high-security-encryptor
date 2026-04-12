@@ -60,11 +60,11 @@ def build_validate_config_args(
 ) -> list[str]:
     """Build CLI arguments for config validation."""
 
-    normalized_config_path = _require_path(config_path, "Select a config file.")
+    normalized_config_path = _require_path(config_path, "请选择配置文件。")
     args = [
         "validate-config",
         "--kind",
-        _require_choice(kind, CONFIG_KINDS, "Choose encrypt or decrypt."),
+        _require_choice(kind, CONFIG_KINDS, "请选择 encrypt 或 decrypt。"),
         "--config",
         normalized_config_path,
     ]
@@ -72,7 +72,7 @@ def build_validate_config_args(
         args.append("--strict")
     if report:
         args.append("--report")
-        args.extend(["--format", _require_choice(report_format, REPORT_FORMATS, "Choose a report format.")])
+        args.extend(["--format", _require_choice(report_format, REPORT_FORMATS, "请选择报告格式。")])
         if summary_only:
             args.append("--summary-only")
         if output_path.strip():
@@ -88,8 +88,8 @@ def build_batch_args(*, command: str, config_path: str) -> list[str]:
     """Build CLI arguments for batch encryption or decryption."""
 
     if command not in {"encrypt-batch", "decrypt-batch"}:
-        raise ValueError("Choose encrypt-batch or decrypt-batch.")
-    return [command, "--config", _require_path(config_path, "Select a config file.")]
+        raise ValueError("请选择 encrypt-batch 或 decrypt-batch。")
+    return [command, "--config", _require_path(config_path, "请选择配置文件。")]
 
 
 def build_init_example_args(*, mode: str, kind: str, output_path: str) -> list[str]:
@@ -98,11 +98,11 @@ def build_init_example_args(*, mode: str, kind: str, output_path: str) -> list[s
     return [
         "init-example",
         "--mode",
-        _require_choice(mode, SECURITY_MODES, "Choose a security mode."),
+        _require_choice(mode, SECURITY_MODES, "请选择安全模式。"),
         "--kind",
-        _require_choice(kind, CONFIG_KINDS, "Choose encrypt or decrypt."),
+        _require_choice(kind, CONFIG_KINDS, "请选择 encrypt 或 decrypt。"),
         "--output",
-        _require_path(output_path, "Choose an output path."),
+        _require_path(output_path, "请选择输出路径。"),
     ]
 
 
@@ -124,7 +124,7 @@ def smoke_test() -> None:
 
     root = tk.Tcl()
     if not root.call("info", "patchlevel"):
-        raise RuntimeError("tkinter is not available")
+        raise RuntimeError("tkinter 不可用")
 
 
 class HighSecurityEncryptorApp(ttk.Frame):
@@ -133,7 +133,7 @@ class HighSecurityEncryptorApp(ttk.Frame):
     def __init__(self, master: tk.Tk) -> None:
         super().__init__(master, padding=12)
         self.master = master
-        self.master.title("High Security Encryptor")
+        self.master.title("高安全加密器")
         self.master.minsize(860, 620)
         self._is_busy = False
 
@@ -156,7 +156,7 @@ class HighSecurityEncryptorApp(ttk.Frame):
 
     def _build_validate_tab(self, notebook: ttk.Notebook) -> None:
         frame = ttk.Frame(notebook, padding=12)
-        notebook.add(frame, text="Validate Config")
+        notebook.add(frame, text="配置校验")
         frame.columnconfigure(1, weight=1)
 
         self.validate_kind = tk.StringVar(value="encrypt")
@@ -169,41 +169,41 @@ class HighSecurityEncryptorApp(ttk.Frame):
         self.validate_exit_code_on_issues = tk.BooleanVar(value=False)
         self.validate_warnings_as_errors = tk.BooleanVar(value=False)
 
-        self._add_choice_row(frame, 0, "Kind", self.validate_kind, CONFIG_KINDS)
-        self._add_path_row(frame, 1, "Config", self.validate_config, self._browse_validate_config)
-        self._add_choice_row(frame, 2, "Report format", self.validate_format, REPORT_FORMATS)
-        self._add_path_row(frame, 3, "Report output", self.validate_output, self._browse_validate_output, save=True)
+        self._add_choice_row(frame, 0, "类型", self.validate_kind, CONFIG_KINDS)
+        self._add_path_row(frame, 1, "配置文件", self.validate_config, self._browse_validate_config)
+        self._add_choice_row(frame, 2, "报告格式", self.validate_format, REPORT_FORMATS)
+        self._add_path_row(frame, 3, "报告输出", self.validate_output, self._browse_validate_output, save=True)
 
         options = ttk.Frame(frame)
         options.grid(row=4, column=0, columnspan=3, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(options, text="Strict", variable=self.validate_strict).pack(side=tk.LEFT, padx=(0, 12))
-        ttk.Checkbutton(options, text="Report", variable=self.validate_report).pack(side=tk.LEFT, padx=(0, 12))
-        ttk.Checkbutton(options, text="Summary only", variable=self.validate_summary_only).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Checkbutton(options, text="严格模式", variable=self.validate_strict).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Checkbutton(options, text="生成报告", variable=self.validate_report).pack(side=tk.LEFT, padx=(0, 12))
+        ttk.Checkbutton(options, text="仅摘要", variable=self.validate_summary_only).pack(side=tk.LEFT, padx=(0, 12))
         ttk.Checkbutton(
             options,
-            text="Exit code on issues",
+            text="发现问题返回非零",
             variable=self.validate_exit_code_on_issues,
         ).pack(side=tk.LEFT, padx=(0, 12))
         ttk.Checkbutton(
             options,
-            text="Warnings as errors",
+            text="警告视为错误",
             variable=self.validate_warnings_as_errors,
         ).pack(side=tk.LEFT)
 
-        ttk.Button(frame, text="Validate", command=self._run_validate).grid(row=5, column=0, sticky="w", pady=(14, 0))
+        ttk.Button(frame, text="开始校验", command=self._run_validate).grid(row=5, column=0, sticky="w", pady=(14, 0))
 
     def _build_encrypt_tab(self, notebook: ttk.Notebook) -> None:
         frame = ttk.Frame(notebook, padding=12)
-        notebook.add(frame, text="Encrypt Batch")
+        notebook.add(frame, text="批量加密")
         frame.columnconfigure(1, weight=1)
 
         self.encrypt_config = tk.StringVar()
-        self._add_path_row(frame, 0, "Config", self.encrypt_config, self._browse_encrypt_config)
+        self._add_path_row(frame, 0, "配置文件", self.encrypt_config, self._browse_encrypt_config)
         ttk.Label(
             frame,
-            text="Prompt password providers are blocked in the GUI. Use literal, env, file, or command providers.",
+            text="GUI 会阻止 prompt 密码来源，避免等待控制台输入。请使用 literal、env、file 或 command。",
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
-        ttk.Button(frame, text="Start encryption", command=self._run_encrypt).grid(
+        ttk.Button(frame, text="开始加密", command=self._run_encrypt).grid(
             row=2,
             column=0,
             sticky="w",
@@ -212,16 +212,16 @@ class HighSecurityEncryptorApp(ttk.Frame):
 
     def _build_decrypt_tab(self, notebook: ttk.Notebook) -> None:
         frame = ttk.Frame(notebook, padding=12)
-        notebook.add(frame, text="Decrypt Batch")
+        notebook.add(frame, text="批量解密")
         frame.columnconfigure(1, weight=1)
 
         self.decrypt_config = tk.StringVar()
-        self._add_path_row(frame, 0, "Config", self.decrypt_config, self._browse_decrypt_config)
+        self._add_path_row(frame, 0, "配置文件", self.decrypt_config, self._browse_decrypt_config)
         ttk.Label(
             frame,
-            text="Prompt password providers are blocked in the GUI. Use literal, env, file, or command providers.",
+            text="GUI 会阻止 prompt 密码来源，避免等待控制台输入。请使用 literal、env、file 或 command。",
         ).grid(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
-        ttk.Button(frame, text="Start decryption", command=self._run_decrypt).grid(
+        ttk.Button(frame, text="开始解密", command=self._run_decrypt).grid(
             row=2,
             column=0,
             sticky="w",
@@ -230,17 +230,17 @@ class HighSecurityEncryptorApp(ttk.Frame):
 
     def _build_examples_tab(self, notebook: ttk.Notebook) -> None:
         frame = ttk.Frame(notebook, padding=12)
-        notebook.add(frame, text="Examples")
+        notebook.add(frame, text="示例配置")
         frame.columnconfigure(1, weight=1)
 
         self.example_mode = tk.StringVar(value="hardened")
         self.example_kind = tk.StringVar(value="encrypt")
         self.example_output = tk.StringVar()
 
-        self._add_choice_row(frame, 0, "Mode", self.example_mode, SECURITY_MODES)
-        self._add_choice_row(frame, 1, "Kind", self.example_kind, CONFIG_KINDS)
-        self._add_path_row(frame, 2, "Output", self.example_output, self._browse_example_output, save=True)
-        ttk.Button(frame, text="Generate example", command=self._run_init_example).grid(
+        self._add_choice_row(frame, 0, "安全模式", self.example_mode, SECURITY_MODES)
+        self._add_choice_row(frame, 1, "类型", self.example_kind, CONFIG_KINDS)
+        self._add_path_row(frame, 2, "输出文件", self.example_output, self._browse_example_output, save=True)
+        ttk.Button(frame, text="生成示例", command=self._run_init_example).grid(
             row=3,
             column=0,
             sticky="w",
@@ -255,8 +255,8 @@ class HighSecurityEncryptorApp(ttk.Frame):
 
         button_row = ttk.Frame(log_frame)
         button_row.grid(row=0, column=0, sticky="ew")
-        ttk.Label(button_row, text="Output").pack(side=tk.LEFT)
-        ttk.Button(button_row, text="Clear", command=self._clear_log).pack(side=tk.RIGHT)
+        ttk.Label(button_row, text="输出").pack(side=tk.LEFT)
+        ttk.Button(button_row, text="清空", command=self._clear_log).pack(side=tk.RIGHT)
 
         self.log_text = scrolledtext.ScrolledText(log_frame, height=16, wrap=tk.WORD)
         self.log_text.grid(row=1, column=0, sticky="nsew", pady=(6, 0))
@@ -285,7 +285,7 @@ class HighSecurityEncryptorApp(ttk.Frame):
     ) -> None:
         ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=4)
         ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=(8, 8), pady=4)
-        button_text = "Save as" if save else "Browse"
+        button_text = "另存为" if save else "浏览"
         ttk.Button(parent, text=button_text, command=browse_command).grid(row=row, column=2, pady=4)
 
     def _browse_validate_config(self) -> None:
@@ -305,17 +305,17 @@ class HighSecurityEncryptorApp(ttk.Frame):
 
     def _browse_json_file(self, variable: tk.StringVar) -> None:
         path = filedialog.askopenfilename(
-            title="Select JSON config",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            title="选择 JSON 配置文件",
+            filetypes=[("JSON 文件", "*.json"), ("所有文件", "*.*")],
         )
         if path:
             variable.set(path)
 
     def _browse_save_file(self, variable: tk.StringVar, *, default_extension: str) -> None:
         path = filedialog.asksaveasfilename(
-            title="Choose output path",
+            title="选择输出路径",
             defaultextension=default_extension,
-            filetypes=[("JSON files", "*.json"), ("Text files", "*.txt"), ("All files", "*.*")],
+            filetypes=[("JSON 文件", "*.json"), ("文本文件", "*.txt"), ("所有文件", "*.*")],
         )
         if path:
             variable.set(path)
@@ -368,12 +368,12 @@ class HighSecurityEncryptorApp(ttk.Frame):
 
     def _run_cli(self, args: list[str], *, block_prompt_providers: bool = False) -> None:
         if self._is_busy:
-            messagebox.showinfo("Busy", "A command is already running.")
+            messagebox.showinfo("正在运行", "已有命令正在执行。")
             return
         if block_prompt_providers and config_uses_prompt_provider(_config_path_from_args(args)):
             messagebox.showerror(
-                "Unsupported password provider",
-                "Prompt password providers can block the GUI. Use literal, env, file, or command providers.",
+                "不支持的密码来源",
+                "prompt 密码来源可能阻塞 GUI。请使用 literal、env、file 或 command。",
             )
             return
 
@@ -386,7 +386,7 @@ class HighSecurityEncryptorApp(ttk.Frame):
         try:
             result = invoke_cli_command(args)
         except Exception as exc:  # noqa: BLE001 - GUI boundary reports unexpected failures.
-            result = GuiCommandResult(exit_code=1, stdout="", stderr=f"error: {exc}")
+            result = GuiCommandResult(exit_code=1, stdout="", stderr=f"错误：{exc}")
         self.after(0, self._handle_cli_result, result)
 
     def _handle_cli_result(self, result: GuiCommandResult) -> None:
@@ -399,10 +399,10 @@ class HighSecurityEncryptorApp(ttk.Frame):
             self._append_log(result.stderr)
             if not result.stderr.endswith("\n"):
                 self._append_log("\n")
-        self._append_log(f"exit_code: {result.exit_code}\n\n")
+        self._append_log(f"退出码：{result.exit_code}\n\n")
         if result.exit_code == 0:
             return
-        messagebox.showerror("Command failed", f"Command exited with code {result.exit_code}.")
+        messagebox.showerror("命令失败", f"命令退出码：{result.exit_code}。")
 
     def _append_log(self, text: str) -> None:
         self.log_text.insert(tk.END, text)
@@ -412,14 +412,14 @@ class HighSecurityEncryptorApp(ttk.Frame):
         self.log_text.delete("1.0", tk.END)
 
     def _show_input_error(self, exc: ValueError) -> None:
-        messagebox.showerror("Input required", str(exc))
+        messagebox.showerror("需要输入", str(exc))
 
 
 def main(argv: list[str] | None = None) -> int:
     """Run the GUI application."""
 
     parser = argparse.ArgumentParser(prog="high-security-encryptor-gui")
-    parser.add_argument("--smoke-test", action="store_true", help="Validate GUI imports and exit.")
+    parser.add_argument("--smoke-test", action="store_true", help="验证 GUI 依赖并退出。")
     args = parser.parse_args(argv)
     if args.smoke_test:
         smoke_test()
