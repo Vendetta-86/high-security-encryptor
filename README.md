@@ -1,6 +1,6 @@
 # High Security Encryptor
 
-High Security Encryptor is a local file-encryption prototype for high-value data workflows. It supports streaming file encryption, batch sidecar artifacts, folder packages, runtime password providers, and CLI-driven encryption/decryption plans.
+High Security Encryptor is a local file-encryption tool for high-value data workflows. It supports streaming file encryption, batch sidecar artifacts, folder packages, runtime password providers, and CLI-driven encryption/decryption plans.
 
 ## Install
 
@@ -14,6 +14,7 @@ Python 3.11 or newer is required.
 ## Run Tests
 
 ```bash
+python -m compileall -q src tests
 python -m unittest discover -s tests
 ```
 
@@ -68,6 +69,8 @@ For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_t
 - [Security Model](docs/security_model.md): protection goals, non-goals, sidecar sensitivity, and provider risks.
 - [Operational Guidance](docs/operations.md): recommended modes, backup handling, password handling, rotation, and failure response.
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
+- [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.
+- [Release Checklist](docs/release_checklist.md): final verification steps before tagging or publishing.
 
 ## Exit Codes
 
@@ -110,3 +113,4 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Runtime password providers and no-password-table flows are implemented.
 - JSON config validation and report output are implemented.
 - Third-stage hardening, modularization cleanup, and focused helper coverage are complete.
+- Fourth-stage release readiness work is complete for version `0.2.0`.
