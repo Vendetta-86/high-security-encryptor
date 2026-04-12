@@ -11,6 +11,15 @@ high-security-encryptor --help
 
 Python 3.11 or newer is required.
 
+## Windows EXE
+
+Windows release assets are published as zip files on GitHub Releases. Download
+the `high-security-encryptor-<tag>-windows-x64.zip` asset, extract it, and run:
+
+```powershell
+.\high-security-encryptor.exe --help
+```
+
 ## Run Tests
 
 ```bash
@@ -71,6 +80,7 @@ For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_t
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 - [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.
 - [Release Checklist](docs/release_checklist.md): final verification steps before tagging or publishing.
+- [Windows EXE Distribution](docs/windows_exe.md): PyInstaller build and release-asset notes.
 
 ## Exit Codes
 
@@ -114,3 +124,4 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - JSON config validation and report output are implemented.
 - Third-stage hardening, modularization cleanup, and focused helper coverage are complete.
 - Fourth-stage release readiness work is complete for version `0.2.0`.
+- Windows executable release automation is available for version `0.2.1`.

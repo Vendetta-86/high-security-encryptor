@@ -1,0 +1,94 @@
+name: Windows EXE
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and upload.
+        required: true
+        default: v0.2.1
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows executable
+    runs-on: windows-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package and build tools
+        run: python -m pip install -e ".[build]"
+
+      - name: Check syntax
+        run: python -m compileall -q src tests build_tools
+
+      - name: Run tests
+        run: python -m unittest discover -s tests
+
+      - name: Smoke test console script
+        run: high-security-encryptor --help
+
+      - name: Build executable
+        run: >
+          python -m PyInstaller
+          --clean
+          --noconfirm
+          --onefile
+          --console
+          --name high-security-encryptor
+          --paths src
+          --distpath dist\hse-windows-x64
+          --workpath build\hse-pyinstaller
+          --specpath build\hse-spec
+          build_tools\pyinstaller_entry.py
+
+      - name: Smoke test executable
+        run: |
+          dist\hse-windows-x64\high-security-encryptor.exe --help
+          dist\hse-windows-x64\high-security-encryptor.exe validate-config --kind encrypt --config examples\hardened_encrypt.json --report
+
+      - name: Package executable
+        shell: pwsh
+        run: |
+          $assetName = "high-security-encryptor-$env:RELEASE_TAG-windows-x64.zip"
+          $staging = "dist\release\high-security-encryptor"
+          New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          Copy-Item "dist\hse-windows-x64\high-security-encryptor.exe" "$staging\high-security-encryptor.exe"
+          Copy-Item "README.md" "$staging\README.md"
+          Copy-Item "docs\windows_exe.md" "$staging\windows_exe.md"
+          Compress-Archive -Path "$staging\*" -DestinationPath "dist\$assetName" -Force
+          "ASSET_NAME=$assetName" >> $env:GITHUB_ENV
+          "ASSET_PATH=dist\$assetName" >> $env:GITHUB_ENV
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ASSET_NAME }}
+          path: ${{ env.ASSET_PATH }}
+
+      - name: Upload release asset
+        shell: pwsh
+        run: |
+          gh release view "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" --title "$env:RELEASE_TAG" --notes "Windows executable build for $env:RELEASE_TAG."
+          }
+          gh release upload "$env:RELEASE_TAG" "$env:ASSET_PATH" --repo "$env:GITHUB_REPOSITORY" --clobber

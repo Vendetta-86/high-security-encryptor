@@ -2,6 +2,8 @@
 /*
 !/.github/
 !/.github/**
+!/build_tools/
+!/build_tools/**
 !/.gitignore
 !/README.md
 !/pyproject.toml

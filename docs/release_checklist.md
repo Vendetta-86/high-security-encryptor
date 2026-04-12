@@ -43,6 +43,17 @@ The CI gate includes:
 - full unittest suite
 - console script smoke test
 
+## Windows EXE
+
+For releases that include a Windows executable:
+
+- Confirm the `Windows EXE` workflow passes for the release tag.
+- Confirm the workflow uploads `high-security-encryptor-<tag>-windows-x64.zip`.
+- Download and extract the zip.
+- Run `high-security-encryptor.exe --help`.
+- Run at least one config validation with the executable.
+- Confirm the executable zip contains no user config files, passwords, keys, or local build caches.
+
 ## Compatibility
 
 Before release, verify these imports still work:

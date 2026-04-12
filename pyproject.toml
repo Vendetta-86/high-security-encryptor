@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "high-security-encryptor"
-version = "0.2.0"
+version = "0.2.1"
 description = "Hardened local encryption tool for batch file workflows"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -28,6 +28,11 @@ classifiers = [
 Homepage = "https://github.com/Vendetta-86/high-security-encryptor"
 Repository = "https://github.com/Vendetta-86/high-security-encryptor"
 Issues = "https://github.com/Vendetta-86/high-security-encryptor/issues"
+
+[project.optional-dependencies]
+build = [
+    "pyinstaller>=6.0",
+]
 
 [project.scripts]
 high-security-encryptor = "high_security_encryptor.cli:main"
