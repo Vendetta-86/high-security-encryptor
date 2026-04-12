@@ -6,7 +6,7 @@ on:
       tag:
         description: Release tag to build and upload.
         required: true
-        default: v0.2.2
+        default: v0.3.0
   push:
     tags:
       - "v*"
@@ -44,9 +44,11 @@ jobs:
         run: python -m unittest discover -s tests
 
       - name: Smoke test console script
-        run: high-security-encryptor --help
+        run: |
+          high-security-encryptor --help
+          high-security-encryptor-gui --smoke-test
 
-      - name: Build executable
+      - name: Build CLI executable
         run: >
           python -m PyInstaller
           --clean
@@ -60,10 +62,25 @@ jobs:
           --specpath build\hse-spec
           build_tools\pyinstaller_entry.py
 
+      - name: Build GUI executable
+        run: >
+          python -m PyInstaller
+          --clean
+          --noconfirm
+          --onefile
+          --windowed
+          --name high-security-encryptor-gui
+          --paths src
+          --distpath dist\hse-windows-x64
+          --workpath build\hse-gui-pyinstaller
+          --specpath build\hse-gui-spec
+          build_tools\pyinstaller_gui_entry.py
+
       - name: Smoke test executable
         run: |
           dist\hse-windows-x64\high-security-encryptor.exe --help
           dist\hse-windows-x64\high-security-encryptor.exe validate-config --kind encrypt --config examples\hardened_encrypt.json --report
+          dist\hse-windows-x64\high-security-encryptor-gui.exe --smoke-test
 
       - name: Package executable
         shell: pwsh
@@ -72,6 +89,7 @@ jobs:
           $staging = "dist\release\high-security-encryptor"
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
           Copy-Item "dist\hse-windows-x64\high-security-encryptor.exe" "$staging\high-security-encryptor.exe"
+          Copy-Item "dist\hse-windows-x64\high-security-encryptor-gui.exe" "$staging\high-security-encryptor-gui.exe"
           Copy-Item "README.md" "$staging\README.md"
           Copy-Item "docs\windows_exe.md" "$staging\windows_exe.md"
           Compress-Archive -Path "$staging\*" -DestinationPath "dist\$assetName" -Force

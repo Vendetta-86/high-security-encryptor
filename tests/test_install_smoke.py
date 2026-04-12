@@ -22,6 +22,20 @@ class InstallSmokeTests(unittest.TestCase):
         self.assertIn("encrypt-batch", result.stdout)
         self.assertIn("decrypt-batch", result.stdout)
 
+    def test_gui_console_script_smoke_test_runs_after_install(self) -> None:
+        """The installed GUI console script should expose a headless smoke path."""
+
+        executable = shutil.which("high-security-encryptor-gui")
+        if executable is None:
+            self.skipTest("high-security-encryptor-gui console script is not installed")
+
+        subprocess.run(
+            [executable, "--smoke-test"],
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

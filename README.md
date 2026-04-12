@@ -18,9 +18,12 @@ the `high-security-encryptor-<tag>-windows-x64.zip` asset, extract it, and run:
 
 ```powershell
 .\high-security-encryptor.exe --help
+.\high-security-encryptor-gui.exe
 ```
 
 Double-clicking the executable shows help and keeps the console open on Windows.
+Double-clicking `high-security-encryptor-gui.exe` opens the GUI for config validation,
+batch encryption, batch decryption, and example config generation.
 
 ## Run Tests
 
@@ -29,7 +32,7 @@ python -m compileall -q src tests
 python -m unittest discover -s tests
 ```
 
-The test suite currently contains 113 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
+The test suite currently contains 120 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed.
 
 ## CLI
 
@@ -46,6 +49,7 @@ After installation, the console script is equivalent:
 
 ```bash
 high-security-encryptor validate-config --kind encrypt --config examples/compatible_encrypt.json --report
+high-security-encryptor-gui --smoke-test
 ```
 
 ## Password Sources
@@ -128,3 +132,4 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Fourth-stage release readiness work is complete for version `0.2.0`.
 - Windows executable release automation is available for version `0.2.1`.
 - Windows double-click help behavior is fixed for version `0.2.2`.
+- GUI release automation is available for version `0.3.0`.
