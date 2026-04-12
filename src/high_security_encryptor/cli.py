@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """运行命令行入口并返回退出码。"""
 
+    _configure_standard_streams()
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
@@ -70,6 +72,19 @@ def main(argv: list[str] | None = None) -> int:
     if should_return_issue_exit_code(args, exit_code_summary):
         return EXIT_VALIDATION_ISSUES
     return 0
+
+
+def _configure_standard_streams() -> None:
+    """Use UTF-8 for CLI text streams even under non-UTF-8 Windows locales."""
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8")
+        except (OSError, ValueError):
+            continue
 
 
 def _load_config_file(path: str | Path, loader: Any, kind: str) -> Any:

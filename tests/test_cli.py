@@ -826,6 +826,7 @@ class CliTests(unittest.TestCase):
                 "--report",
                 "--format",
                 "text",
+                extra_env={"PYTHONIOENCODING": "ascii"},
             )
             raw_report, raw_summary = result.stdout.split("###SUMMARY###\n", 1)
             summary = json.loads(raw_summary)
@@ -1522,6 +1523,7 @@ def _run_cli(*args: str, extra_env: dict[str, str] | None = None) -> subprocess.
         cwd=PROJECT_ROOT,
         env=env,
         text=True,
+        encoding="utf-8",
         capture_output=True,
         check=True,
     )
@@ -1540,6 +1542,7 @@ def _run_cli_expect_error(*args: str, extra_env: dict[str, str] | None = None) -
         cwd=PROJECT_ROOT,
         env=env,
         text=True,
+        encoding="utf-8",
         capture_output=True,
         check=False,
     )
@@ -1556,6 +1559,7 @@ def _run_python_inline(statements: list[str]) -> subprocess.CompletedProcess[str
         cwd=PROJECT_ROOT,
         env=env,
         text=True,
+        encoding="utf-8",
         capture_output=True,
         check=True,
     )
