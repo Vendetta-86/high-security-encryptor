@@ -12,6 +12,15 @@ SRC_ROOT = PROJECT_ROOT / "src"
 
 
 class CliTests(unittest.TestCase):
+    def test_cli_without_arguments_prints_help(self) -> None:
+        """Double-click style no-argument execution should show help, not fail."""
+
+        result = _run_cli()
+
+        self.assertIn("usage: high-security-encryptor", result.stdout)
+        self.assertIn("encrypt-batch", result.stdout)
+        self.assertEqual(result.stderr, "")
+
     def test_encrypt_batch_cli_emits_json_summary(self) -> None:
         """CLI 应能从 JSON 配置驱动批量加密。"""
 

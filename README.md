@@ -20,6 +20,8 @@ the `high-security-encryptor-<tag>-windows-x64.zip` asset, extract it, and run:
 .\high-security-encryptor.exe --help
 ```
 
+Double-clicking the executable shows help and keeps the console open on Windows.
+
 ## Run Tests
 
 ```bash
@@ -27,7 +29,7 @@ python -m compileall -q src tests
 python -m unittest discover -s tests
 ```
 
-The test suite currently contains 112 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
+The test suite currently contains 113 tests, including an installation smoke test for the `high-security-encryptor` console script. The smoke test is skipped when the package has not been installed.
 
 ## CLI
 
@@ -125,3 +127,4 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Third-stage hardening, modularization cleanup, and focused helper coverage are complete.
 - Fourth-stage release readiness work is complete for version `0.2.0`.
 - Windows executable release automation is available for version `0.2.1`.
+- Windows double-click help behavior is fixed for version `0.2.2`.

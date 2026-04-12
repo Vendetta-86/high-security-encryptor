@@ -14,6 +14,10 @@ python -m PyInstaller --clean --noconfirm --onefile --console --name high-securi
 dist\hse-windows-x64\high-security-encryptor.exe --help
 ```
 
+Double-clicking `high-security-encryptor.exe` shows the CLI help screen. On
+Windows interactive consoles, the program waits for Enter before closing so the
+help text remains visible.
+
 ## Release Asset
 
 The GitHub Actions workflow builds a zip asset named:

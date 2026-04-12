@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -58,7 +59,12 @@ def main(argv: list[str] | None = None) -> int:
 
     _configure_standard_streams()
     parser = build_parser()
-    args = parser.parse_args(argv)
+    effective_argv = sys.argv[1:] if argv is None else argv
+    if not effective_argv:
+        parser.print_help()
+        _pause_for_windows_double_click()
+        return 0
+    args = parser.parse_args(effective_argv)
     try:
         summary = args.handler(args)
     except Exception as exc:  # noqa: BLE001 - CLI boundary intentionally normalizes failures.
@@ -85,6 +91,19 @@ def _configure_standard_streams() -> None:
             reconfigure(encoding="utf-8")
         except (OSError, ValueError):
             continue
+
+
+def _pause_for_windows_double_click() -> None:
+    """Keep a double-clicked Windows console open after showing help."""
+
+    if sys.platform != "win32" or os.environ.get("HSE_NO_PAUSE") == "1":
+        return
+    if not (sys.stdin.isatty() and sys.stdout.isatty()):
+        return
+    try:
+        input("\nPress Enter to exit...")
+    except (EOFError, OSError):
+        return
 
 
 def _load_config_file(path: str | Path, loader: Any, kind: str) -> Any:
