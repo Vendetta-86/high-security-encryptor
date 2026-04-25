@@ -23,9 +23,10 @@ help text remains visible.
 
 Double-clicking `high-security-encryptor-gui.exe` opens the Chinese GUI. The GUI
 wraps the existing CLI commands for config validation, batch encryption, batch
-decryption, and example config generation. Prompt password providers are blocked
-in GUI batch workflows because they can wait on console input; use literal, env,
-file, or command providers instead.
+decryption, removable-storage BitLocker management, and example config
+generation. Prompt password providers are blocked in GUI batch workflows because
+they can wait on console input; use literal, env, file, or command providers
+instead.
 
 ## Release Asset
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .batch_bundle_workflow import BatchBundleEncryptionResult
 from .batch_decryption import BatchDecryptionResult
 from .batch_workflow import BatchEncryptionResult
 
@@ -35,6 +36,31 @@ def summarize_batch_encryption_result(
         "manifest_path": str(result.manifest_path),
         "password_table_path": str(result.password_table_path) if result.password_table_path is not None else None,
         "template_path": str(result.template_path),
+    }
+
+
+def summarize_batch_bundle_encryption_result(
+    result: BatchBundleEncryptionResult,
+    security_mode: str,
+) -> dict[str, Any]:
+    """Build the JSON payload returned by bundled `encrypt-batch`."""
+
+    folder_package = result.folder_package
+    return {
+        "command": "encrypt-batch",
+        "output_mode": "bundle",
+        "security_mode": security_mode,
+        "bundle_path": str(result.bundle_path),
+        "internal_binding": (
+            folder_package.internal_binding.as_dict() if folder_package.internal_binding is not None else None
+        ),
+        "internal_encrypted_files": list(folder_package.internal_encrypted_files),
+        "internal_manifest_relative_path": folder_package.internal_manifest_relative_path,
+        "internal_password_table_relative_path": folder_package.internal_password_table_relative_path,
+        "internal_template_relative_path": folder_package.internal_template_relative_path,
+        "manifest_path": str(result.manifest_path) if result.manifest_path is not None else None,
+        "password_table_path": str(result.password_table_path) if result.password_table_path is not None else None,
+        "template_path": str(result.template_path) if result.template_path is not None else None,
     }
 
 

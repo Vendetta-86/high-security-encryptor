@@ -8,7 +8,12 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from high_security_encryptor.config import BatchEncryptionConfig
-from high_security_encryptor.password_sources import PasswordResolver, PasswordSourceError
+from high_security_encryptor.password_sources import (
+    MAX_COMMAND_OUTPUT_CHARS,
+    PasswordResolver,
+    PasswordSourceError,
+    create_default_password_resolver,
+)
 
 
 def _build_test_resolver(
@@ -117,6 +122,46 @@ class PasswordSourceTests(unittest.TestCase):
         resolver = _build_test_resolver()
         with self.assertRaises(PasswordSourceError):
             resolver.resolve({"type": "env", "name": "MISSING_SECRET"}, "test-context")
+
+    def test_default_command_provider_does_not_echo_stderr(self) -> None:
+        """Command-provider failures should not leak helper stderr into errors."""
+
+        resolver = create_default_password_resolver()
+
+        with self.assertRaises(PasswordSourceError) as caught:
+            resolver.resolve(
+                {
+                    "type": "command",
+                    "argv": [
+                        sys.executable,
+                        "-c",
+                        "import sys; sys.stderr.write('secret-stderr'); sys.exit(7)",
+                    ],
+                },
+                "test-context",
+            )
+
+        self.assertIn("exit code 7", str(caught.exception))
+        self.assertIn("stderr captured", str(caught.exception))
+        self.assertNotIn("secret-stderr", str(caught.exception))
+
+    def test_default_command_provider_rejects_large_output(self) -> None:
+        """Command-provider output should be bounded before it becomes a password."""
+
+        resolver = create_default_password_resolver()
+
+        with self.assertRaisesRegex(PasswordSourceError, "too large"):
+            resolver.resolve(
+                {
+                    "type": "command",
+                    "argv": [
+                        sys.executable,
+                        "-c",
+                        f"print('x' * {MAX_COMMAND_OUTPUT_CHARS + 1})",
+                    ],
+                },
+                "test-context",
+            )
 
 
 if __name__ == "__main__":

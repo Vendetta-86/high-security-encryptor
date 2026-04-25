@@ -13,6 +13,8 @@ from typing import Callable
 
 SecretSpec = str | dict[str, object]
 ProviderHandler = Callable[[dict[str, object], str], str]
+COMMAND_TIMEOUT_SECONDS = 30
+MAX_COMMAND_OUTPUT_CHARS = 8192
 
 
 class PasswordSourceError(Exception):
@@ -140,13 +142,17 @@ def create_default_password_resolver() -> PasswordResolver:
                 text=True,
                 capture_output=True,
                 check=True,
+                timeout=COMMAND_TIMEOUT_SECONDS,
             )
         except OSError as exc:
             raise PasswordSourceError(f"command source failed to launch: {argv[0]!r}") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise PasswordSourceError("command source timed out") from exc
         except subprocess.CalledProcessError as exc:
-            stderr = exc.stderr.strip() if exc.stderr else ""
-            detail = f" ({stderr})" if stderr else ""
+            detail = " (stderr captured)" if exc.stderr else ""
             raise PasswordSourceError(f"command source failed with exit code {exc.returncode}{detail}") from exc
+        if len(result.stdout) > MAX_COMMAND_OUTPUT_CHARS:
+            raise PasswordSourceError("command source output is too large")
         return result.stdout
 
     return PasswordResolver(

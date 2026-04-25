@@ -49,11 +49,55 @@ class CliTests(unittest.TestCase):
             summary = json.loads(result.stdout)
 
             self.assertEqual(summary["command"], "encrypt-batch")
+            self.assertEqual(summary["security_mode"], "no-password-tables")
             self.assertEqual(summary["binding"]["batch_id"], "cli-batch")
             self.assertEqual(len(summary["encrypted_files"]), 1)
             self.assertTrue(Path(summary["manifest_path"]).exists())
-            self.assertTrue(Path(summary["password_table_path"]).exists())
+            self.assertIsNone(summary["password_table_path"])
             self.assertTrue(Path(summary["template_path"]).exists())
+
+    def test_encrypt_batch_cli_supports_easy_bundle_output(self) -> None:
+        """CLI 应能从易用配置生成一个多文件加密包。"""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            source_a = temp_root / "a.txt"
+            source_b = temp_root / "b.txt"
+            source_a.write_text("alpha", encoding="utf-8")
+            source_b.write_text("beta", encoding="utf-8")
+
+            bundle_path = temp_root / "encrypted" / "bundle.zip.hse"
+            password_table_path = temp_root / "sidecars" / "passwords.hsm"
+            config_path = temp_root / "encrypt_bundle.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "sources": [str(source_a), str(source_b)],
+                        "source_passwords": {
+                            str(source_a): "main-pass",
+                            str(source_b): "main-pass",
+                        },
+                        "metadata_password": "main-pass",
+                        "output_dir": str(temp_root / "encrypted"),
+                        "package_as_bundle": True,
+                        "bundle_output_path": str(bundle_path),
+                        "password_table_output_path": str(password_table_path),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+            result = _run_cli("encrypt-batch", "--config", str(config_path))
+            summary = json.loads(result.stdout)
+
+            self.assertEqual(summary["command"], "encrypt-batch")
+            self.assertEqual(summary["output_mode"], "bundle")
+            self.assertEqual(Path(summary["bundle_path"]), bundle_path)
+            self.assertTrue(bundle_path.exists())
+            self.assertEqual(Path(summary["password_table_path"]), password_table_path)
+            self.assertTrue(password_table_path.exists())
 
     def test_decrypt_batch_cli_handles_mixed_batch(self) -> None:
         """CLI 应能解密混合批次并继续处理文件夹内部内容。"""
@@ -80,6 +124,7 @@ class CliTests(unittest.TestCase):
                         "metadata_password": "meta-pass",
                         "output_dir": str(temp_root / "encrypted"),
                         "batch_id": "cli-mixed",
+                        "security_mode": "compatible",
                         "individually_encrypted_files_by_folder": {
                             str(folder_source): ["secret.txt"]
                         },
@@ -293,6 +338,7 @@ class CliTests(unittest.TestCase):
                         "metadata_password": "meta-pass",
                         "output_dir": str(temp_root / "encrypted"),
                         "batch_id": "folder-runtime-cli-batch",
+                        "security_mode": "compatible",
                         "individually_encrypted_files_by_folder": {
                             str(folder_source): ["secret.txt"]
                         },
@@ -1464,7 +1510,8 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(result.returncode, 4)
             self.assertEqual(result.stdout, "")
-            self.assertIn(f"environment variable not set: {missing_env_name}", result.stderr)
+            self.assertIn("environment variable not set: <env>", result.stderr)
+            self.assertNotIn(missing_env_name, result.stderr)
             self.assertNotIn("Traceback", result.stderr)
 
     def test_cli_returns_integrity_exit_code_for_wrong_decryption_password(self) -> None:

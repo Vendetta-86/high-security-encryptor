@@ -5,6 +5,8 @@
 !/build_tools/
 !/build_tools/**
 !/.gitignore
+!/.pre-commit-config.yaml
+!/.secrets.baseline
 !/README.md
 !/pyproject.toml
 !/docs/
@@ -27,3 +29,12 @@ htmlcov/
 *.egg-info/
 build/
 dist/
+
+.env
+.env.*
+!.env.example
+*.hse
+*.hsm
+*.secret
+*.secrets
+secrets/

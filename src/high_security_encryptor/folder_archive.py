@@ -4,8 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path, PurePosixPath
 import shutil
-import tempfile
 import zipfile
+
+from .secure_temp import make_secure_temporary_directory
+
+MAX_ZIP_MEMBERS = 100_000
+MAX_ZIP_TOTAL_UNCOMPRESSED_SIZE = 16 * 1024 * 1024 * 1024
+MAX_ZIP_MEMBER_UNCOMPRESSED_SIZE = 4 * 1024 * 1024 * 1024
+MAX_ZIP_COMPRESSION_RATIO = 1_000
 
 
 def safe_extract_folder_archive(zip_path: str | Path, output_dir: str | Path) -> Path:
@@ -21,7 +27,7 @@ def safe_extract_folder_archive(zip_path: str | Path, output_dir: str | Path) ->
         if final_root.exists():
             raise FileExistsError(f"extraction target already exists: {final_root}")
 
-        staging_parent = Path(tempfile.mkdtemp(prefix=f".{root_name}.", dir=destination_dir))
+        staging_parent = make_secure_temporary_directory(prefix=f".{root_name}.", parent=destination_dir)
         try:
             for member, normalized_member in validated_members:
                 target_path = staging_parent / Path(*PurePosixPath(normalized_member).parts)
@@ -65,10 +71,18 @@ def _validate_zip_members(members: list[zipfile.ZipInfo]) -> tuple[list[tuple[zi
     validated_members: list[tuple[zipfile.ZipInfo, str]] = []
     root_names: set[str] = set()
     seen_names: set[str] = set()
+    total_uncompressed_size = 0
+    if len(members) > MAX_ZIP_MEMBERS:
+        raise ValueError("archive contains too many members")
     for member in members:
         normalized_member = _validate_zip_member(member)
         if normalized_member in seen_names:
             raise ValueError(f"zip archive contains duplicate member: {normalized_member}")
+        if not member.is_dir():
+            _validate_zip_member_size(member)
+            total_uncompressed_size += member.file_size
+            if total_uncompressed_size > MAX_ZIP_TOTAL_UNCOMPRESSED_SIZE:
+                raise ValueError("archive uncompressed size exceeds limit")
         seen_names.add(normalized_member)
         root_names.add(PurePosixPath(normalized_member).parts[0])
         validated_members.append((member, normalized_member))
@@ -76,3 +90,12 @@ def _validate_zip_members(members: list[zipfile.ZipInfo]) -> tuple[list[tuple[zi
     if len(root_names) != 1:
         raise ValueError("archive must contain exactly one top-level folder")
     return validated_members, next(iter(root_names))
+
+
+def _validate_zip_member_size(member: zipfile.ZipInfo) -> None:
+    if member.file_size > MAX_ZIP_MEMBER_UNCOMPRESSED_SIZE:
+        raise ValueError(f"zip member is too large: {member.filename}")
+    if member.file_size > 0 and member.compress_size == 0:
+        raise ValueError(f"zip member has invalid compressed size: {member.filename}")
+    if member.compress_size > 0 and member.file_size / member.compress_size > MAX_ZIP_COMPRESSION_RATIO:
+        raise ValueError(f"zip member compression ratio exceeds limit: {member.filename}")

@@ -8,6 +8,13 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from .batch_payload_limits import (
+    validate_batch_id,
+    validate_entry_count,
+    validate_entry_name,
+    validate_manifest_fingerprint,
+)
+
 
 class BindingValidationError(Exception):
     """当批次绑定信息缺失或不匹配时抛出。"""
@@ -36,7 +43,8 @@ class BatchBinding:
 def canonicalize_names(names: list[str]) -> list[str]:
     """把加密条目名称归一化为确定性的路径顺序。"""
 
-    return sorted(str(Path(name).as_posix()) for name in names)
+    validate_entry_count(len(names), "batch")
+    return sorted(validate_entry_name(str(Path(name).as_posix()), "encrypted_name") for name in names)
 
 
 def build_manifest_fingerprint(names: list[str]) -> str:
@@ -55,7 +63,7 @@ def create_batch_binding(names: list[str], batch_id: str | None = None) -> Batch
 
     canonical_names = canonicalize_names(names)
     return BatchBinding(
-        batch_id=batch_id or str(uuid.uuid4()),
+        batch_id=validate_batch_id(batch_id) if batch_id is not None else str(uuid.uuid4()),
         file_count=len(canonical_names),
         manifest_fingerprint=build_manifest_fingerprint(canonical_names),
     )
@@ -76,9 +84,10 @@ def extract_binding(payload: dict) -> BatchBinding:
     if not isinstance(binding, dict):
         raise BindingValidationError("missing binding metadata")
     try:
-        batch_id = str(binding["batch_id"])
+        batch_id = validate_batch_id(binding["batch_id"])
         file_count = int(binding["file_count"])
-        manifest_fingerprint = str(binding["manifest_fingerprint"])
+        validate_entry_count(file_count, "binding")
+        manifest_fingerprint = validate_manifest_fingerprint(binding["manifest_fingerprint"])
     except (KeyError, TypeError, ValueError) as exc:
         raise BindingValidationError("invalid binding metadata") from exc
     return BatchBinding(

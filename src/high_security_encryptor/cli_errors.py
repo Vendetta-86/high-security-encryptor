@@ -10,6 +10,7 @@ import traceback
 
 from .integrity import IntegrityValidationError
 from .password_sources import PasswordSourceError
+from .redaction import redact_text
 from .streaming_format import IntegrityError
 
 
@@ -44,9 +45,9 @@ def format_exception_message(exc: Exception) -> str:
     """Render exceptions without Python traceback noise."""
 
     if isinstance(exc, KeyError) and exc.args:
-        return str(exc.args[0])
+        return redact_text(str(exc.args[0]))
     message = str(exc)
-    return message if message else exc.__class__.__name__
+    return redact_text(message if message else exc.__class__.__name__)
 
 
 def classify_cli_exception(exc: Exception) -> int:

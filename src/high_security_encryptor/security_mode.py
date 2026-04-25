@@ -8,6 +8,7 @@ from dataclasses import dataclass
 SECURITY_MODE_COMPATIBLE = "compatible"
 SECURITY_MODE_HARDENED = "hardened"
 SECURITY_MODE_NO_PASSWORD_TABLES = "no-password-tables"
+DEFAULT_SECURITY_MODE = SECURITY_MODE_NO_PASSWORD_TABLES
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,7 @@ SECURITY_MODE_PROFILES = {
 def get_security_mode_profile(mode: str | None) -> SecurityModeProfile:
     """读取安全模式配置并返回对应的默认策略。"""
 
-    normalized_mode = (mode or SECURITY_MODE_COMPATIBLE).strip().lower()
+    normalized_mode = (mode or DEFAULT_SECURITY_MODE).strip().lower()
     try:
         return SECURITY_MODE_PROFILES[normalized_mode]
     except KeyError as exc:

@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "high-security-encryptor"
-version = "0.3.1"
+version = "0.4.0"
 description = "Hardened local encryption tool for batch file workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "argon2-cffi>=23.1.0",
     "pycryptodome>=3.20.0",
+    "tkinterdnd2>=0.4.0",
 ]
 keywords = ["encryption", "aes-gcm", "batch", "backup", "local"]
 classifiers = [
@@ -32,6 +33,11 @@ Issues = "https://github.com/Vendetta-86/high-security-encryptor/issues"
 [project.optional-dependencies]
 build = [
     "pyinstaller>=6.0",
+]
+dev = [
+    "detect-secrets>=1.5.0",
+    "pip-audit>=2.7.0",
+    "pre-commit>=3.7.0",
 ]
 
 [project.scripts]

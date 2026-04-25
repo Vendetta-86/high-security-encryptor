@@ -20,6 +20,9 @@ KEY_LEN = 32
 ARGON_TIME_COST = 3
 ARGON_MEMORY_COST = 65536
 ARGON_PARALLELISM = 4
+METADATA_OVERHEAD = len(METADATA_MAGIC) + 1 + SALT_LEN + NONCE_LEN + TAG_LEN
+MAX_METADATA_PLAINTEXT_BYTES = 8 * 1024 * 1024
+MAX_ENCRYPTED_METADATA_BYTES = MAX_METADATA_PLAINTEXT_BYTES + METADATA_OVERHEAD
 
 
 class MetadataIntegrityError(Exception):
@@ -45,6 +48,7 @@ def encrypt_metadata_bytes(data: bytes, password: str) -> bytes:
 
     if not password:
         raise ValueError("password is required")
+    _validate_metadata_plaintext_size(len(data))
     salt = os.urandom(SALT_LEN)
     nonce = os.urandom(NONCE_LEN)
     header = METADATA_MAGIC + bytes([METADATA_VERSION])
@@ -60,6 +64,7 @@ def decrypt_metadata_bytes(blob: bytes, password: str) -> bytes:
 
     if not password:
         raise ValueError("password is required")
+    _validate_encrypted_metadata_size(len(blob))
     minimum = len(METADATA_MAGIC) + 1 + SALT_LEN + NONCE_LEN + TAG_LEN
     if len(blob) < minimum:
         raise MetadataIntegrityError("metadata blob is too short")
@@ -79,9 +84,11 @@ def decrypt_metadata_bytes(blob: bytes, password: str) -> bytes:
     cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
     cipher.update(blob[:header_len])
     try:
-        return cipher.decrypt_and_verify(ciphertext, tag)
+        plaintext = cipher.decrypt_and_verify(ciphertext, tag)
     except ValueError as exc:
         raise MetadataIntegrityError("metadata authentication failed") from exc
+    _validate_metadata_plaintext_size(len(plaintext))
+    return plaintext
 
 
 def write_encrypted_metadata_file(path: str | Path, data: bytes, password: str) -> Path:
@@ -96,4 +103,15 @@ def read_encrypted_metadata_file(path: str | Path, password: str) -> bytes:
     """从磁盘读取并解密加密元数据副产物。"""
 
     source = Path(path)
+    _validate_encrypted_metadata_size(source.stat().st_size)
     return decrypt_metadata_bytes(source.read_bytes(), password)
+
+
+def _validate_metadata_plaintext_size(size: int) -> None:
+    if size > MAX_METADATA_PLAINTEXT_BYTES:
+        raise ValueError("metadata payload is too large")
+
+
+def _validate_encrypted_metadata_size(size: int) -> None:
+    if size > MAX_ENCRYPTED_METADATA_BYTES:
+        raise MetadataIntegrityError("metadata blob is too large")

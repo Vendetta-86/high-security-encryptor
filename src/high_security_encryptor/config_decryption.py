@@ -19,6 +19,7 @@ from .config_parsing import (
 )
 from .password_sources import PasswordResolver, SecretSpec
 from .security_mode import (
+    DEFAULT_SECURITY_MODE,
     SECURITY_MODE_COMPATIBLE,
     SECURITY_MODE_HARDENED,
     SECURITY_MODE_NO_PASSWORD_TABLES,
@@ -36,7 +37,7 @@ class BatchDecryptionConfig:
     template_path: str
     metadata_password: SecretSpec
     output_dir: str
-    security_mode: str = SECURITY_MODE_COMPATIBLE
+    security_mode: str = DEFAULT_SECURITY_MODE
     passwords_by_encrypted_name: dict[str, SecretSpec] = field(default_factory=dict)
     template_passwords_by_encrypted_name: dict[str, SecretSpec] = field(default_factory=dict)
     template_passwords_by_source_name: dict[str, SecretSpec] = field(default_factory=dict)
@@ -68,7 +69,7 @@ class BatchDecryptionConfig:
                 "metadata_password",
             ),
             output_dir=read_string(payload_object, "output_dir", ""),
-            security_mode=read_string(payload_object, "security_mode", SECURITY_MODE_COMPATIBLE),
+            security_mode=_read_decryption_security_mode(payload_object),
             passwords_by_encrypted_name=read_secret_mapping(payload_object, "passwords_by_encrypted_name"),
             template_passwords_by_encrypted_name=read_secret_mapping(
                 payload_object,
@@ -197,3 +198,18 @@ class BatchDecryptionConfig:
                 },
             }
         return resolved
+
+
+def _read_decryption_security_mode(payload: dict[str, object]) -> str:
+    """Keep legacy password-table configs compatible while defaulting new configs safer."""
+
+    if "security_mode" in payload:
+        return read_string(payload, "security_mode", DEFAULT_SECURITY_MODE)
+    if _has_nonblank_string(payload, "password_table_path"):
+        return SECURITY_MODE_COMPATIBLE
+    return DEFAULT_SECURITY_MODE
+
+
+def _has_nonblank_string(payload: dict[str, object], field_name: str) -> bool:
+    value = payload.get(field_name)
+    return isinstance(value, str) and bool(value.strip())

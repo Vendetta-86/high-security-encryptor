@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .batch_bundle_workflow import encrypt_batch_bundle
 from .batch_decryption import decrypt_batch_files
 from .batch_workflow import encrypt_batch_files
 from .cli_errors import (
@@ -21,7 +22,11 @@ from .cli_errors import (
     handle_cli_exception,
 )
 from .cli_parser import build_cli_parser
-from .cli_summaries import summarize_batch_decryption_result, summarize_batch_encryption_result
+from .cli_summaries import (
+    summarize_batch_bundle_encryption_result,
+    summarize_batch_decryption_result,
+    summarize_batch_encryption_result,
+)
 from .config import BatchDecryptionConfig, BatchEncryptionConfig
 from .example_templates import export_example_config
 from .password_sources import create_default_password_resolver
@@ -130,15 +135,37 @@ def _handle_encrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
 
     config = _load_config_file(args.config, BatchEncryptionConfig.from_json_file, "encryption")
     resolver = create_default_password_resolver()
+    metadata_password = config.resolve_metadata_password(resolver)
+    password_mapping = config.build_workflow_password_mapping(resolver)
+    if config.package_as_bundle:
+        result = encrypt_batch_bundle(
+            sources=config.sources,
+            passwords_by_source=password_mapping,
+            main_password=metadata_password,
+            output_dir=config.output_dir,
+            bundle_path=config.bundle_output_path,
+            metadata_password=metadata_password,
+            individually_encrypted_files_by_folder=config.individually_encrypted_files_by_folder,
+            write_password_table=config.write_password_table,
+            write_internal_password_tables=config.write_internal_password_tables,
+            manifest_path=config.manifest_output_path,
+            password_table_path=config.password_table_output_path,
+            template_path=config.template_output_path,
+        )
+        return summarize_batch_bundle_encryption_result(result, config.security_mode)
+
     result = encrypt_batch_files(
         sources=config.sources,
-        passwords_by_source=config.build_workflow_password_mapping(resolver),
-        metadata_password=config.resolve_metadata_password(resolver),
+        passwords_by_source=password_mapping,
+        metadata_password=metadata_password,
         output_dir=config.output_dir,
         batch_id=config.batch_id,
         individually_encrypted_files_by_folder=config.individually_encrypted_files_by_folder,
         write_password_table=config.write_password_table,
         write_internal_password_tables=config.write_internal_password_tables,
+        manifest_path=config.manifest_output_path,
+        password_table_path=config.password_table_output_path,
+        template_path=config.template_output_path,
     )
     return summarize_batch_encryption_result(result, config.security_mode)
 

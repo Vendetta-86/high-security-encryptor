@@ -5,7 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
-import tempfile
 
 from .api import decrypt_file_streaming
 from .batch_binding import BatchBinding, extract_binding
@@ -22,6 +21,7 @@ from .integrity import EntrySetComparison, collect_internal_encrypted_entries, v
 from .metadata_crypto import read_encrypted_metadata_file
 from .password_sources import PasswordResolver
 from .runtime_password_plan import RuntimePasswordPlan
+from .secure_temp import secure_temporary_directory
 
 
 @dataclass(frozen=True)
@@ -61,8 +61,7 @@ def decrypt_folder_archive(
 
     extracted_root: Path | None = None
     try:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_root = Path(temp_dir)
+        with secure_temporary_directory(prefix="hse-folder-decrypt-") as temp_root:
             plaintext_zip_path = temp_root / _derive_plaintext_zip_name(source_package)
             decrypt_file_streaming(source_package, plaintext_zip_path, folder_password)
             extracted_root = safe_extract_folder_archive(plaintext_zip_path, destination_dir)
@@ -96,6 +95,7 @@ def decrypt_folder_archive(
                     discovered_binding=discovered_binding,
                     internal_runtime_password_plan=internal_runtime_password_plan,
                     password_resolver=password_resolver,
+                    expected_encrypted_names=[str(entry["encrypted_name"]) for entry in manifest_payload.get("entries", [])],
                 )
                 decrypted_inner_files = decrypt_inner_hse_members(
                     extracted_root,

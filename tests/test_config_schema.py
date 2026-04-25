@@ -35,6 +35,33 @@ class ConfigSchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "config must be a JSON object"):
             BatchEncryptionConfig.from_dict(["not", "an", "object"])
 
+    def test_encryption_config_defaults_to_no_password_tables(self) -> None:
+        config = BatchEncryptionConfig.from_dict(_minimal_encryption_payload())
+
+        self.assertEqual(config.security_mode, "no-password-tables")
+        self.assertFalse(config.write_password_table)
+        self.assertFalse(config.write_internal_password_tables)
+
+    def test_encryption_config_infers_compatible_for_explicit_password_table_path(self) -> None:
+        payload = _minimal_encryption_payload()
+        payload["password_table_output_path"] = "sidecars/passwords.hsm"
+
+        config = BatchEncryptionConfig.from_dict(payload)
+
+        self.assertEqual(config.security_mode, "compatible")
+        self.assertTrue(config.write_password_table)
+        self.assertTrue(config.write_internal_password_tables)
+
+    def test_encryption_config_infers_hardened_for_internal_password_tables(self) -> None:
+        payload = _minimal_encryption_payload()
+        payload["write_internal_password_tables"] = True
+
+        config = BatchEncryptionConfig.from_dict(payload)
+
+        self.assertEqual(config.security_mode, "hardened")
+        self.assertFalse(config.write_password_table)
+        self.assertTrue(config.write_internal_password_tables)
+
     def test_encryption_config_rejects_scalar_sources(self) -> None:
         payload = _minimal_encryption_payload()
         payload["sources"] = "a.txt"
@@ -56,12 +83,50 @@ class ConfigSchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"source_passwords\[a\.txt\] must be"):
             BatchEncryptionConfig.from_dict(payload)
 
+    def test_encryption_config_accepts_custom_sidecar_output_paths(self) -> None:
+        payload = _minimal_encryption_payload()
+        payload["manifest_output_path"] = "sidecars/manifest.hsm"
+        payload["password_table_output_path"] = "sidecars/passwords.hsm"
+        payload["template_output_path"] = "sidecars/template.hsm"
+
+        config = BatchEncryptionConfig.from_dict(payload)
+
+        self.assertEqual(config.manifest_output_path, "sidecars/manifest.hsm")
+        self.assertEqual(config.password_table_output_path, "sidecars/passwords.hsm")
+        self.assertEqual(config.template_output_path, "sidecars/template.hsm")
+
+    def test_encryption_config_accepts_bundle_output_mode(self) -> None:
+        payload = _minimal_encryption_payload()
+        payload["package_as_bundle"] = True
+        payload["bundle_output_path"] = "out/easy_bundle.zip.hse"
+
+        config = BatchEncryptionConfig.from_dict(payload)
+
+        self.assertTrue(config.package_as_bundle)
+        self.assertEqual(config.bundle_output_path, "out/easy_bundle.zip.hse")
+
     def test_decryption_config_rejects_string_auto_decrypt_flag(self) -> None:
         payload = _minimal_decryption_payload()
         payload["auto_decrypt_folder_inner_files"] = "false"
 
         with self.assertRaisesRegex(ValueError, "auto_decrypt_folder_inner_files must be a boolean"):
             BatchDecryptionConfig.from_dict(payload)
+
+    def test_decryption_config_infers_compatible_for_password_table_path(self) -> None:
+        config = BatchDecryptionConfig.from_dict(_minimal_decryption_payload())
+
+        self.assertEqual(config.security_mode, "compatible")
+
+    def test_decryption_config_defaults_to_no_password_tables_without_password_table_path(self) -> None:
+        payload = _minimal_decryption_payload()
+        payload["password_table_path"] = None
+        payload["template_passwords_by_encrypted_name"] = {
+            "a.txt.hse": {"type": "env", "name": "A_TXT_PASSWORD"}
+        }
+
+        config = BatchDecryptionConfig.from_dict(payload)
+
+        self.assertEqual(config.security_mode, "no-password-tables")
 
     def test_decryption_config_rejects_unknown_folder_runtime_scope(self) -> None:
         payload = _minimal_decryption_payload()

@@ -1,4 +1,5 @@
 from io import BytesIO
+import os
 from pathlib import Path
 import sys
 import tempfile
@@ -21,15 +22,22 @@ from high_security_encryptor.batch_workflow_inputs import (
     resolve_inner_passwords,
     resolve_top_level_password,
 )
-from high_security_encryptor.cli_errors import CliConfigError, classify_cli_exception
+from high_security_encryptor.cli_errors import CliConfigError, classify_cli_exception, format_exception_message
 from high_security_encryptor.config_decryption import BatchDecryptionConfig
 from high_security_encryptor.config_encryption import BatchEncryptionConfig
 from high_security_encryptor.config_parsing import normalize_secret_spec, read_folder_template_passwords
+from high_security_encryptor.batch_payload_limits import MAX_BATCH_ENTRIES, MAX_ENTRY_NAME_CHARS
+from high_security_encryptor.batch_payload_serialization import (
+    deserialize_manifest_payload,
+    deserialize_password_table_payload,
+)
 from high_security_encryptor.folder_archive import safe_extract_folder_archive
 from high_security_encryptor.folder_package_utils import (
     normalize_relative_path_list,
+    write_zip_file_entries,
     write_zip_from_directory,
 )
+from high_security_encryptor.secure_temp import SECURE_TEMP_DIR_ENV, secure_temporary_directory
 from high_security_encryptor.security_mode import SECURITY_MODE_NO_PASSWORD_TABLES
 from high_security_encryptor.streaming_primitives import (
     HEADER_MAGIC,
@@ -130,6 +138,31 @@ class ConfigParsingHelperTests(unittest.TestCase):
         self.assertEqual(parsed["docs.zip.hse"]["by_source_name"]["secret.txt"]["name"], "INNER_SECRET")
 
 
+class BatchPayloadSerializationTests(unittest.TestCase):
+    def test_deserialize_manifest_payload_requires_object(self) -> None:
+        with self.assertRaisesRegex(ValueError, "manifest payload must be an object"):
+            deserialize_manifest_payload(b"[]")
+
+    def test_deserialize_tabular_payload_rejects_oversized_field(self) -> None:
+        payload = (
+            "meta,kind,password_table\r\n"
+            "meta,batch_id,batch-a\r\n"
+            "meta,file_count,1\r\n"
+            "meta,manifest_fingerprint,0000000000000000000000000000000000000000000000000000000000000000\r\n"
+            "data,source_name,encrypted_name,password\r\n"
+            f"data,{'x' * (MAX_ENTRY_NAME_CHARS + 1)},a.txt.hse,pw\r\n"
+        ).encode("utf-8")
+
+        with self.assertRaises(ValueError):
+            deserialize_password_table_payload(payload)
+
+    def test_entry_count_limit_rejects_excessive_batch_size(self) -> None:
+        from high_security_encryptor.batch_binding import create_batch_binding
+
+        with self.assertRaisesRegex(ValueError, "too many entries"):
+            create_batch_binding([f"{index}.hse" for index in range(MAX_BATCH_ENTRIES + 1)])
+
+
 class ValidationRuleTests(unittest.TestCase):
     def test_encryption_strict_rules_report_security_mode_overrides(self) -> None:
         config = BatchEncryptionConfig(
@@ -212,6 +245,40 @@ class FolderHelperTests(unittest.TestCase):
             with zipfile.ZipFile(zip_path) as zip_file:
                 self.assertEqual(zip_file.namelist(), ["docs/nested/a.txt"])
 
+    def test_write_zip_file_entries_rejects_duplicate_archive_names(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            first = temp_root / "first.txt"
+            second = temp_root / "second.txt"
+            zip_path = temp_root / "out.zip"
+            first.write_text("first", encoding="utf-8")
+            second.write_text("second", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "duplicate zip archive entry"):
+                write_zip_file_entries(
+                    [
+                        (first, "docs/same.txt"),
+                        (second, "docs/same.txt"),
+                    ],
+                    zip_path,
+                )
+
+    def test_secure_temporary_directory_honors_configured_parent_and_cleans_up(self) -> None:
+        original_temp_dir = os.environ.get(SECURE_TEMP_DIR_ENV)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_parent = Path(temp_dir) / "secure-temp"
+            try:
+                os.environ[SECURE_TEMP_DIR_ENV] = str(temp_parent)
+                with secure_temporary_directory(prefix="hse-test-") as secure_root:
+                    self.assertEqual(secure_root.parent, temp_parent)
+                    self.assertTrue(secure_root.exists())
+                self.assertFalse(secure_root.exists())
+            finally:
+                if original_temp_dir is None:
+                    os.environ.pop(SECURE_TEMP_DIR_ENV, None)
+                else:
+                    os.environ[SECURE_TEMP_DIR_ENV] = original_temp_dir
+
     def test_safe_extract_folder_archive_rejects_symlink_members(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_root = Path(temp_dir)
@@ -247,6 +314,23 @@ class StreamingPrimitiveTests(unittest.TestCase):
 class CliErrorHelperTests(unittest.TestCase):
     def test_classify_cli_exception_treats_config_errors_as_config_exit(self) -> None:
         self.assertEqual(classify_cli_exception(CliConfigError("bad config")), 3)
+
+    def test_format_exception_message_redacts_absolute_paths_and_env_names(self) -> None:
+        message = format_exception_message(
+            ValueError(
+                "environment variable not set: HSE_REAL_SECRET_NAME at D:/private/project/config.json"
+            )
+        )
+
+        self.assertIn("environment variable not set: <env>", message)
+        self.assertIn("<path>", message)
+        self.assertNotIn("HSE_REAL_SECRET_NAME", message)
+        self.assertNotIn("D:/private", message)
+
+    def test_format_exception_message_truncates_long_text(self) -> None:
+        message = format_exception_message(ValueError("x" * 1000))
+
+        self.assertLessEqual(len(message), 400)
 
 
 if __name__ == "__main__":

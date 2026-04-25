@@ -46,6 +46,9 @@ def encrypt_batch_files(
     individually_encrypted_files_by_folder: dict[str | Path, list[str]] | None = None,
     write_password_table: bool = True,
     write_internal_password_tables: bool = True,
+    manifest_path: str | Path | None = None,
+    password_table_path: str | Path | None = None,
+    template_path: str | Path | None = None,
 ) -> BatchEncryptionResult:
     """批量加密文件和文件夹，并生成带绑定关系的元数据副产物。"""
 
@@ -104,9 +107,14 @@ def encrypt_batch_files(
             )
         )
 
-    manifest_path = destination_dir / "batch_manifest.hsm"
-    password_table_path = destination_dir / "batch_password_table.hsm"
-    template_path = destination_dir / "batch_template.hsm"
+    manifest_path = Path(manifest_path) if manifest_path is not None else destination_dir / "batch_manifest.hsm"
+    password_table_path = (
+        Path(password_table_path) if password_table_path is not None else destination_dir / "batch_password_table.hsm"
+    )
+    template_path = Path(template_path) if template_path is not None else destination_dir / "batch_template.hsm"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    password_table_path.parent.mkdir(parents=True, exist_ok=True)
+    template_path.parent.mkdir(parents=True, exist_ok=True)
 
     binding = write_manifest_artifact(
         manifest_path,

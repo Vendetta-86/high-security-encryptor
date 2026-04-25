@@ -12,6 +12,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from high_security_encryptor.api import decrypt_file_streaming, encrypt_file_streaming
 from high_security_encryptor.folder_decryption import decrypt_folder_archive, safe_extract_folder_archive
+from high_security_encryptor.folder_inner_decryption import decrypt_inner_hse_members
 from high_security_encryptor.folder_workflow import package_folder_to_encrypted_archive
 from high_security_encryptor.integrity import IntegrityValidationError
 from high_security_encryptor.password_sources import PasswordResolver
@@ -100,6 +101,20 @@ class FolderDecryptionTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "duplicate member"):
                 safe_extract_folder_archive(duplicate_zip, temp_root / "out")
+
+            self.assertFalse((temp_root / "out" / "docs").exists())
+
+    def test_safe_extract_folder_archive_rejects_high_compression_ratio(self) -> None:
+        """ZIP bombs should be rejected before extraction writes files."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            archive_path = temp_root / "compressed.zip"
+            with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+                zip_file.writestr("docs/zeros.bin", b"\0" * (5 * 1024 * 1024))
+
+            with self.assertRaisesRegex(ValueError, "compression ratio"):
+                safe_extract_folder_archive(archive_path, temp_root / "out")
 
             self.assertFalse((temp_root / "out" / "docs").exists())
 
@@ -290,6 +305,28 @@ class FolderDecryptionTests(unittest.TestCase):
                 )
 
             self.assertFalse((temp_root / "decrypted" / "docs").exists())
+
+    def test_decrypt_inner_hse_members_rejects_unsafe_record_path(self) -> None:
+        """Internal password-table paths must not escape the extracted root."""
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            extracted_root = temp_root / "docs"
+            extracted_root.mkdir()
+
+            with self.assertRaisesRegex(ValueError, "unsafe path segments"):
+                decrypt_inner_hse_members(
+                    extracted_root,
+                    {
+                        "records": [
+                            {
+                                "source_name": "secret.txt",
+                                "encrypted_name": "../escape.hse",
+                                "password": "pw",
+                            }
+                        ]
+                    },
+                )
 
 
 if __name__ == "__main__":

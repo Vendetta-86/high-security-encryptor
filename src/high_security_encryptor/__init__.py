@@ -16,6 +16,7 @@ from .batch_payloads import (
     create_password_table_payload,
     create_template_payload,
 )
+from .batch_bundle_workflow import BatchBundleEncryptionResult, encrypt_batch_bundle
 from .batch_workflow import BatchEncryptionResult, encrypt_batch_files, load_batch_sidecars
 from .batch_decryption import BatchDecryptionResult, DecryptedTopLevelFile, decrypt_batch_files
 from .cli import main as cli_main
@@ -26,6 +27,7 @@ from .integrity import EntrySetComparison, IntegrityValidationError
 from .password_sources import PasswordResolver, PasswordSourceError, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan, resolve_password_plan_from_template
 from .security_mode import (
+    DEFAULT_SECURITY_MODE,
     SECURITY_MODE_COMPATIBLE,
     SECURITY_MODE_HARDENED,
     SECURITY_MODE_NO_PASSWORD_TABLES,
@@ -51,6 +53,7 @@ __all__ = [
     "write_template_artifact",
     "load_template_artifact",
     "BatchEncryptionResult",
+    "BatchBundleEncryptionResult",
     "BatchDecryptionResult",
     "DecryptedTopLevelFile",
     "BatchEncryptionConfig",
@@ -58,12 +61,14 @@ __all__ = [
     "PasswordResolver",
     "PasswordSourceError",
     "encrypt_batch_files",
+    "encrypt_batch_bundle",
     "decrypt_batch_files",
     "load_batch_sidecars",
     "cli_main",
     "create_default_password_resolver",
     "RuntimePasswordPlan",
     "resolve_password_plan_from_template",
+    "DEFAULT_SECURITY_MODE",
     "SECURITY_MODE_COMPATIBLE",
     "SECURITY_MODE_HARDENED",
     "SECURITY_MODE_NO_PASSWORD_TABLES",

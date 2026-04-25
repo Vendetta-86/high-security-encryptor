@@ -41,6 +41,10 @@ The metadata password is separate from per-file encryption passwords. Losing the
 
 Use a metadata password with the same care as the file passwords.
 
+Encrypted metadata sidecars are size-limited before decryption and after authentication. Oversized `.hsm` blobs are rejected before the Argon2 KDF runs, limiting resource use from malicious sidecar files.
+
+Manifest, password-table, and template payloads are also structurally bounded. Batch metadata rejects excessive entry counts, overlong names, overlong passwords, duplicate encrypted names, malformed CSV rows, and entries whose encrypted-name set does not match the signed batch binding fingerprint.
+
 ## Sidecar Artifacts
 
 ### Manifest
@@ -115,6 +119,12 @@ Risk:
 - recovery depends on preserving manifests/templates and retaining access to external password sources
 - misconfigured providers can make decryption impossible until fixed
 
+### Default Mode Inference
+
+When `security_mode` is omitted, encryption configs default to `no-password-tables`. The parser still preserves explicit legacy intent: an explicit top-level password-table output path or `write_password_table: true` infers `compatible`, and `write_internal_password_tables: true` infers `hardened`.
+
+When decrypt configs omit `security_mode`, a present `password_table_path` infers `compatible`; configs without a password table default to `no-password-tables`.
+
 ## Runtime Password Providers
 
 Supported providers are `literal`, `env`, `prompt`, `file`, and `command`.
@@ -128,6 +138,27 @@ Provider risk:
 - `command`: shifts protection to the invoked program, its arguments, output handling, and host security
 
 The `command` provider uses an explicit `argv` array and does not invoke a shell. This reduces shell-injection risk, but the command itself is still trusted code.
+Default command providers are bounded by a timeout and maximum stdout size, and command stderr is not echoed into password-source errors.
+
+The GUI's generated JSON configs use `env` password providers by default. Passwords typed into the GUI are supplied only to the current GUI process for immediate execution, instead of being persisted as literal JSON values.
+
+## Repository Controls
+
+Committed files are checked with `detect-secrets` through the local pre-commit config and CI. The baseline records existing test fixtures and documentation examples so new findings fail the scan instead of being silently accepted.
+
+CI also runs `pip-audit` against the local project dependency graph to catch known vulnerable Python dependencies before release builds.
+
+## Diagnostic Redaction
+
+Normal CLI errors redact absolute filesystem paths and password-provider environment variable names. Use `--debug` or `HSE_DEBUG=1` only in trusted terminals or logs, because debug mode prints full tracebacks and unredacted exception text.
+
+## Temporary Plaintext Handling
+
+Folder encryption streams ZIP output directly into the encrypted `.hse` container. It no longer creates a temporary plaintext ZIP or a full temporary plaintext copy of the source folder.
+
+Selected folder-internal files are encrypted into temporary `.hse` members before packaging. Generated internal sidecars are encrypted metadata files. The source folder name and package member paths are validated before writing ZIP entries, and `_hse_sidecars` is reserved for tool-managed sidecars.
+
+Folder decryption still needs a temporary plaintext ZIP because standard ZIP reading requires random access to the central directory. The temporary ZIP is written under a private temporary directory and removed after extraction. Set `HSE_TEMP_DIR` to place these temporary directories on a controlled local volume.
 
 ## Batch Binding
 

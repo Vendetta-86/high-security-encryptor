@@ -13,9 +13,11 @@ Use this checklist before tagging or publishing a release.
 Run:
 
 ```bash
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 python -m compileall -q src tests
 python -m unittest discover -s tests
+pre-commit run --all-files
+python -m pip_audit . --progress-spinner off
 high-security-encryptor --help
 ```
 
@@ -39,6 +41,8 @@ CI must pass on Windows for Python 3.11, 3.12, and 3.13.
 The CI gate includes:
 
 - editable package install
+- committed-secret scan
+- dependency vulnerability audit
 - syntax check with `compileall`
 - full unittest suite
 - console script smoke test

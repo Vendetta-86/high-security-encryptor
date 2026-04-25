@@ -16,7 +16,9 @@ from high_security_encryptor.batch_artifacts import (
     load_template_artifact,
 )
 from high_security_encryptor.batch_binding import BindingValidationError
+from high_security_encryptor.batch_bundle_workflow import encrypt_batch_bundle
 from high_security_encryptor.batch_workflow import encrypt_batch_files, load_batch_sidecars
+from high_security_encryptor.folder_decryption import decrypt_folder_archive
 
 
 class BatchWorkflowTests(unittest.TestCase):
@@ -46,6 +48,76 @@ class BatchWorkflowTests(unittest.TestCase):
             self.assertEqual(sidecars["manifest"]["binding"]["batch_id"], "batch-1")
             self.assertEqual(len(sidecars["password_table"]["records"]), 2)
             self.assertEqual(len(sidecars["template"]["rows"]), 2)
+
+    def test_encrypt_batch_files_supports_custom_sidecar_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            source = temp_root / "a.txt"
+            source.write_text("alpha", encoding="utf-8")
+            sidecar_root = temp_root / "sidecars"
+
+            result = encrypt_batch_files(
+                [source],
+                {source: "pw-a"},
+                metadata_password="meta-secret",
+                output_dir=temp_root / "out",
+                batch_id="batch-custom-sidecars",
+                manifest_path=sidecar_root / "manifest.hsm",
+                password_table_path=sidecar_root / "passwords.hsm",
+                template_path=sidecar_root / "template.hsm",
+            )
+
+            self.assertEqual(result.manifest_path, sidecar_root / "manifest.hsm")
+            self.assertEqual(result.password_table_path, sidecar_root / "passwords.hsm")
+            self.assertEqual(result.template_path, sidecar_root / "template.hsm")
+            self.assertTrue(result.manifest_path.exists())
+            self.assertTrue(result.password_table_path.exists())
+            self.assertTrue(result.template_path.exists())
+
+            sidecars = load_batch_sidecars(result, "meta-secret")
+            self.assertEqual(sidecars["manifest"]["binding"]["batch_id"], "batch-custom-sidecars")
+
+    def test_encrypt_batch_bundle_outputs_one_outer_package_and_password_table(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            source_a = temp_root / "a.txt"
+            source_a.write_text("alpha", encoding="utf-8")
+            folder = temp_root / "docs"
+            folder.mkdir()
+            (folder / "note.txt").write_text("beta", encoding="utf-8")
+            (folder / "secret.txt").write_text("gamma", encoding="utf-8")
+
+            result = encrypt_batch_bundle(
+                [source_a, folder],
+                {
+                    source_a: "main-secret",
+                    folder: "main-secret",
+                    (folder, "secret.txt"): "inner-secret",
+                },
+                main_password="main-secret",
+                output_dir=temp_root / "out",
+                bundle_path=temp_root / "out" / "bundle.zip.hse",
+                password_table_path=temp_root / "sidecars" / "passwords.hsm",
+                individually_encrypted_files_by_folder={folder: ["secret.txt"]},
+            )
+
+            self.assertEqual(result.bundle_path, temp_root / "out" / "bundle.zip.hse")
+            self.assertTrue(result.bundle_path.exists())
+            self.assertTrue(result.password_table_path.exists())
+
+            decrypted = decrypt_folder_archive(
+                result.bundle_path,
+                temp_root / "restored",
+                folder_password="main-secret",
+                metadata_password="main-secret",
+            )
+
+            self.assertEqual((decrypted.extracted_root / "001_a.txt").read_text(encoding="utf-8"), "alpha")
+            self.assertEqual((decrypted.extracted_root / "002_docs" / "note.txt").read_text(encoding="utf-8"), "beta")
+            self.assertEqual(
+                (decrypted.extracted_root / "002_docs" / "secret.txt").read_text(encoding="utf-8"),
+                "gamma",
+            )
 
     def test_cross_batch_password_table_rejected_by_binding(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

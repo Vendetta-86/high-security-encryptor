@@ -23,16 +23,20 @@ the `high-security-encryptor-<tag>-windows-x64.zip` asset, extract it, and run:
 
 Double-clicking the executable shows help and keeps the console open on Windows.
 Double-clicking `high-security-encryptor-gui.exe` opens the Chinese GUI for config validation,
-batch encryption, batch decryption, and example config generation.
+batch encryption, batch decryption, removable-storage BitLocker management,
+and example config generation.
 
 ## Run Tests
 
 ```bash
+python -m pip install -e ".[dev]"
 python -m compileall -q src tests
 python -m unittest discover -s tests
+pre-commit run --all-files
+python -m pip_audit . --progress-spinner off
 ```
 
-The test suite currently contains 121 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed.
+The test suite currently contains 177 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
 
 ## CLI
 
@@ -61,11 +65,12 @@ Password fields can be written as direct strings or provider objects:
 "metadata_password": {"type": "literal", "value": "direct-password"}
 "metadata_password": {"type": "env", "name": "HSE_METADATA_PASSWORD"}
 "metadata_password": {"type": "prompt", "prompt": "Metadata password: "}
-"metadata_password": {"type": "file", "path": "C:/secrets/metadata.txt"}
-"metadata_password": {"type": "command", "argv": ["python", "-c", "print('secret')"]}
+"metadata_password": {"type": "file", "path": "C:/protected/metadata.txt"}
+"metadata_password": {"type": "command", "argv": ["python", "-c", "print('example-pass')"]}
 ```
 
 The `command` provider accepts only an explicit `argv` array and does not invoke a shell.
+GUI-generated configs use `env` providers by default so typed passwords are not saved as JSON literals.
 
 ## Security Modes
 
@@ -77,6 +82,8 @@ Three named modes are supported:
 
 Explicit `write_password_table` or `write_internal_password_tables` values override the named mode defaults.
 
+When `security_mode` is omitted, new encryption configs default to `no-password-tables`. If an encryption config explicitly asks for a password table path or explicitly enables password-table output, it is treated as compatible intent. For decryption configs without `security_mode`, a present `password_table_path` keeps legacy compatible behavior; otherwise the config defaults to `no-password-tables`.
+
 For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_table_path` and provide passwords through `template_passwords_by_encrypted_name`, `template_passwords_by_source_name`, or folder runtime template mappings.
 
 ## Security and Operations
@@ -85,8 +92,11 @@ For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_t
 - [Operational Guidance](docs/operations.md): recommended modes, backup handling, password handling, rotation, and failure response.
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 - [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.
+- [Phase 5 Completion](docs/phase5_completion.md): GUI quick-use improvements and Windows removable-storage encryption support.
 - [Release Checklist](docs/release_checklist.md): final verification steps before tagging or publishing.
 - [Windows EXE Distribution](docs/windows_exe.md): PyInstaller build and release-asset notes.
+
+Folder encryption streams ZIP data directly into encrypted output instead of writing a temporary plaintext ZIP. Folder decryption still needs a temporary plaintext ZIP for standard ZIP extraction; set `HSE_TEMP_DIR` to place those temporary files on a controlled local volume.
 
 ## Exit Codes
 
@@ -118,6 +128,7 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - `tests/`: unit and integration tests
 - `examples/`: example JSON configs for each security mode
 - `docs/`: format and batch-binding notes
+- `.pre-commit-config.yaml` and `.secrets.baseline`: local committed-secret scanning
 - `.github/workflows/ci.yml`: Windows CI for Python 3.11, 3.12, and 3.13
 
 ## Current Status
@@ -134,3 +145,8 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Windows double-click help behavior is fixed for version `0.2.2`.
 - GUI release automation is available for version `0.3.0`.
 - Chinese GUI text is available for version `0.3.1`.
+- GUI function names now use clearer task-oriented Chinese labels.
+- GUI quick-use mode is available for no-config one-click encryption and decryption.
+- GUI quick-use mode supports dragging files or folders into the path field.
+- GUI file encryption/decryption tabs include easy multi-file setup, bundled multi-file encryption, and per-file or per-folder-inner passwords.
+- Windows removable-storage encryption is available for version `0.4.0` through a dedicated BitLocker To Go GUI tab.

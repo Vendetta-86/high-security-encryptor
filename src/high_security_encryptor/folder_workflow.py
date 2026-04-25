@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
-import shutil
-import tempfile
+from pathlib import Path, PurePosixPath
 
 from .api import encrypt_file_streaming
 from .batch_artifacts import (
@@ -18,8 +16,11 @@ from .batch_payloads import PasswordRecord
 from .folder_package_utils import (
     normalize_inner_password_mapping,
     normalize_relative_path_list,
-    write_zip_from_directory,
+    normalize_safe_relative_member_path,
+    write_zip_file_entries,
 )
+from .secure_temp import secure_temporary_directory
+from .streaming_format import encrypted_output_stream
 
 
 INTERNAL_SIDECAR_DIRNAME = "_hse_sidecars"
@@ -74,29 +75,28 @@ def package_folder_to_encrypted_archive(
 
     destination_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp_root = Path(temp_dir)
-        staged_folder_root = temp_root / source_path.name
-        shutil.copytree(source_path, staged_folder_root)
-
+    root_name = normalize_safe_relative_member_path(source_path.name, "folder root name")
+    _reject_reserved_sidecar_directory(source_path)
+    with secure_temporary_directory(prefix="hse-folder-encrypt-") as temp_root:
         internal_records: list[PasswordRecord] = []
         internal_source_names: list[str] = []
         internal_encrypted_names: list[str] = []
+        internal_encrypted_paths: dict[str, Path] = {}
 
         for relative_path in normalized_relative_paths:
-            staged_plain_path = staged_folder_root / Path(relative_path)
-            if not staged_plain_path.is_file():
-                raise FileNotFoundError(staged_plain_path)
+            source_plain_path = source_path / Path(relative_path)
+            if not source_plain_path.is_file():
+                raise FileNotFoundError(source_plain_path)
             try:
                 inner_password = normalized_inner_passwords[relative_path]
             except KeyError as exc:
                 raise KeyError(f"missing inner password for folder entry: {relative_path}") from exc
 
-            staged_encrypted_path = staged_plain_path.with_name(f"{staged_plain_path.name}.hse")
-            encrypt_file_streaming(staged_plain_path, staged_encrypted_path, inner_password)
-            staged_plain_path.unlink()
-
-            encrypted_name = staged_encrypted_path.relative_to(staged_folder_root).as_posix()
+            encrypted_name = _encrypted_relative_name(relative_path)
+            staged_encrypted_path = temp_root / "inner" / Path(encrypted_name)
+            staged_encrypted_path.parent.mkdir(parents=True, exist_ok=True)
+            encrypt_file_streaming(source_plain_path, staged_encrypted_path, inner_password)
+            internal_encrypted_paths[encrypted_name] = staged_encrypted_path
             internal_source_names.append(relative_path)
             internal_encrypted_names.append(encrypted_name)
             internal_records.append(
@@ -113,7 +113,7 @@ def package_folder_to_encrypted_archive(
         template_relative_path: str | None = None
 
         if internal_records:
-            sidecar_root = staged_folder_root / INTERNAL_SIDECAR_DIRNAME
+            sidecar_root = temp_root / INTERNAL_SIDECAR_DIRNAME
             sidecar_root.mkdir(parents=True, exist_ok=True)
 
             manifest_path = sidecar_root / "batch_manifest.hsm"
@@ -142,17 +142,25 @@ def package_folder_to_encrypted_archive(
                 batch_id=internal_binding.batch_id,
             )
 
-            manifest_relative_path = manifest_path.relative_to(staged_folder_root).as_posix()
+            manifest_relative_path = (PurePosixPath(INTERNAL_SIDECAR_DIRNAME) / manifest_path.name).as_posix()
             password_table_relative_path = (
-                password_table_path.relative_to(staged_folder_root).as_posix()
+                (PurePosixPath(INTERNAL_SIDECAR_DIRNAME) / password_table_path.name).as_posix()
                 if write_internal_password_table
                 else None
             )
-            template_relative_path = template_path.relative_to(staged_folder_root).as_posix()
+            template_relative_path = (PurePosixPath(INTERNAL_SIDECAR_DIRNAME) / template_path.name).as_posix()
 
-        plaintext_zip_path = temp_root / f"{source_path.name}.zip"
-        write_zip_from_directory(staged_folder_root, plaintext_zip_path)
-        encrypt_file_streaming(plaintext_zip_path, destination_path, folder_password)
+        with encrypted_output_stream(destination_path, folder_password) as encrypted_zip_stream:
+            write_zip_file_entries(
+                _iter_folder_zip_entries(
+                    source_path=source_path,
+                    root_name=root_name,
+                    selected_relative_paths=set(normalized_relative_paths),
+                    internal_encrypted_paths=internal_encrypted_paths,
+                    sidecar_root=temp_root / INTERNAL_SIDECAR_DIRNAME,
+                ),
+                encrypted_zip_stream,
+            )
 
     return FolderPackageResult(
         source_folder=source_path,
@@ -164,3 +172,37 @@ def package_folder_to_encrypted_archive(
         internal_template_relative_path=template_relative_path,
     )
 
+
+def _encrypted_relative_name(relative_path: str) -> str:
+    pure_path = PurePosixPath(relative_path)
+    return (pure_path.parent / f"{pure_path.name}.hse").as_posix()
+
+
+def _iter_folder_zip_entries(
+    *,
+    source_path: Path,
+    root_name: str,
+    selected_relative_paths: set[str],
+    internal_encrypted_paths: dict[str, Path],
+    sidecar_root: Path,
+) -> list[tuple[Path, str]]:
+    entries: list[tuple[Path, str]] = []
+    root = PurePosixPath(root_name)
+    for file_path in sorted(path for path in source_path.rglob("*") if path.is_file()):
+        relative_path = file_path.relative_to(source_path).as_posix()
+        if relative_path in selected_relative_paths:
+            continue
+        entries.append((file_path, (root / relative_path).as_posix()))
+    for encrypted_name, encrypted_path in internal_encrypted_paths.items():
+        entries.append((encrypted_path, (root / encrypted_name).as_posix()))
+    if sidecar_root.exists():
+        for sidecar_path in sorted(path for path in sidecar_root.rglob("*") if path.is_file()):
+            relative_path = sidecar_path.relative_to(sidecar_root).as_posix()
+            entries.append((sidecar_path, (root / INTERNAL_SIDECAR_DIRNAME / relative_path).as_posix()))
+    return entries
+
+
+def _reject_reserved_sidecar_directory(source_path: Path) -> None:
+    reserved_path = source_path / INTERNAL_SIDECAR_DIRNAME
+    if reserved_path.exists():
+        raise ValueError(f"source folder contains reserved sidecar directory: {reserved_path}")

@@ -26,6 +26,8 @@ If password tables are intentionally generated, treat these as secret-bearing fi
 
 Do not mix sidecars between batches. Batch binding catches many mismatches, but operators should still preserve batch directories as immutable units.
 
+The `_hse_sidecars` folder name is reserved inside encrypted folder packages. Do not use that name inside source folders that will be packaged.
+
 ## Password Handling
 
 Prefer runtime password providers over storing secrets in config files.
@@ -38,6 +40,22 @@ Recommended provider choices:
 - `command` when a dedicated local secret helper is available
 
 Avoid `literal` in shared configs or committed files.
+
+The GUI defaults to `no-password-tables` for generated encryption configs and writes password fields as `env` providers. When you choose "generate and run", the GUI supplies those environment variables only for that run. If you save a generated config and run it later, set the referenced environment variables first or edit the config to use another provider.
+
+CLI encryption configs that omit `security_mode` also default to `no-password-tables`, unless they explicitly request password-table output. Older decrypt configs that omit `security_mode` and include `password_table_path` continue to load as compatible configs.
+
+## Temporary Files
+
+Folder encryption streams ZIP data directly into the encrypted output, so it does not create a temporary plaintext ZIP. Folder decryption still creates a temporary plaintext ZIP long enough to validate and extract it.
+
+Set `HSE_TEMP_DIR` to a local, access-controlled directory when the default system temp location is not acceptable:
+
+```bash
+set HSE_TEMP_DIR=D:\hse-temp
+```
+
+The tool creates per-run private subdirectories below that path and removes them after use. It does not provide forensic secure deletion on SSDs or journaling filesystems, so use encrypted local storage for temporary directories when that matters.
 
 ## Example No-Password-Table Flow
 
@@ -118,6 +136,8 @@ Exit code `3` indicates a command input or config problem. Check:
 - security mode compatibility
 - missing runtime password mappings
 
+Normal CLI errors redact absolute paths. Re-run with `--debug` only when the terminal output is trusted and you need exact paths or tracebacks.
+
 ### Password Provider Failures
 
 Exit code `4` indicates a provider could not resolve a password. Check:
@@ -126,6 +146,8 @@ Exit code `4` indicates a provider could not resolve a password. Check:
 - secret file paths and permissions
 - command provider executable path and exit code
 - empty provider output
+
+Normal CLI errors redact environment variable names. Check the referenced config file when you need the exact provider name.
 
 ### Integrity Failures
 
@@ -136,6 +158,7 @@ Exit code `5` indicates authentication, integrity, or entry-set validation faile
 - missing or extra encrypted files
 - corrupted encrypted files
 - folder packages modified after encryption
+- malformed or oversized sidecar metadata
 
 Do not overwrite original encrypted files while investigating integrity failures.
 
@@ -148,3 +171,12 @@ high-security-encryptor validate-config --kind encrypt --config encrypt.json --r
 ```
 
 For decrypt configs in `hardened` or `no-password-tables` mode, prefer `--strict` so accidental password-table use or non-template runtime mappings are caught early.
+
+For repository automation, run:
+
+```bash
+pre-commit run --all-files
+python -m pip_audit . --progress-spinner off
+```
+
+The pre-commit configuration uses `detect-secrets` with `.secrets.baseline`; update the baseline only after reviewing any newly detected values.

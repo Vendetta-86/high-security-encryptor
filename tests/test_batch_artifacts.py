@@ -16,8 +16,15 @@ from high_security_encryptor.batch_artifacts import (
     write_password_table_artifact,
     write_template_artifact,
 )
-from high_security_encryptor.batch_binding import BindingValidationError
-from high_security_encryptor.batch_payloads import PasswordRecord
+from high_security_encryptor.batch_binding import BindingValidationError, extract_binding
+from high_security_encryptor.batch_payloads import (
+    PasswordRecord,
+    create_manifest_payload,
+    create_password_table_payload,
+    serialize_manifest_payload,
+    serialize_password_table_payload,
+)
+from high_security_encryptor.metadata_crypto import write_encrypted_metadata_file
 
 
 class BatchArtifactTests(unittest.TestCase):
@@ -80,6 +87,37 @@ class BatchArtifactTests(unittest.TestCase):
 
             with self.assertRaises(BindingValidationError):
                 load_manifest_artifact(path_b, "metadata-secret", binding_a)
+
+    def test_manifest_artifact_rejects_entries_that_do_not_match_binding(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifact_path = Path(temp_dir) / "manifest.hsm"
+            payload = create_manifest_payload(["a.txt.hse"], mode="bundle", batch_id="batch-a")
+            binding = extract_binding(payload)
+            payload["entries"][0]["encrypted_name"] = "b.txt.hse"
+            write_encrypted_metadata_file(artifact_path, serialize_manifest_payload(payload), "metadata-secret")
+
+            with self.assertRaisesRegex(BindingValidationError, "entry fingerprint mismatch"):
+                load_manifest_artifact(artifact_path, "metadata-secret", binding)
+
+    def test_password_table_artifact_rejects_extra_records(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifact_path = Path(temp_dir) / "passwords.hsm"
+            payload, binding = create_password_table_payload(
+                [PasswordRecord("a.txt", "a.txt.hse", "pw-a")],
+                ["a.txt.hse"],
+                batch_id="batch-a",
+            )
+            payload["records"].append(
+                {
+                    "source_name": "b.txt",
+                    "encrypted_name": "b.txt.hse",
+                    "password": "pw-b",  # pragma: allowlist secret
+                }
+            )
+            write_encrypted_metadata_file(artifact_path, serialize_password_table_payload(payload), "metadata-secret")
+
+            with self.assertRaisesRegex(BindingValidationError, "entry count mismatch"):
+                load_password_table_artifact(artifact_path, "metadata-secret", binding)
 
 
 if __name__ == "__main__":
