@@ -8,6 +8,7 @@ import os
 import sys
 import traceback
 
+from .brute_force_guard import BruteForceBlockedError
 from .integrity import IntegrityValidationError
 from .password_sources import PasswordSourceError
 from .redaction import redact_text
@@ -19,6 +20,7 @@ EXIT_VALIDATION_ISSUES = 2
 EXIT_CONFIG_ERROR = 3
 EXIT_PASSWORD_SOURCE_ERROR = 4
 EXIT_INTEGRITY_ERROR = 5
+EXIT_BRUTE_FORCE_BLOCKED = 6
 
 
 class CliConfigError(Exception):
@@ -53,6 +55,8 @@ def format_exception_message(exc: Exception) -> str:
 def classify_cli_exception(exc: Exception) -> int:
     """Map known failure classes to stable CLI exit codes."""
 
+    if isinstance(exc, BruteForceBlockedError):
+        return EXIT_BRUTE_FORCE_BLOCKED
     if isinstance(exc, PasswordSourceError):
         return EXIT_PASSWORD_SOURCE_ERROR
     if isinstance(exc, (IntegrityError, IntegrityValidationError)):
