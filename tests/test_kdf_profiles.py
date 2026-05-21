@@ -32,12 +32,12 @@ class KdfProfileTests(unittest.TestCase):
         self.assertEqual(profile.hash_len, KEY_LEN)
 
     def test_hse1_derive_key_matches_historical_argon2id_parameters(self) -> None:
-        password = "correct horse battery staple"
-        salt = b"1234567890abcdef"
+        sample_phrase = "unit test phrase only"
+        sample_salt = b"hse-test-salt-000"
 
         expected = hash_secret_raw(
-            secret=password.encode("utf-8"),
-            salt=salt,
+            secret=sample_phrase.encode("utf-8"),
+            salt=sample_salt,
             time_cost=3,
             memory_cost=65536,
             parallelism=4,
@@ -45,7 +45,7 @@ class KdfProfileTests(unittest.TestCase):
             type=Type.ID,
         )
 
-        self.assertEqual(derive_key(password, salt), expected)
+        self.assertEqual(derive_key(sample_phrase, sample_salt), expected)
 
     def test_profiles_are_ordered_by_memory_hardness(self) -> None:
         compatible = get_kdf_profile(KDF_PROFILE_COMPATIBLE)
@@ -69,11 +69,11 @@ class KdfProfileTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_kdf_profile("unknown")
 
-    def test_password_and_salt_are_required(self) -> None:
+    def test_secret_phrase_and_salt_are_required(self) -> None:
         with self.assertRaises(ValueError):
-            derive_argon2id_key("", b"1234567890abcdef")
+            derive_argon2id_key("", b"hse-test-salt-000")
         with self.assertRaises(ValueError):
-            derive_argon2id_key("password", b"")
+            derive_argon2id_key("unit test phrase only", b"")
 
 
 if __name__ == "__main__":
