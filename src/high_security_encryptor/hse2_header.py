@@ -1,8 +1,8 @@
 """Self-describing header model for future HSE2 containers.
 
 The HSE2 header is intentionally modeled before the streaming format is wired to
-CLI commands. It provides a canonical, authenticated metadata representation for
-future HSE2 encryption/decryption, rewrapping, and keyfile/device-bound modes.
+CLI commands. It provides a canonical metadata representation for future HSE2
+encryption/decryption, rewrapping, and keyfile/device-bound modes.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from .streaming_primitives import DEFAULT_CHUNK_SIZE, MAX_CHUNK_SIZE, NONCE_LEN
 HSE2_MAGIC = b"HSE2"
 HSE2_VERSION = 2
 CONTENT_ALGORITHM = "AES-256-GCM-STREAM"
+PAYLOAD_AAD_CONTEXT = "HSE2-PAYLOAD-AAD-v1"
 HEADER_LENGTH_STRUCT = struct.Struct(">I")
 MAX_HEADER_JSON_LEN = 1024 * 1024
 
@@ -60,6 +61,23 @@ class HSE2Header:
             "wrapped_data_key": self.wrapped_data_key.as_dict(),
         }
 
+    def immutable_payload_dict(self) -> dict[str, Any]:
+        """Return metadata that must remain stable for existing payload bytes.
+
+        KDF metadata and wrapped DEK fields are deliberately excluded so future
+        rewrap operations can replace the password/KDF wrapper without rewriting
+        or invalidating encrypted payload chunks.
+        """
+
+        self.validate()
+        return {
+            "context": PAYLOAD_AAD_CONTEXT,
+            "version": self.version,
+            "content_algorithm": self.content_algorithm,
+            "chunk_size": self.chunk_size,
+            "base_nonce_hex": self.base_nonce.hex(),
+        }
+
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "HSE2Header":
         try:
@@ -88,7 +106,7 @@ class HSE2Header:
         return header
 
     def to_json_bytes(self) -> bytes:
-        """Serialize the header as canonical UTF-8 JSON bytes."""
+        """Serialize the full header as canonical UTF-8 JSON bytes."""
 
         return canonical_json_bytes(self.as_dict())
 
@@ -103,9 +121,9 @@ class HSE2Header:
         return cls.from_dict(payload)
 
     def associated_data(self) -> bytes:
-        """Return bytes that should be used as AEAD AAD for payload operations."""
+        """Return stable AEAD AAD bytes for payload chunks and trailers."""
 
-        return build_header_frame(self)
+        return build_payload_associated_data(self)
 
 
 def build_header_frame(header: HSE2Header) -> bytes:
@@ -115,6 +133,13 @@ def build_header_frame(header: HSE2Header) -> bytes:
     if len(json_bytes) > MAX_HEADER_JSON_LEN:
         raise ValueError("HSE2 header JSON is too large")
     return HSE2_MAGIC + HEADER_LENGTH_STRUCT.pack(len(json_bytes)) + json_bytes
+
+
+def build_payload_associated_data(header: HSE2Header) -> bytes:
+    """Return AEAD AAD for payload bytes using only immutable payload metadata."""
+
+    payload = canonical_json_bytes(header.immutable_payload_dict())
+    return HSE2_MAGIC + b"AAD" + HEADER_LENGTH_STRUCT.pack(len(payload)) + payload
 
 
 def parse_header_frame(data: bytes) -> HSE2Header:

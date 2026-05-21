@@ -72,6 +72,7 @@ def encrypt_streaming_hse2(
         chunk_size=chunk_size,
     )
     header_frame = build_header_frame(header)
+    payload_aad = header.associated_data()
 
     total_plaintext_size = 0
     chunk_count = 0
@@ -86,7 +87,7 @@ def encrypt_streaming_hse2(
                     break
                 meta = CHUNK_HEADER_STRUCT.pack(chunk_count, len(plaintext))
                 cipher = AES.new(data_key, AES.MODE_GCM, nonce=derive_nonce(base_nonce, chunk_count))
-                cipher.update(header_frame + meta)
+                cipher.update(payload_aad + meta)
                 ciphertext, tag = cipher.encrypt_and_digest(plaintext)
                 dst.write(meta)
                 dst.write(tag)
@@ -98,7 +99,7 @@ def encrypt_streaming_hse2(
             digest_bytes = plaintext_digest.digest()
             trailer_meta = struct.pack(">QQ32s", chunk_count, total_plaintext_size, digest_bytes)
             trailer_cipher = AES.new(data_key, AES.MODE_GCM, nonce=derive_nonce(base_nonce, TRAILER_NONCE_INDEX))
-            trailer_cipher.update(header_frame + trailer_meta)
+            trailer_cipher.update(payload_aad + trailer_meta)
             trailer_tag = trailer_cipher.encrypt_and_digest(b"")[1]
             dst.write(TRAILER_STRUCT.pack(chunk_count, total_plaintext_size, digest_bytes, trailer_tag))
             flush_file(dst)
@@ -121,9 +122,10 @@ def decrypt_streaming_hse2(source: str | Path, target: str | Path, password: str
         raise IntegrityError("ciphertext is too short")
 
     with source_path.open("rb") as src:
-        header_frame, header = read_hse2_header_frame(src)
+        _header_frame, header = read_hse2_header_frame(src)
         if header.chunk_size <= 0 or header.chunk_size > MAX_CHUNK_SIZE:
             raise HeaderError("unsupported chunk size")
+        payload_aad = header.associated_data()
         wrapping_key = derive_argon2id_key(password, header.kdf_salt, header.kdf)
         try:
             data_key = unwrap_data_key(header.wrapped_data_key, wrapping_key)
@@ -155,7 +157,7 @@ def decrypt_streaming_hse2(source: str | Path, target: str | Path, password: str
                     if len(ciphertext) != plaintext_length:
                         raise IntegrityError("truncated chunk ciphertext")
                     cipher = AES.new(data_key, AES.MODE_GCM, nonce=derive_nonce(header.base_nonce, chunk_index))
-                    cipher.update(header_frame + meta)
+                    cipher.update(payload_aad + meta)
                     try:
                         plaintext = cipher.decrypt_and_verify(ciphertext, tag)
                     except ValueError as exc:
@@ -171,7 +173,7 @@ def decrypt_streaming_hse2(source: str | Path, target: str | Path, password: str
                 expected_chunk_count, expected_plaintext_size, expected_digest, trailer_tag = TRAILER_STRUCT.unpack(trailer_blob)
                 trailer_meta = struct.pack(">QQ32s", expected_chunk_count, expected_plaintext_size, expected_digest)
                 trailer_cipher = AES.new(data_key, AES.MODE_GCM, nonce=derive_nonce(header.base_nonce, TRAILER_NONCE_INDEX))
-                trailer_cipher.update(header_frame + trailer_meta)
+                trailer_cipher.update(payload_aad + trailer_meta)
                 try:
                     trailer_cipher.decrypt_and_verify(b"", trailer_tag)
                 except ValueError as exc:
