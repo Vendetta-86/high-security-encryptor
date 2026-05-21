@@ -12,6 +12,11 @@ from typing import Any
 from .batch_bundle_workflow import encrypt_batch_bundle
 from .batch_decryption import decrypt_batch_files
 from .batch_workflow import encrypt_batch_files
+from .brute_force_guard import (
+    BruteForceGuard,
+    BruteForceGuardConfig,
+    build_decryption_subject,
+)
 from .cli_errors import (
     EXIT_CONFIG_ERROR,
     EXIT_INTEGRITY_ERROR,
@@ -29,8 +34,10 @@ from .cli_summaries import (
 )
 from .config import BatchDecryptionConfig, BatchEncryptionConfig
 from .example_templates import export_example_config
+from .integrity import IntegrityValidationError
 from .password_sources import create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
+from .streaming_format import IntegrityError
 from .validation_report import (
     build_validation_report,
     collect_decryption_config_strict_issues,
@@ -174,33 +181,68 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
     """执行 `decrypt-batch` 命令并返回可序列化摘要。"""
 
     config = _load_config_file(args.config, BatchDecryptionConfig.from_json_file, "decryption")
-    resolver = create_default_password_resolver()
-    result = decrypt_batch_files(
+    guard = _build_brute_force_guard(args)
+    guard_subject = build_decryption_subject(
         encrypted_files=config.encrypted_files,
         manifest_path=config.manifest_path,
-        password_table_path=config.password_table_path,
         template_path=config.template_path,
-        metadata_password=config.resolve_metadata_password(resolver),
-        output_dir=config.output_dir,
-        passwords_by_encrypted_name=config.resolve_top_level_password_overrides(resolver),
-        runtime_password_plan=RuntimePasswordPlan(
-            by_encrypted_name=config.resolve_template_passwords_by_encrypted_name(resolver),
-            by_source_name=config.resolve_template_passwords_by_source_name(resolver),
-        )
-        if config.template_passwords_by_encrypted_name or config.template_passwords_by_source_name
-        else None,
-        password_resolver=resolver,
-        auto_decrypt_folder_inner_files=config.auto_decrypt_folder_inner_files,
-        folder_inner_password_overrides=config.resolve_folder_inner_password_overrides(resolver),
-        folder_internal_runtime_password_plans={
-            package_name: RuntimePasswordPlan(
-                by_encrypted_name=package_plan.get("by_encrypted_name", {}),
-                by_source_name=package_plan.get("by_source_name", {}),
-            )
-            for package_name, package_plan in config.resolve_folder_template_runtime_plans(resolver).items()
-        },
+        password_table_path=config.password_table_path,
     )
-    return summarize_batch_decryption_result(result, config.security_mode)
+    guard.check_allowed(guard_subject)
+    resolver = create_default_password_resolver()
+    try:
+        result = decrypt_batch_files(
+            encrypted_files=config.encrypted_files,
+            manifest_path=config.manifest_path,
+            password_table_path=config.password_table_path,
+            template_path=config.template_path,
+            metadata_password=config.resolve_metadata_password(resolver),
+            output_dir=config.output_dir,
+            passwords_by_encrypted_name=config.resolve_top_level_password_overrides(resolver),
+            runtime_password_plan=RuntimePasswordPlan(
+                by_encrypted_name=config.resolve_template_passwords_by_encrypted_name(resolver),
+                by_source_name=config.resolve_template_passwords_by_source_name(resolver),
+            )
+            if config.template_passwords_by_encrypted_name or config.template_passwords_by_source_name
+            else None,
+            password_resolver=resolver,
+            auto_decrypt_folder_inner_files=config.auto_decrypt_folder_inner_files,
+            folder_inner_password_overrides=config.resolve_folder_inner_password_overrides(resolver),
+            folder_internal_runtime_password_plans={
+                package_name: RuntimePasswordPlan(
+                    by_encrypted_name=package_plan.get("by_encrypted_name", {}),
+                    by_source_name=package_plan.get("by_source_name", {}),
+                )
+                for package_name, package_plan in config.resolve_folder_template_runtime_plans(resolver).items()
+            },
+        )
+    except (IntegrityError, IntegrityValidationError):
+        guard.record_failure(guard_subject)
+        raise
+    guard.record_success(guard_subject)
+    summary = summarize_batch_decryption_result(result, config.security_mode)
+    summary["brute_force_guard"] = {
+        "enabled": guard.config.enabled,
+        "state_path": str(guard.state_path) if guard.config.enabled else None,
+        "max_failures": guard.config.max_failures,
+        "window_seconds": guard.config.window_seconds,
+        "lock_seconds": guard.config.lock_seconds,
+    }
+    return summary
+
+
+def _build_brute_force_guard(args: argparse.Namespace) -> BruteForceGuard:
+    return BruteForceGuard(
+        BruteForceGuardConfig(
+            enabled=not bool(getattr(args, "disable_brute_force_guard", False)),
+            max_failures=int(getattr(args, "brute_force_max_failures", 5)),
+            window_seconds=int(getattr(args, "brute_force_window_seconds", 900)),
+            lock_seconds=int(getattr(args, "brute_force_lock_seconds", 1800)),
+            state_path=Path(args.brute_force_guard_state)
+            if getattr(args, "brute_force_guard_state", None)
+            else None,
+        )
+    )
 
 
 def _handle_init_example(args: argparse.Namespace) -> dict[str, Any]:

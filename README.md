@@ -1,6 +1,6 @@
 # High Security Encryptor
 
-High Security Encryptor is a local file-encryption tool for high-value data workflows. It supports streaming file encryption, batch sidecar artifacts, folder packages, runtime password providers, and CLI-driven encryption/decryption plans.
+High Security Encryptor is a local file-encryption tool for high-value data workflows. It supports streaming file encryption, batch sidecar artifacts, folder packages, runtime password providers, local brute-force throttling, and CLI-driven encryption/decryption plans.
 
 ## Install
 
@@ -36,7 +36,7 @@ pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
 ```
 
-The test suite currently contains 177 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
+The test suite currently contains 181 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
 
 ## CLI
 
@@ -86,6 +86,27 @@ When `security_mode` is omitted, new encryption configs default to `no-password-
 
 For decrypt configs in `hardened` or `no-password-tables` mode, omit `password_table_path` and provide passwords through `template_passwords_by_encrypted_name`, `template_passwords_by_source_name`, or folder runtime template mappings.
 
+## Brute-force Guard
+
+`decrypt-batch` enables local failed-attempt throttling by default. Integrity or authentication failures are counted per decryption plan. After 5 failures within 15 minutes, the same plan is locked for 30 minutes. Successful decryption clears that plan's failure history.
+
+Useful options:
+
+```bash
+high-security-encryptor decrypt-batch --config decrypt.json \
+  --brute-force-max-failures 5 \
+  --brute-force-window-seconds 900 \
+  --brute-force-lock-seconds 1800
+```
+
+Additional controls:
+
+- `--brute-force-guard-state PATH`: use a specific local guard-state file.
+- `--disable-brute-force-guard`: disable local throttling for one run.
+- `HSE_BRUTE_FORCE_GUARD_STATE`: environment override for the default state path.
+
+This is a local online-attack throttle. It does not make a copied encrypted file impossible to attack offline, so strong passwords and hardened/no-password-table workflows remain necessary.
+
 ## Security and Operations
 
 - [Security Model](docs/security_model.md): protection goals, non-goals, sidecar sensitivity, and provider risks.
@@ -108,6 +129,7 @@ CLI failures are normalized into stable exit codes:
 - `3`: command input or config file error
 - `4`: password-source provider error
 - `5`: integrity or authentication failure
+- `6`: brute-force guard lockout
 
 By default, CLI errors are printed as concise `error: ...` messages without Python tracebacks. Use `--debug` before the subcommand, or set `HSE_DEBUG=1`, to print full tracebacks:
 
@@ -121,6 +143,7 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - `error: ... config is not valid JSON`: validate the config file syntax.
 - `error: environment variable not set`: set the named password-provider environment variable before running the command.
 - `error: chunk authentication failed` or another integrity error: verify the password, encrypted file, manifest, template, and password table all belong to the same batch.
+- `error: too many failed decryption attempts`: wait for the displayed retry interval, verify that the config and encrypted artifacts belong together, then retry with the correct password.
 
 ## Project Layout
 
@@ -139,6 +162,7 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Mixed batch decryption and folder auto-decryption are implemented.
 - Runtime password providers and no-password-table flows are implemented.
 - JSON config validation and report output are implemented.
+- Local brute-force throttling is enabled for CLI batch decryption.
 - Third-stage hardening, modularization cleanup, and focused helper coverage are complete.
 - Fourth-stage release readiness work is complete for version `0.2.0`.
 - Windows executable release automation is available for version `0.2.1`.
