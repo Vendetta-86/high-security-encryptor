@@ -14,7 +14,7 @@ from high_security_encryptor.hse2_header import (
     split_header_frame,
 )
 from high_security_encryptor.key_wrapping import DEK_LEN, wrap_data_key
-from high_security_encryptor.kdf_profiles import KDF_PROFILE_HARDENED
+from high_security_encryptor.kdf_profiles import KDF_PROFILE_COMPATIBLE, KDF_PROFILE_HARDENED
 from high_security_encryptor.streaming_primitives import DEFAULT_CHUNK_SIZE, NONCE_LEN
 
 
@@ -65,10 +65,39 @@ class HSE2HeaderTests(unittest.TestCase):
         self.assertEqual(consumed, len(frame))
         self.assertEqual(type(header).from_json_bytes(json_bytes), header)
 
-    def test_associated_data_is_header_frame(self) -> None:
+    def test_associated_data_is_rewrap_compatible_payload_metadata(self) -> None:
         header = self._sample_header()
+        rewrapped = build_hse2_header(
+            kdf_profile_name=KDF_PROFILE_COMPATIBLE,
+            kdf_salt=b"different-kdf-salt",
+            wrapped_data_key=wrap_data_key(b"d" * DEK_LEN, b"x" * DEK_LEN),
+            base_nonce=header.base_nonce,
+            chunk_size=header.chunk_size,
+        )
 
-        self.assertEqual(header.associated_data(), build_header_frame(header))
+        self.assertNotEqual(header.to_json_bytes(), rewrapped.to_json_bytes())
+        self.assertEqual(header.associated_data(), rewrapped.associated_data())
+        self.assertNotEqual(header.associated_data(), build_header_frame(header))
+
+    def test_payload_associated_data_changes_for_payload_metadata(self) -> None:
+        header = self._sample_header()
+        changed_nonce = build_hse2_header(
+            kdf_profile_name=KDF_PROFILE_HARDENED,
+            kdf_salt=header.kdf_salt,
+            wrapped_data_key=header.wrapped_data_key,
+            base_nonce=b"m" * NONCE_LEN,
+            chunk_size=header.chunk_size,
+        )
+        changed_chunk_size = build_hse2_header(
+            kdf_profile_name=KDF_PROFILE_HARDENED,
+            kdf_salt=header.kdf_salt,
+            wrapped_data_key=header.wrapped_data_key,
+            base_nonce=header.base_nonce,
+            chunk_size=header.chunk_size // 2,
+        )
+
+        self.assertNotEqual(header.associated_data(), changed_nonce.associated_data())
+        self.assertNotEqual(header.associated_data(), changed_chunk_size.associated_data())
 
     def test_invalid_magic_is_rejected(self) -> None:
         frame = build_header_frame(self._sample_header())
