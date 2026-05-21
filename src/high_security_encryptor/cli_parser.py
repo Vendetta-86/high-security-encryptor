@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from typing import Callable
 
+from .kdf_profiles import KDF_PROFILE_COMPATIBLE, KDF_PROFILE_HARDENED, KDF_PROFILE_PARANOID
 from .security_mode import (
     SECURITY_MODE_COMPATIBLE,
     SECURITY_MODE_HARDENED,
@@ -20,6 +21,9 @@ def build_cli_parser(
     decrypt_handler: Handler,
     validate_handler: Handler,
     init_example_handler: Handler,
+    hse2_encrypt_handler: Handler | None = None,
+    hse2_decrypt_handler: Handler | None = None,
+    hse2_rewrap_handler: Handler | None = None,
 ) -> argparse.ArgumentParser:
     """Build the top-level CLI parser and wire subcommands to handlers."""
 
@@ -72,6 +76,52 @@ def build_cli_parser(
         help="Lock duration in seconds after too many failures. Defaults to 1800.",
     )
     decrypt_parser.set_defaults(handler=decrypt_handler)
+
+    if hse2_encrypt_handler is not None:
+        hse2_encrypt_parser = subparsers.add_parser(
+            "hse2-encrypt",
+            help="EXPERIMENTAL: Encrypt one file with the draft HSE2 container format.",
+        )
+        _add_hse2_file_args(hse2_encrypt_parser)
+        _add_hse2_secret_arg(hse2_encrypt_parser, "--secret", "Secret used to wrap the HSE2 data key.")
+        hse2_encrypt_parser.add_argument(
+            "--kdf-profile",
+            choices=[KDF_PROFILE_COMPATIBLE, KDF_PROFILE_HARDENED, KDF_PROFILE_PARANOID],
+            default=KDF_PROFILE_HARDENED,
+            help="Argon2id KDF profile. Defaults to hardened.",
+        )
+        hse2_encrypt_parser.add_argument(
+            "--chunk-size",
+            type=int,
+            default=1024 * 1024,
+            help="Payload chunk size in bytes. Defaults to 1048576.",
+        )
+        hse2_encrypt_parser.set_defaults(handler=hse2_encrypt_handler)
+
+    if hse2_decrypt_handler is not None:
+        hse2_decrypt_parser = subparsers.add_parser(
+            "hse2-decrypt",
+            help="EXPERIMENTAL: Decrypt one draft HSE2 container file.",
+        )
+        _add_hse2_file_args(hse2_decrypt_parser)
+        _add_hse2_secret_arg(hse2_decrypt_parser, "--secret", "Secret used to unwrap the HSE2 data key.")
+        hse2_decrypt_parser.set_defaults(handler=hse2_decrypt_handler)
+
+    if hse2_rewrap_handler is not None:
+        hse2_rewrap_parser = subparsers.add_parser(
+            "hse2-rewrap",
+            help="EXPERIMENTAL: Rewrap one draft HSE2 file without rewriting payload chunks.",
+        )
+        _add_hse2_file_args(hse2_rewrap_parser)
+        _add_hse2_secret_arg(hse2_rewrap_parser, "--old-secret", "Current HSE2 wrapper secret.")
+        _add_hse2_secret_arg(hse2_rewrap_parser, "--new-secret", "Replacement HSE2 wrapper secret.")
+        hse2_rewrap_parser.add_argument(
+            "--new-kdf-profile",
+            choices=[KDF_PROFILE_COMPATIBLE, KDF_PROFILE_HARDENED, KDF_PROFILE_PARANOID],
+            default=KDF_PROFILE_HARDENED,
+            help="Replacement Argon2id KDF profile. Defaults to hardened.",
+        )
+        hse2_rewrap_parser.set_defaults(handler=hse2_rewrap_handler)
 
     validate_parser = subparsers.add_parser(
         "validate-config",
@@ -184,3 +234,12 @@ def build_cli_parser(
     init_example_parser.set_defaults(handler=init_example_handler)
 
     return parser
+
+
+def _add_hse2_file_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--input", required=True, help="Input file path.")
+    parser.add_argument("--output", required=True, help="Output file path.")
+
+
+def _add_hse2_secret_arg(parser: argparse.ArgumentParser, name: str, help_text: str) -> None:
+    parser.add_argument(name, required=True, help=help_text)
