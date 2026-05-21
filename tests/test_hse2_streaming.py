@@ -7,7 +7,11 @@ import tempfile
 import unittest
 
 from high_security_encryptor.hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2, read_hse2_header_frame
+from high_security_encryptor.kdf_profiles import KDF_PROFILE_COMPATIBLE
 from high_security_encryptor.streaming_primitives import IntegrityError
+
+TEST_KDF_PROFILE = KDF_PROFILE_COMPATIBLE
+TEST_PHRASE = "unit test phrase"
 
 
 class HSE2StreamingTests(unittest.TestCase):
@@ -20,8 +24,14 @@ class HSE2StreamingTests(unittest.TestCase):
             payload = (b"abc123" * 1000) + b"tail"
             source.write_bytes(payload)
 
-            encrypt_streaming_hse2(source, encrypted, "unit test phrase", chunk_size=128)
-            decrypt_streaming_hse2(encrypted, restored, "unit test phrase")
+            encrypt_streaming_hse2(
+                source,
+                encrypted,
+                TEST_PHRASE,
+                kdf_profile_name=TEST_KDF_PROFILE,
+                chunk_size=128,
+            )
+            decrypt_streaming_hse2(encrypted, restored, TEST_PHRASE)
 
             self.assertEqual(restored.read_bytes(), payload)
 
@@ -33,7 +43,13 @@ class HSE2StreamingTests(unittest.TestCase):
             restored = root / "restored.bin"
             source.write_bytes(b"payload")
 
-            encrypt_streaming_hse2(source, encrypted, "correct phrase", chunk_size=64)
+            encrypt_streaming_hse2(
+                source,
+                encrypted,
+                "correct phrase",
+                kdf_profile_name=TEST_KDF_PROFILE,
+                chunk_size=64,
+            )
 
             with self.assertRaises(IntegrityError):
                 decrypt_streaming_hse2(encrypted, restored, "wrong phrase")
@@ -45,7 +61,13 @@ class HSE2StreamingTests(unittest.TestCase):
             encrypted = root / "cipher.hse2"
             restored = root / "restored.bin"
             source.write_bytes(b"payload" * 100)
-            encrypt_streaming_hse2(source, encrypted, "unit test phrase", chunk_size=64)
+            encrypt_streaming_hse2(
+                source,
+                encrypted,
+                TEST_PHRASE,
+                kdf_profile_name=TEST_KDF_PROFILE,
+                chunk_size=64,
+            )
             blob = bytearray(encrypted.read_bytes())
 
             # Flip a byte inside the JSON header payload after the 8-byte frame prefix.
@@ -53,7 +75,7 @@ class HSE2StreamingTests(unittest.TestCase):
             encrypted.write_bytes(blob)
 
             with self.assertRaises(Exception):
-                decrypt_streaming_hse2(encrypted, restored, "unit test phrase")
+                decrypt_streaming_hse2(encrypted, restored, TEST_PHRASE)
 
     def test_chunk_tampering_fails_authentication(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -62,7 +84,13 @@ class HSE2StreamingTests(unittest.TestCase):
             encrypted = root / "cipher.hse2"
             restored = root / "restored.bin"
             source.write_bytes(b"payload" * 100)
-            encrypt_streaming_hse2(source, encrypted, "unit test phrase", chunk_size=64)
+            encrypt_streaming_hse2(
+                source,
+                encrypted,
+                TEST_PHRASE,
+                kdf_profile_name=TEST_KDF_PROFILE,
+                chunk_size=64,
+            )
 
             with encrypted.open("rb") as handle:
                 _header_frame, _header = read_hse2_header_frame(handle)
@@ -72,7 +100,7 @@ class HSE2StreamingTests(unittest.TestCase):
             encrypted.write_bytes(blob)
 
             with self.assertRaises(IntegrityError):
-                decrypt_streaming_hse2(encrypted, restored, "unit test phrase")
+                decrypt_streaming_hse2(encrypted, restored, TEST_PHRASE)
 
     def test_trailer_tampering_fails_authentication(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -81,14 +109,20 @@ class HSE2StreamingTests(unittest.TestCase):
             encrypted = root / "cipher.hse2"
             restored = root / "restored.bin"
             source.write_bytes(b"payload" * 100)
-            encrypt_streaming_hse2(source, encrypted, "unit test phrase", chunk_size=64)
+            encrypt_streaming_hse2(
+                source,
+                encrypted,
+                TEST_PHRASE,
+                kdf_profile_name=TEST_KDF_PROFILE,
+                chunk_size=64,
+            )
             blob = bytearray(encrypted.read_bytes())
 
             blob[-1] ^= 0x01
             encrypted.write_bytes(blob)
 
             with self.assertRaises(IntegrityError):
-                decrypt_streaming_hse2(encrypted, restored, "unit test phrase")
+                decrypt_streaming_hse2(encrypted, restored, TEST_PHRASE)
 
     def test_empty_file_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -98,8 +132,14 @@ class HSE2StreamingTests(unittest.TestCase):
             restored = root / "restored.bin"
             source.write_bytes(b"")
 
-            encrypt_streaming_hse2(source, encrypted, "unit test phrase", chunk_size=64)
-            decrypt_streaming_hse2(encrypted, restored, "unit test phrase")
+            encrypt_streaming_hse2(
+                source,
+                encrypted,
+                TEST_PHRASE,
+                kdf_profile_name=TEST_KDF_PROFILE,
+                chunk_size=64,
+            )
+            decrypt_streaming_hse2(encrypted, restored, TEST_PHRASE)
 
             self.assertEqual(restored.read_bytes(), b"")
 
