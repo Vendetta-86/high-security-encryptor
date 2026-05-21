@@ -101,8 +101,9 @@ class BruteForceGuard:
             return
         state = self._load_state()
         subjects = state.setdefault("subjects", {})
-        if subject in subjects:
-            del subjects[subject]
+        subject_key = hash_subject(subject)
+        if subject_key in subjects:
+            del subjects[subject_key]
             self._write_state(state)
 
     def _subject_record(self, state: dict[str, Any], subject: str) -> dict[str, Any]:
