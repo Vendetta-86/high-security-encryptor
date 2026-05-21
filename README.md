@@ -36,7 +36,7 @@ pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
 ```
 
-The test suite currently contains 181 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
+The test suite currently contains 187 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
 
 ## CLI
 
@@ -111,6 +111,7 @@ This is a local online-attack throttle. It does not make a copied encrypted file
 
 - [Security Model](docs/security_model.md): protection goals, non-goals, sidecar sensitivity, and provider risks.
 - [Operational Guidance](docs/operations.md): recommended modes, backup handling, password handling, rotation, and failure response.
+- [KDF Profiles](docs/kdf_profiles.md): Argon2id profile compatibility, hardened/paranoid roadmap, and HSE2 direction.
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 - [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.
 - [Phase 5 Completion](docs/phase5_completion.md): GUI quick-use improvements and Windows removable-storage encryption support.
@@ -163,6 +164,7 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - Runtime password providers and no-password-table flows are implemented.
 - JSON config validation and report output are implemented.
 - Local brute-force throttling is enabled for CLI batch decryption.
+- Argon2id KDF profiles are documented for HSE1 compatibility and future HSE2 self-describing containers.
 - Third-stage hardening, modularization cleanup, and focused helper coverage are complete.
 - Fourth-stage release readiness work is complete for version `0.2.0`.
 - Windows executable release automation is available for version `0.2.1`.
