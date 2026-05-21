@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import struct
 
-from argon2.low_level import Type, hash_secret_raw
+from .kdf_profiles import KEY_LEN, derive_argon2id_key, get_kdf_profile
 
 HEADER_MAGIC = b"HSE1"
 VERSION = 1
@@ -13,12 +13,12 @@ SALT_LEN = 16
 NONCE_LEN = 12
 TAG_LEN = 16
 DIGEST_LEN = 32
-KEY_LEN = 32
 DEFAULT_CHUNK_SIZE = 1024 * 1024
 MAX_CHUNK_SIZE = 64 * 1024 * 1024
-ARGON_TIME_COST = 3
-ARGON_MEMORY_COST = 65536
-ARGON_PARALLELISM = 4
+_HSE1_KDF_PROFILE = get_kdf_profile("compatible")
+ARGON_TIME_COST = _HSE1_KDF_PROFILE.time_cost
+ARGON_MEMORY_COST = _HSE1_KDF_PROFILE.memory_cost_kib
+ARGON_PARALLELISM = _HSE1_KDF_PROFILE.parallelism
 
 HEADER_STRUCT = struct.Struct(">4sBBBBII")
 CHUNK_HEADER_STRUCT = struct.Struct(">QI")
@@ -82,17 +82,9 @@ def parse_header(file_obj) -> tuple[bytes, bytes, int]:
 
 
 def derive_key(password: str, salt: bytes) -> bytes:
-    """Derive the file encryption key with Argon2id."""
+    """Derive the HSE1 file encryption key with the compatibility Argon2id profile."""
 
-    return hash_secret_raw(
-        secret=password.encode("utf-8"),
-        salt=salt,
-        time_cost=ARGON_TIME_COST,
-        memory_cost=ARGON_MEMORY_COST,
-        parallelism=ARGON_PARALLELISM,
-        hash_len=KEY_LEN,
-        type=Type.ID,
-    )
+    return derive_argon2id_key(password, salt, _HSE1_KDF_PROFILE)
 
 
 def derive_nonce(base_nonce: bytes, chunk_index: int) -> bytes:
