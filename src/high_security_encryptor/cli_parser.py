@@ -24,6 +24,9 @@ def build_cli_parser(
     hse2_encrypt_handler: Handler | None = None,
     hse2_decrypt_handler: Handler | None = None,
     hse2_rewrap_handler: Handler | None = None,
+    hse2_encrypt_config_handler: Handler | None = None,
+    hse2_decrypt_config_handler: Handler | None = None,
+    hse2_rewrap_config_handler: Handler | None = None,
 ) -> argparse.ArgumentParser:
     """Build the top-level CLI parser and wire subcommands to handlers."""
 
@@ -122,6 +125,30 @@ def build_cli_parser(
             help="Replacement Argon2id KDF profile. Defaults to hardened.",
         )
         hse2_rewrap_parser.set_defaults(handler=hse2_rewrap_handler)
+
+    if hse2_encrypt_config_handler is not None:
+        hse2_encrypt_config_parser = subparsers.add_parser(
+            "hse2-encrypt-config",
+            help="EXPERIMENTAL: Encrypt one HSE2 file from a JSON config.",
+        )
+        hse2_encrypt_config_parser.add_argument("--config", required=True, help="Path to an HSE2 encryption config file.")
+        hse2_encrypt_config_parser.set_defaults(handler=hse2_encrypt_config_handler)
+
+    if hse2_decrypt_config_handler is not None:
+        hse2_decrypt_config_parser = subparsers.add_parser(
+            "hse2-decrypt-config",
+            help="EXPERIMENTAL: Decrypt one HSE2 file from a JSON config.",
+        )
+        hse2_decrypt_config_parser.add_argument("--config", required=True, help="Path to an HSE2 decryption config file.")
+        hse2_decrypt_config_parser.set_defaults(handler=hse2_decrypt_config_handler)
+
+    if hse2_rewrap_config_handler is not None:
+        hse2_rewrap_config_parser = subparsers.add_parser(
+            "hse2-rewrap-config",
+            help="EXPERIMENTAL: Rewrap one HSE2 file from a JSON config.",
+        )
+        hse2_rewrap_config_parser.add_argument("--config", required=True, help="Path to an HSE2 rewrap config file.")
+        hse2_rewrap_config_parser.set_defaults(handler=hse2_rewrap_config_handler)
 
     validate_parser = subparsers.add_parser(
         "validate-config",
