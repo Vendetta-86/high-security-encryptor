@@ -34,6 +34,8 @@ from .cli_summaries import (
 )
 from .config import BatchDecryptionConfig, BatchEncryptionConfig
 from .example_templates import export_example_config
+from .hse2_rewrap import rewrap_hse2_file
+from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
 from .integrity import IntegrityValidationError
 from .password_sources import create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
@@ -63,6 +65,9 @@ def build_parser() -> argparse.ArgumentParser:
         decrypt_handler=_handle_decrypt_batch,
         validate_handler=_handle_validate_config,
         init_example_handler=_handle_init_example,
+        hse2_encrypt_handler=_handle_hse2_encrypt,
+        hse2_decrypt_handler=_handle_hse2_decrypt,
+        hse2_rewrap_handler=_handle_hse2_rewrap,
     )
 
 
@@ -229,6 +234,57 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
         "lock_seconds": guard.config.lock_seconds,
     }
     return summary
+
+
+def _handle_hse2_encrypt(args: argparse.Namespace) -> dict[str, Any]:
+    """Run the experimental one-file HSE2 encryption helper."""
+
+    output = encrypt_streaming_hse2(
+        args.input,
+        args.output,
+        args.secret,
+        kdf_profile_name=args.kdf_profile,
+        chunk_size=int(args.chunk_size),
+    )
+    return {
+        "command": "hse2-encrypt",
+        "experimental": True,
+        "input": str(Path(args.input)),
+        "output": str(output),
+        "kdf_profile": args.kdf_profile,
+        "chunk_size": int(args.chunk_size),
+    }
+
+
+def _handle_hse2_decrypt(args: argparse.Namespace) -> dict[str, Any]:
+    """Run the experimental one-file HSE2 decryption helper."""
+
+    output = decrypt_streaming_hse2(args.input, args.output, args.secret)
+    return {
+        "command": "hse2-decrypt",
+        "experimental": True,
+        "input": str(Path(args.input)),
+        "output": str(output),
+    }
+
+
+def _handle_hse2_rewrap(args: argparse.Namespace) -> dict[str, Any]:
+    """Run the experimental one-file HSE2 rewrap helper."""
+
+    output = rewrap_hse2_file(
+        args.input,
+        args.output,
+        args.old_secret,
+        args.new_secret,
+        new_kdf_profile_name=args.new_kdf_profile,
+    )
+    return {
+        "command": "hse2-rewrap",
+        "experimental": True,
+        "input": str(Path(args.input)),
+        "output": str(output),
+        "new_kdf_profile": args.new_kdf_profile,
+    }
 
 
 def _build_brute_force_guard(args: argparse.Namespace) -> BruteForceGuard:
