@@ -43,6 +43,34 @@ def build_cli_parser(
         help="Decrypt a mixed batch of files and folders from a JSON config file.",
     )
     decrypt_parser.add_argument("--config", required=True, help="Path to a JSON batch-decryption config file.")
+    decrypt_parser.add_argument(
+        "--disable-brute-force-guard",
+        action="store_true",
+        help="Disable local failed-attempt throttling for this decryption run.",
+    )
+    decrypt_parser.add_argument(
+        "--brute-force-guard-state",
+        required=False,
+        help="Optional path for the local brute-force guard state file.",
+    )
+    decrypt_parser.add_argument(
+        "--brute-force-max-failures",
+        type=int,
+        default=5,
+        help="Failed authentication attempts allowed per window before locking. Defaults to 5.",
+    )
+    decrypt_parser.add_argument(
+        "--brute-force-window-seconds",
+        type=int,
+        default=900,
+        help="Rolling failure-count window in seconds. Defaults to 900.",
+    )
+    decrypt_parser.add_argument(
+        "--brute-force-lock-seconds",
+        type=int,
+        default=1800,
+        help="Lock duration in seconds after too many failures. Defaults to 1800.",
+    )
     decrypt_parser.set_defaults(handler=decrypt_handler)
 
     validate_parser = subparsers.add_parser(
