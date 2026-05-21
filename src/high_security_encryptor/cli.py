@@ -37,7 +37,7 @@ from .example_templates import export_example_config
 from .hse2_rewrap import rewrap_hse2_file
 from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
 from .integrity import IntegrityValidationError
-from .password_sources import create_default_password_resolver
+from .password_sources import PasswordSourceError, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
 from .streaming_format import IntegrityError
 from .validation_report import (
@@ -239,10 +239,11 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
 def _handle_hse2_encrypt(args: argparse.Namespace) -> dict[str, Any]:
     """Run the experimental one-file HSE2 encryption helper."""
 
+    wrapper_material = _resolve_hse2_wrapper_input(args, "secret", "hse2-encrypt wrapper")
     output = encrypt_streaming_hse2(
         args.input,
         args.output,
-        args.secret,
+        wrapper_material,
         kdf_profile_name=args.kdf_profile,
         chunk_size=int(args.chunk_size),
     )
@@ -253,29 +254,34 @@ def _handle_hse2_encrypt(args: argparse.Namespace) -> dict[str, Any]:
         "output": str(output),
         "kdf_profile": args.kdf_profile,
         "chunk_size": int(args.chunk_size),
+        "wrapper_source": _hse2_wrapper_source_name(args, "secret"),
     }
 
 
 def _handle_hse2_decrypt(args: argparse.Namespace) -> dict[str, Any]:
     """Run the experimental one-file HSE2 decryption helper."""
 
-    output = decrypt_streaming_hse2(args.input, args.output, args.secret)
+    wrapper_material = _resolve_hse2_wrapper_input(args, "secret", "hse2-decrypt wrapper")
+    output = decrypt_streaming_hse2(args.input, args.output, wrapper_material)
     return {
         "command": "hse2-decrypt",
         "experimental": True,
         "input": str(Path(args.input)),
         "output": str(output),
+        "wrapper_source": _hse2_wrapper_source_name(args, "secret"),
     }
 
 
 def _handle_hse2_rewrap(args: argparse.Namespace) -> dict[str, Any]:
     """Run the experimental one-file HSE2 rewrap helper."""
 
+    old_wrapper_material = _resolve_hse2_wrapper_input(args, "old_secret", "hse2-rewrap current wrapper")
+    new_wrapper_material = _resolve_hse2_wrapper_input(args, "new_secret", "hse2-rewrap replacement wrapper")
     output = rewrap_hse2_file(
         args.input,
         args.output,
-        args.old_secret,
-        args.new_secret,
+        old_wrapper_material,
+        new_wrapper_material,
         new_kdf_profile_name=args.new_kdf_profile,
     )
     return {
@@ -284,7 +290,48 @@ def _handle_hse2_rewrap(args: argparse.Namespace) -> dict[str, Any]:
         "input": str(Path(args.input)),
         "output": str(output),
         "new_kdf_profile": args.new_kdf_profile,
+        "old_wrapper_source": _hse2_wrapper_source_name(args, "old_secret"),
+        "new_wrapper_source": _hse2_wrapper_source_name(args, "new_secret"),
     }
+
+
+def _resolve_hse2_wrapper_input(args: argparse.Namespace, prefix: str, context: str) -> str:
+    spec = _hse2_wrapper_spec(args, prefix, context)
+    return create_default_password_resolver().resolve(spec, context)
+
+
+def _hse2_wrapper_spec(args: argparse.Namespace, prefix: str, context: str) -> str | dict[str, object]:
+    direct_value = getattr(args, prefix, None)
+    env_name = getattr(args, f"{prefix}_env", None)
+    file_path = getattr(args, f"{prefix}_file", None)
+    use_prompt = bool(getattr(args, f"{prefix}_prompt", False))
+    supplied = [
+        bool(direct_value),
+        bool(env_name),
+        bool(file_path),
+        use_prompt,
+    ]
+    if sum(supplied) != 1:
+        raise PasswordSourceError(f"{context}: specify exactly one wrapper input source")
+    if direct_value:
+        return {"type": "literal", "value": direct_value}
+    if env_name:
+        return {"type": "env", "name": env_name}
+    if file_path:
+        return {"type": "file", "path": file_path}
+    return {"type": "prompt", "prompt": f"{context}: "}
+
+
+def _hse2_wrapper_source_name(args: argparse.Namespace, prefix: str) -> str:
+    if getattr(args, prefix, None):
+        return "literal"
+    if getattr(args, f"{prefix}_env", None):
+        return "env"
+    if getattr(args, f"{prefix}_file", None):
+        return "file"
+    if getattr(args, f"{prefix}_prompt", False):
+        return "prompt"
+    return "unknown"
 
 
 def _build_brute_force_guard(args: argparse.Namespace) -> BruteForceGuard:
