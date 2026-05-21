@@ -1,0 +1,13 @@
+{
+  "input": "cipher.hse2",
+  "output": "rewrapped.hse2",
+  "old_wrapper": {
+    "type": "env",
+    "name": "CURRENT_HSE2_WRAPPER"
+  },
+  "new_wrapper": {
+    "type": "env",
+    "name": "REPLACEMENT_HSE2_WRAPPER"
+  },
+  "new_kdf_profile": "hardened"
+}

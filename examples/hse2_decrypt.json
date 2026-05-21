@@ -1,0 +1,8 @@
+{
+  "input": "cipher.hse2",
+  "output": "restored.bin",
+  "wrapper": {
+    "type": "env",
+    "name": "HSE2_WRAPPER"
+  }
+}

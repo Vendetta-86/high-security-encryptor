@@ -34,10 +34,11 @@ from .cli_summaries import (
 )
 from .config import BatchDecryptionConfig, BatchEncryptionConfig
 from .example_templates import export_example_config
+from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_rewrap import rewrap_hse2_file
 from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
 from .integrity import IntegrityValidationError
-from .password_sources import PasswordSourceError, create_default_password_resolver
+from .password_sources import PasswordSourceError, SecretSpec, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
 from .streaming_format import IntegrityError
 from .validation_report import (
@@ -68,6 +69,9 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_encrypt_handler=_handle_hse2_encrypt,
         hse2_decrypt_handler=_handle_hse2_decrypt,
         hse2_rewrap_handler=_handle_hse2_rewrap,
+        hse2_encrypt_config_handler=_handle_hse2_encrypt_config,
+        hse2_decrypt_config_handler=_handle_hse2_decrypt_config,
+        hse2_rewrap_config_handler=_handle_hse2_rewrap_config,
     )
 
 
@@ -295,6 +299,66 @@ def _handle_hse2_rewrap(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _handle_hse2_encrypt_config(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_config_file(args.config, HSE2EncryptConfig.from_json_file, "HSE2 encryption")
+    wrapper_material = config.resolve_wrapper(create_default_password_resolver())
+    output = encrypt_streaming_hse2(
+        config.input,
+        config.output,
+        wrapper_material,
+        kdf_profile_name=config.kdf_profile,
+        chunk_size=config.chunk_size,
+    )
+    return {
+        "command": "hse2-encrypt-config",
+        "experimental": True,
+        "config_path": str(Path(args.config)),
+        "input": config.input,
+        "output": str(output),
+        "kdf_profile": config.kdf_profile,
+        "chunk_size": config.chunk_size,
+        "wrapper_source": _secret_spec_source_name(config.wrapper),
+    }
+
+
+def _handle_hse2_decrypt_config(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_config_file(args.config, HSE2DecryptConfig.from_json_file, "HSE2 decryption")
+    wrapper_material = config.resolve_wrapper(create_default_password_resolver())
+    output = decrypt_streaming_hse2(config.input, config.output, wrapper_material)
+    return {
+        "command": "hse2-decrypt-config",
+        "experimental": True,
+        "config_path": str(Path(args.config)),
+        "input": config.input,
+        "output": str(output),
+        "wrapper_source": _secret_spec_source_name(config.wrapper),
+    }
+
+
+def _handle_hse2_rewrap_config(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_config_file(args.config, HSE2RewrapConfig.from_json_file, "HSE2 rewrap")
+    resolver = create_default_password_resolver()
+    old_wrapper_material = config.resolve_old_wrapper(resolver)
+    new_wrapper_material = config.resolve_new_wrapper(resolver)
+    output = rewrap_hse2_file(
+        config.input,
+        config.output,
+        old_wrapper_material,
+        new_wrapper_material,
+        new_kdf_profile_name=config.new_kdf_profile,
+    )
+    return {
+        "command": "hse2-rewrap-config",
+        "experimental": True,
+        "config_path": str(Path(args.config)),
+        "input": config.input,
+        "output": str(output),
+        "new_kdf_profile": config.new_kdf_profile,
+        "old_wrapper_source": _secret_spec_source_name(config.old_wrapper),
+        "new_wrapper_source": _secret_spec_source_name(config.new_wrapper),
+    }
+
+
 def _resolve_hse2_wrapper_input(args: argparse.Namespace, prefix: str, context: str) -> str:
     spec = _hse2_wrapper_spec(args, prefix, context)
     return create_default_password_resolver().resolve(spec, context)
@@ -331,6 +395,15 @@ def _hse2_wrapper_source_name(args: argparse.Namespace, prefix: str) -> str:
         return "file"
     if getattr(args, f"{prefix}_prompt", False):
         return "prompt"
+    return "unknown"
+
+
+def _secret_spec_source_name(spec: SecretSpec) -> str:
+    if isinstance(spec, str):
+        return "literal"
+    if isinstance(spec, dict):
+        source_type = spec.get("type")
+        return str(source_type) if isinstance(source_type, str) else "object"
     return "unknown"
 
 
