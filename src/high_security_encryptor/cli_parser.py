@@ -242,4 +242,7 @@ def _add_hse2_file_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_hse2_secret_arg(parser: argparse.ArgumentParser, name: str, help_text: str) -> None:
-    parser.add_argument(name, required=True, help=help_text)
+    parser.add_argument(name, required=False, help=f"Testing-only literal value. {help_text}")
+    parser.add_argument(f"{name}-env", required=False, help="Environment variable containing the value.")
+    parser.add_argument(f"{name}-file", required=False, help="UTF-8 file containing the value.")
+    parser.add_argument(f"{name}-prompt", action="store_true", help="Prompt interactively for the value.")
