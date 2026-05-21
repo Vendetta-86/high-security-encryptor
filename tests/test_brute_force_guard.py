@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 from high_security_encryptor.brute_force_guard import (
     BruteForceBlockedError,
@@ -71,6 +72,24 @@ class BruteForceGuardTests(unittest.TestCase):
             guard.check_allowed("subject-a")
 
             self.assertFalse(state_path.exists())
+
+    def test_state_write_failure_is_non_fatal(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "guard.json"
+            guard = BruteForceGuard(
+                BruteForceGuardConfig(
+                    max_failures=1,
+                    window_seconds=60,
+                    lock_seconds=300,
+                    state_path=state_path,
+                )
+            )
+
+            with mock.patch("tempfile.mkstemp", side_effect=OSError("disk unavailable")):
+                guard.record_failure("subject-a")
+                guard.record_success("subject-a")
+
+            guard.check_allowed("subject-a")
 
     def test_subject_uses_hashed_path_details(self) -> None:
         subject = build_decryption_subject(
