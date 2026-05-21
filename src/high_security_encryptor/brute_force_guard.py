@@ -134,26 +134,37 @@ class BruteForceGuard:
         return data
 
     def _write_state(self, state: dict[str, Any]) -> None:
-        self.state_path.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True)
-        fd, temp_name = tempfile.mkstemp(
-            prefix=f".{self.state_path.name}.",
-            suffix=".tmp",
-            dir=str(self.state_path.parent),
-            text=True,
-        )
+        """Persist guard state without making decryption depend on local state I/O."""
+
+        temp_name: str | None = None
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as temp_file:
-                temp_file.write(payload)
-                temp_file.write("\n")
-                temp_file.flush()
-                os.fsync(temp_file.fileno())
-            os.replace(temp_name, self.state_path)
-        finally:
+            self.state_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True)
+            fd, temp_name = tempfile.mkstemp(
+                prefix=f".{self.state_path.name}.",
+                suffix=".tmp",
+                dir=str(self.state_path.parent),
+                text=True,
+            )
             try:
-                Path(temp_name).unlink()
-            except FileNotFoundError:
-                pass
+                with os.fdopen(fd, "w", encoding="utf-8") as temp_file:
+                    temp_file.write(payload)
+                    temp_file.write("\n")
+                    temp_file.flush()
+                    os.fsync(temp_file.fileno())
+                os.replace(temp_name, self.state_path)
+                temp_name = None
+            finally:
+                if temp_name is not None:
+                    try:
+                        Path(temp_name).unlink()
+                    except FileNotFoundError:
+                        pass
+        except OSError:
+            # A local throttle must not mask the actual decryption outcome. If
+            # the state location is unavailable, decryption continues without
+            # persisted throttling for this attempt.
+            return
 
 
 def _new_state() -> dict[str, Any]:
