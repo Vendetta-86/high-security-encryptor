@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from dataclasses import dataclass, field
 import getpass
 import os
@@ -15,6 +16,9 @@ SecretSpec = str | dict[str, object]
 ProviderHandler = Callable[[dict[str, object], str], str]
 COMMAND_TIMEOUT_SECONDS = 30
 MAX_COMMAND_OUTPUT_CHARS = 8192
+MIN_KEYFILE_BYTES = 16
+MAX_KEYFILE_BYTES = 1024 * 1024
+KEYFILE_WRAPPER_PREFIX = "hse-keyfile-v1:"
 
 
 class PasswordSourceError(Exception):
@@ -29,6 +33,7 @@ class PasswordResolver:
     prompt_callback: Callable[[str], str]
     file_reader: Callable[[Path], str]
     command_runner: Callable[[list[str]], str]
+    binary_file_reader: Callable[[Path], bytes] | None = None
     providers: dict[str, ProviderHandler] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -39,6 +44,7 @@ class PasswordResolver:
         provider_map.setdefault("env", self._resolve_env)
         provider_map.setdefault("prompt", self._resolve_prompt)
         provider_map.setdefault("file", self._resolve_file)
+        provider_map.setdefault("keyfile", self._resolve_keyfile)
         provider_map.setdefault("command", self._resolve_command)
         object.__setattr__(self, "providers", provider_map)
 
@@ -104,6 +110,25 @@ class PasswordResolver:
         raw_value = self.file_reader(Path(file_path))
         return raw_value.rstrip("\r\n")
 
+    def _resolve_keyfile(self, spec: dict[str, object], context: str) -> str:
+        """通过读取本地二进制 keyfile 解析稳定包装材料。"""
+
+        file_path = str(spec.get("path", "")).strip()
+        if not file_path:
+            raise PasswordSourceError(f"{context}: keyfile source missing path")
+        reader = self.binary_file_reader
+        if reader is None:
+            raise PasswordSourceError(f"{context}: keyfile binary reader is unavailable")
+        try:
+            raw_value = reader(Path(file_path))
+        except OSError as exc:
+            raise PasswordSourceError(f"keyfile source could not read {file_path}") from exc
+        if len(raw_value) < MIN_KEYFILE_BYTES:
+            raise PasswordSourceError(f"{context}: keyfile must contain at least {MIN_KEYFILE_BYTES} bytes")
+        if len(raw_value) > MAX_KEYFILE_BYTES:
+            raise PasswordSourceError(f"{context}: keyfile is too large")
+        return KEYFILE_WRAPPER_PREFIX + base64.urlsafe_b64encode(raw_value).decode("ascii")
+
     def _resolve_command(self, spec: dict[str, object], context: str) -> str:
         """通过执行命令并读取标准输出解析密码。"""
 
@@ -135,6 +160,12 @@ def create_default_password_resolver() -> PasswordResolver:
         except OSError as exc:
             raise PasswordSourceError(f"file source could not read {path}") from exc
 
+    def binary_file_reader(path: Path) -> bytes:
+        try:
+            return path.read_bytes()
+        except OSError as exc:
+            raise PasswordSourceError(f"keyfile source could not read {path}") from exc
+
     def command_runner(argv: list[str]) -> str:
         try:
             result = subprocess.run(
@@ -159,5 +190,6 @@ def create_default_password_resolver() -> PasswordResolver:
         environment=dict(os.environ),
         prompt_callback=prompt_callback,
         file_reader=file_reader,
+        binary_file_reader=binary_file_reader,
         command_runner=command_runner,
     )
