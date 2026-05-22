@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "input": "a.hse2"
+    },
+    {
+      "input": "b.hse2"
+    }
+  ],
+  "wrapper": {
+    "type": "env",
+    "name": "HSE2_WRAPPER"
+  },
+  "continue_on_error": true
+}
