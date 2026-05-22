@@ -11,6 +11,7 @@ import unittest
 from unittest import mock
 
 from high_security_encryptor.cli import main
+from high_security_encryptor.cli_errors import EXIT_VALIDATION_ISSUES
 from high_security_encryptor.hse2_streaming import encrypt_streaming_hse2
 from high_security_encryptor.hse2_validation import validate_hse2_file
 from high_security_encryptor.hse2_validation_config import HSE2ValidationConfig
@@ -145,14 +146,88 @@ class HSE2ValidationTests(unittest.TestCase):
             self.assertEqual(summary["succeeded"], 0)
             self.assertEqual(summary["failed"], 1)
 
+    def test_hse2_validate_writes_full_report_and_prints_summary_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            plain = root / "plain.bin"
+            encrypted = root / "cipher.hse2"
+            config_path = root / "validate.json"
+            report_path = root / "reports" / "validation.json"
+            plain.write_bytes(b"payload" * 20)
+            encrypt_streaming_hse2(
+                plain,
+                encrypted,
+                WRAPPER_VALUE,
+                kdf_profile_name=KDF_PROFILE_COMPATIBLE,
+                chunk_size=64,
+            )
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "items": [{"input": str(encrypted)}],
+                        "wrapper": {"type": "env", "name": "HSE2_VALIDATION_WRAPPER"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.dict("os.environ", {"HSE2_VALIDATION_WRAPPER": WRAPPER_VALUE}):
+                summary = _run_cli_json(
+                    [
+                        "hse2-validate",
+                        "--config",
+                        str(config_path),
+                        "--output",
+                        str(report_path),
+                        "--summary-only",
+                    ]
+                )
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(summary["total"], 1)
+            self.assertEqual(summary["succeeded"], 1)
+            self.assertNotIn("items", summary)
+            self.assertEqual(summary["output_path"], str(report_path))
+            self.assertEqual(report["total"], 1)
+            self.assertEqual(report["items"][0]["input"], str(encrypted))
+            self.assertTrue(report["items"][0]["ok"])
+
+    def test_hse2_validate_exit_code_on_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config_path = root / "validate.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "items": [{"input": str(root / "missing.hse2")}],
+                        "wrapper": {"type": "env", "name": "HSE2_VALIDATION_WRAPPER"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with mock.patch.dict("os.environ", {"HSE2_VALIDATION_WRAPPER": WRAPPER_VALUE}):
+                exit_code, summary = _run_cli_capture_json(
+                    ["hse2-validate", "--config", str(config_path), "--exit-code-on-failure"]
+                )
+
+            self.assertEqual(exit_code, EXIT_VALIDATION_ISSUES)
+            self.assertEqual(summary["failed"], 1)
+            self.assertTrue(summary["exit_code_on_failure"])
+
 
 def _run_cli_json(argv: list[str]) -> dict:
+    exit_code, payload = _run_cli_capture_json(argv)
+    if exit_code != 0:
+        raise AssertionError(f"CLI exited with {exit_code}: {argv}")
+    return payload
+
+
+def _run_cli_capture_json(argv: list[str]) -> tuple[int, dict]:
     stdout = io.StringIO()
     with redirect_stdout(stdout):
         exit_code = main(argv)
-    if exit_code != 0:
-        raise AssertionError(f"CLI exited with {exit_code}: {argv}")
-    return json.loads(stdout.getvalue())
+    return exit_code, json.loads(stdout.getvalue())
 
 
 if __name__ == "__main__":
