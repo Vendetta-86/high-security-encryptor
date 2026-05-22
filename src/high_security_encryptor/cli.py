@@ -45,6 +45,7 @@ from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
 from .hse2_validation_config import HSE2ValidationConfig
 from .hse2_validation_report import build_hse2_validation_report
 from .integrity import IntegrityValidationError
+from .keyfile_generation import generate_keyfile
 from .password_sources import PasswordSourceError, SecretSpec, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
 from .streaming_format import IntegrityError
@@ -84,6 +85,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_batch_rewrap_handler=_handle_hse2_batch_rewrap,
         hse1_to_hse2_handler=_handle_hse1_to_hse2,
         hse2_validate_handler=_handle_hse2_validate,
+        generate_keyfile_handler=_handle_generate_keyfile,
     )
 
 
@@ -252,6 +254,11 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
         "lock_seconds": guard.config.lock_seconds,
     }
     return summary
+
+
+def _handle_generate_keyfile(args: argparse.Namespace) -> dict[str, Any]:
+    result = generate_keyfile(args.output, size_bytes=int(args.size), force=bool(args.force))
+    return result.as_dict()
 
 
 def _handle_hse2_encrypt(args: argparse.Namespace) -> dict[str, Any]:
