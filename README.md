@@ -7,6 +7,7 @@ High Security Encryptor is a local file-encryption tool for high-value data work
 ```bash
 python -m pip install -e .
 high-security-encryptor --help
+high-security-encryptor-hse2-gui
 ```
 
 Python 3.11 or newer is required.
@@ -19,12 +20,15 @@ the `high-security-encryptor-<tag>-windows-x64.zip` asset, extract it, and run:
 ```powershell
 .\high-security-encryptor.exe --help
 .\high-security-encryptor-gui.exe
+.\high-security-encryptor-hse2-gui.exe
 ```
 
 Double-clicking the executable shows help and keeps the console open on Windows.
 Double-clicking `high-security-encryptor-gui.exe` opens the Chinese GUI for config validation,
 batch encryption, batch decryption, removable-storage BitLocker management,
-and example config generation.
+and example config generation. `high-security-encryptor-hse2-gui.exe` opens the
+standalone experimental HSE2 GUI for explicit HSE2 config workflows, keyfile
+operations, and Windows DPAPI protection.
 
 ## Run Tests
 
@@ -36,7 +40,7 @@ pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
 ```
 
-The test suite currently contains 187 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
+The test suite currently contains 188 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
 
 ## CLI
 
@@ -54,6 +58,7 @@ After installation, the console script is equivalent:
 ```bash
 high-security-encryptor validate-config --kind encrypt --config examples/compatible_encrypt.json --report
 high-security-encryptor-gui --smoke-test
+high-security-encryptor-hse2-gui
 ```
 
 ## Password Sources
@@ -112,6 +117,8 @@ This is a local online-attack throttle. It does not make a copied encrypted file
 - [Security Model](docs/security_model.md): protection goals, non-goals, sidecar sensitivity, and provider risks.
 - [Operational Guidance](docs/operations.md): recommended modes, backup handling, password handling, rotation, and failure response.
 - [KDF Profiles](docs/kdf_profiles.md): Argon2id profile compatibility, hardened/paranoid roadmap, and HSE2 direction.
+- [HSE2 Wrapper Providers](docs/hse2_wrapper_providers.md): wrapper provider matrix for literal, env, file, keyfile, DPAPI, command, and prompt workflows.
+- [HSE2 GUI Integration](docs/hse2_gui_integration.md): command-builder boundary, reusable tab component, and standalone HSE2 GUI launcher.
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 - [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.
 - [Phase 5 Completion](docs/phase5_completion.md): GUI quick-use improvements and Windows removable-storage encryption support.
@@ -176,3 +183,4 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - GUI quick-use mode supports dragging files or folders into the path field.
 - GUI file encryption/decryption tabs include easy multi-file setup, bundled multi-file encryption, and per-file or per-folder-inner passwords.
 - Windows removable-storage encryption is available for version `0.4.0` through a dedicated BitLocker To Go GUI tab.
+- Standalone HSE2 experimental GUI launcher is available through `high-security-encryptor-hse2-gui`.
