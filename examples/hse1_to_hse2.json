@@ -1,0 +1,19 @@
+{
+  "items": [
+    {
+      "input": "old-file.hse",
+      "output": "new-file.hse2"
+    }
+  ],
+  "hse1_password": {
+    "type": "env",
+    "name": "HSE1_PASSWORD"
+  },
+  "hse2_wrapper": {
+    "type": "env",
+    "name": "HSE2_WRAPPER"
+  },
+  "kdf_profile": "hardened",
+  "chunk_size": 1048576,
+  "continue_on_error": false
+}
