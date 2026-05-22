@@ -65,6 +65,7 @@ from .validation_report_output import (
     render_validation_report_text,
     should_return_issue_exit_code,
 )
+from .windows_dpapi import protect_file_with_dpapi
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -88,6 +89,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_validate_handler=_handle_hse2_validate,
         generate_keyfile_handler=_handle_generate_keyfile,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
+        dpapi_protect_handler=_handle_dpapi_protect,
     )
 
 
@@ -260,6 +262,16 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
 
 def _handle_generate_keyfile(args: argparse.Namespace) -> dict[str, Any]:
     result = generate_keyfile(args.output, size_bytes=int(args.size), force=bool(args.force))
+    return result.as_dict()
+
+
+def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:
+    result = protect_file_with_dpapi(
+        args.input,
+        args.output,
+        scope=args.scope,
+        force=bool(args.force),
+    )
     return result.as_dict()
 
 
