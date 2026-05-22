@@ -42,6 +42,8 @@ from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_rewrap import rewrap_hse2_file
 from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
+from .hse2_validation_config import HSE2ValidationConfig
+from .hse2_validation_report import build_hse2_validation_report
 from .integrity import IntegrityValidationError
 from .password_sources import PasswordSourceError, SecretSpec, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
@@ -81,6 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_batch_decrypt_handler=_handle_hse2_batch_decrypt,
         hse2_batch_rewrap_handler=_handle_hse2_batch_rewrap,
         hse1_to_hse2_handler=_handle_hse1_to_hse2,
+        hse2_validate_handler=_handle_hse2_validate,
     )
 
 
@@ -328,6 +331,15 @@ def _handle_hse1_to_hse2(args: argparse.Namespace) -> dict[str, Any]:
     summary["config_path"] = str(Path(args.config))
     summary["kdf_profile"] = config.kdf_profile
     summary["chunk_size"] = config.chunk_size
+    summary["continue_on_error"] = config.continue_on_error
+    return summary
+
+
+def _handle_hse2_validate(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_config_file(args.config, HSE2ValidationConfig.from_json_file, "HSE2 validation")
+    result = build_hse2_validation_report(config, create_default_password_resolver())
+    summary = result.as_dict()
+    summary["config_path"] = str(Path(args.config))
     summary["continue_on_error"] = config.continue_on_error
     return summary
 
