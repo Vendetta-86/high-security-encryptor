@@ -110,6 +110,8 @@ def main(argv: list[str] | None = None) -> int:
     print(json.dumps(output_summary, ensure_ascii=False, indent=2, sort_keys=True))
     if should_return_issue_exit_code(args, exit_code_summary):
         return EXIT_VALIDATION_ISSUES
+    if isinstance(exit_code_summary, dict) and exit_code_summary.get("__exit_code_on_validation_failure__"):
+        return EXIT_VALIDATION_ISSUES
     return 0
 
 
@@ -341,7 +343,38 @@ def _handle_hse2_validate(args: argparse.Namespace) -> dict[str, Any]:
     summary = result.as_dict()
     summary["config_path"] = str(Path(args.config))
     summary["continue_on_error"] = config.continue_on_error
+    if getattr(args, "output", None):
+        _write_json_file(Path(args.output), summary)
+        summary["output_path"] = str(Path(args.output))
+    else:
+        summary["output_path"] = None
+    summary["summary_only"] = bool(getattr(args, "summary_only", False))
+    summary["exit_code_on_failure"] = bool(getattr(args, "exit_code_on_failure", False))
+    if summary["exit_code_on_failure"] and int(summary.get("failed", 0)) > 0:
+        summary["__exit_code_on_validation_failure__"] = True
+    if summary["summary_only"]:
+        summary["__summary_payload__"] = _hse2_validation_summary_payload(summary)
     return summary
+
+
+def _hse2_validation_summary_payload(summary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "command": summary["command"],
+        "experimental": summary["experimental"],
+        "config_path": summary["config_path"],
+        "output_path": summary.get("output_path"),
+        "total": summary["total"],
+        "succeeded": summary["succeeded"],
+        "failed": summary["failed"],
+        "continue_on_error": summary["continue_on_error"],
+        "summary_only": summary["summary_only"],
+        "exit_code_on_failure": summary["exit_code_on_failure"],
+    }
+
+
+def _write_json_file(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _resolve_hse2_wrapper_input(args: argparse.Namespace, prefix: str, context: str) -> str:
