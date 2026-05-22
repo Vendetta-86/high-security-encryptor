@@ -9,6 +9,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from high_security_encryptor.config import BatchEncryptionConfig
 from high_security_encryptor.password_sources import (
+    KEYFILE_WRAPPER_PREFIX,
     MAX_COMMAND_OUTPUT_CHARS,
     PasswordResolver,
     PasswordSourceError,
@@ -21,11 +22,13 @@ def _build_test_resolver(
     environment: dict[str, str] | None = None,
     prompt_value: str = "prompt-pass",
     file_values: dict[str, str] | None = None,
+    binary_file_values: dict[str, bytes] | None = None,
     command_values: dict[tuple[str, ...], str] | None = None,
 ) -> PasswordResolver:
     """为单元测试创建一个确定性的密码解析器。"""
 
     normalized_file_values = {str(Path(path)): value for path, value in (file_values or {}).items()}
+    normalized_binary_file_values = {str(Path(path)): value for path, value in (binary_file_values or {}).items()}
     normalized_command_values = {
         tuple(argv): value for argv, value in (command_values or {}).items()
     }
@@ -33,6 +36,7 @@ def _build_test_resolver(
         environment=environment or {},
         prompt_callback=lambda prompt: prompt_value,
         file_reader=lambda path: normalized_file_values[str(Path(path))],
+        binary_file_reader=lambda path: normalized_binary_file_values[str(Path(path))],
         command_runner=lambda argv: normalized_command_values[tuple(argv)],
     )
 
@@ -55,6 +59,7 @@ class PasswordSourceTests(unittest.TestCase):
             environment={},
             prompt_callback=lambda prompt: seen_prompts.append(prompt) or "prompt-pass",
             file_reader=lambda path: "",
+            binary_file_reader=lambda path: b"",
             command_runner=lambda argv: "",
         )
         self.assertEqual(
@@ -71,6 +76,24 @@ class PasswordSourceTests(unittest.TestCase):
             resolver.resolve({"type": "file", "path": "secret.txt"}, "test-context"),
             "file-pass",
         )
+
+    def test_password_resolver_reads_keyfile_source(self) -> None:
+        """基于 keyfile 的来源应读取二进制文件并返回带版本前缀的稳定材料。"""
+
+        key_bytes = bytes(range(32))
+        resolver = _build_test_resolver(binary_file_values={"wrapper.key": key_bytes})
+        value = resolver.resolve({"type": "keyfile", "path": "wrapper.key"}, "test-context")
+
+        self.assertTrue(value.startswith(KEYFILE_WRAPPER_PREFIX))
+        self.assertNotIn("\n", value)
+        self.assertGreater(len(value), len(KEYFILE_WRAPPER_PREFIX))
+
+    def test_password_resolver_rejects_short_keyfile_source(self) -> None:
+        """过短 keyfile 应被拒绝，避免弱包装材料。"""
+
+        resolver = _build_test_resolver(binary_file_values={"short.key": b"too-short"})
+        with self.assertRaisesRegex(PasswordSourceError, "at least"):
+            resolver.resolve({"type": "keyfile", "path": "short.key"}, "test-context")
 
     def test_password_resolver_runs_command_source(self) -> None:
         """基于命令的密码来源应按配置的 argv 执行。"""
