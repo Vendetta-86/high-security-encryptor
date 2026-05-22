@@ -1,7 +1,7 @@
 # HSE2 GUI Integration Boundary
 
-HSE2 remains an explicit experimental workflow. The GUI integration starts with a
-small command-builder boundary instead of duplicating HSE2 workflow logic in the
+HSE2 remains an explicit experimental workflow. The GUI integration uses a small
+command-builder boundary instead of duplicating HSE2 workflow logic in the
 Tkinter layer.
 
 ## Implemented Boundary
@@ -18,12 +18,24 @@ Supported actions:
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
 - `dpapi-protect` -> `dpapi-protect --input ... --output ... --scope ... [--force]`
 
-The intended GUI flow is:
+## Reusable Experimental Tab Component
 
-1. collect paths/options in Tkinter widgets;
-2. call `build_hse2_gui_command(...)`;
-3. pass the returned argv to the existing GUI CLI runner;
-4. show captured stdout/stderr in the existing GUI log.
+`high_security_encryptor.hse2_gui_tab` provides a reusable `HSE2ExperimentalTab`
+component and `build_hse2_experimental_tab(...)` helper. The component collects
+paths and options, calls the HSE2 command builders, and delegates execution to an
+injected runner callback.
+
+The intended integration point in the main GUI is:
+
+```python
+from .hse2_gui_tab import build_hse2_experimental_tab
+
+# inside HighSecurityEncryptorApp._build_controls(...)
+build_hse2_experimental_tab(notebook, lambda argv: self._run_cli(argv, block_prompt_providers=True))
+```
+
+The tab component is isolated from the large `gui.py` module so it can be tested
+and reviewed independently before a final one-line visible-tab wiring change.
 
 ## Why This Boundary Exists
 
@@ -33,10 +45,7 @@ implementation in the GUI and keeps future fixes centralized.
 
 ## Explicit Non-goals
 
-This boundary does not yet add a visible HSE2 tab to the Tkinter window. That
-should be a follow-up PR that only wires widgets to these command builders.
-
-It also does not:
+This boundary and tab component do not:
 
 - introduce in-place HSE2 operations;
 - bypass existing provider parsing;
@@ -44,15 +53,9 @@ It also does not:
 - print keyfile, DPAPI, or wrapper bytes;
 - change HSE1/HSE2 defaults.
 
-## Follow-up GUI Tab Plan
+## Follow-up Main GUI Wiring Plan
 
-A future GUI PR should add a new `HSE2 实验` tab with compact sections:
-
-1. run HSE2 encrypt/decrypt config;
-2. run HSE2 validation config;
-3. generate keyfile;
-4. protect keyfile with Windows DPAPI;
-5. run HSE2 keyfile rotation config.
-
-Each button should use `build_hse2_gui_command(...)` and then call the existing
-GUI `_run_cli(...)` method.
+A follow-up PR can add the visible `HSE2 实验` tab to the main GUI by importing
+`build_hse2_experimental_tab` in `gui.py` and calling it from `_build_controls()`.
+That PR should be intentionally small and only connect the reusable component to
+the existing notebook and `_run_cli(...)` runner.
