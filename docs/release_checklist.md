@@ -19,6 +19,7 @@ python -m unittest discover -s tests
 pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
 high-security-encryptor --help
+high-security-encryptor-gui --smoke-test
 ```
 
 Validate example configs:
@@ -56,6 +57,7 @@ For releases that include a Windows executable:
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
+- Confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip.
 - Run at least one config validation with the executable.
 - Confirm the executable zip contains no user config files, passwords, keys, or local build caches.
 
