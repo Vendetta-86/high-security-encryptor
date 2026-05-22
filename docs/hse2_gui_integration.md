@@ -25,7 +25,30 @@ component and `build_hse2_experimental_tab(...)` helper. The component collects
 paths and options, calls the HSE2 command builders, and delegates execution to an
 injected runner callback.
 
-The intended integration point in the main GUI is:
+## Standalone Launcher
+
+The standalone HSE2 GUI launcher is available after installation:
+
+```bash
+high-security-encryptor-hse2-gui
+```
+
+It opens a compact `HSE2 实验工具` window with the reusable HSE2 experimental tab
+and a log panel. The launcher delegates execution through the same CLI path used
+by the rest of the GUI, displays stdout/stderr/exit code, and prevents concurrent
+HSE2 command execution.
+
+Use this launcher for experimental HSE2 operations without changing the main GUI
+window:
+
+- HSE2 encrypt config;
+- HSE2 decrypt config;
+- HSE2 validation config;
+- HSE2 keyfile rotation config;
+- keyfile generation;
+- Windows DPAPI protection.
+
+The intended integration point in the main GUI remains:
 
 ```python
 from .hse2_gui_tab import build_hse2_experimental_tab
@@ -45,7 +68,7 @@ implementation in the GUI and keeps future fixes centralized.
 
 ## Explicit Non-goals
 
-This boundary and tab component do not:
+This boundary, tab component, and standalone launcher do not:
 
 - introduce in-place HSE2 operations;
 - bypass existing provider parsing;
