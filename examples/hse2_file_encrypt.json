@@ -1,0 +1,10 @@
+{
+  "input": "plain.bin",
+  "output": "cipher.hse2",
+  "wrapper": {
+    "type": "file",
+    "path": "wrapper.txt"
+  },
+  "kdf_profile": "hardened",
+  "chunk_size": 1048576
+}
