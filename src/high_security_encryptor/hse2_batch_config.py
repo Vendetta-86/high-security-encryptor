@@ -66,6 +66,38 @@ class HSE2BatchDecryptItem:
 
 
 @dataclass(frozen=True)
+class HSE2BatchRewrapItem:
+    """One input/output pair for HSE2 batch rewrap."""
+
+    input: str
+    output: str
+    old_wrapper: SecretSpec | None = None
+    new_wrapper: SecretSpec | None = None
+
+    @classmethod
+    def from_dict(cls, payload: object, *, index: int) -> "HSE2BatchRewrapItem":
+        obj = require_config_object(payload)
+        item = cls(
+            input=read_string(obj, "input", ""),
+            output=read_string(obj, "output", ""),
+            old_wrapper=normalize_secret_spec(obj["old_wrapper"], f"items[{index}].old_wrapper")
+            if "old_wrapper" in obj
+            else None,
+            new_wrapper=normalize_secret_spec(obj["new_wrapper"], f"items[{index}].new_wrapper")
+            if "new_wrapper" in obj
+            else None,
+        )
+        item.validate(index=index)
+        return item
+
+    def validate(self, *, index: int) -> None:
+        if not self.input:
+            raise ValueError(f"items[{index}].input is required")
+        if not self.output:
+            raise ValueError(f"items[{index}].output is required")
+
+
+@dataclass(frozen=True)
 class HSE2BatchEncryptConfig:
     """Serializable config for HSE2 batch encryption."""
 
@@ -147,6 +179,58 @@ class HSE2BatchDecryptConfig:
         if spec is None:
             raise ValueError(f"items[{index}].wrapper is required")
         return resolver.resolve(spec, f"hse2_batch_decrypt.items[{index}].wrapper")
+
+
+@dataclass(frozen=True)
+class HSE2BatchRewrapConfig:
+    """Serializable config for HSE2 batch rewrap."""
+
+    items: tuple[HSE2BatchRewrapItem, ...]
+    old_wrapper: SecretSpec | None = None
+    new_wrapper: SecretSpec | None = None
+    new_kdf_profile: str = KDF_PROFILE_HARDENED
+    continue_on_error: bool = False
+
+    @classmethod
+    def from_json_file(cls, path: str | Path) -> "HSE2BatchRewrapConfig":
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        return cls.from_dict(payload)
+
+    @classmethod
+    def from_dict(cls, payload: object) -> "HSE2BatchRewrapConfig":
+        obj = require_config_object(payload)
+        raw_items = _read_items(obj)
+        config = cls(
+            items=tuple(HSE2BatchRewrapItem.from_dict(item, index=index) for index, item in enumerate(raw_items)),
+            old_wrapper=normalize_secret_spec(obj["old_wrapper"], "old_wrapper") if "old_wrapper" in obj else None,
+            new_wrapper=normalize_secret_spec(obj["new_wrapper"], "new_wrapper") if "new_wrapper" in obj else None,
+            new_kdf_profile=read_string(obj, "new_kdf_profile", KDF_PROFILE_HARDENED),
+            continue_on_error=_read_bool(obj, "continue_on_error", False),
+        )
+        config.validate()
+        return config
+
+    def validate(self) -> None:
+        if not self.items:
+            raise ValueError("items must contain at least one entry")
+        _validate_kdf_profile(self.new_kdf_profile)
+        for index, item in enumerate(self.items):
+            if item.old_wrapper is None and self.old_wrapper is None:
+                raise ValueError(f"items[{index}].old_wrapper is required when batch old_wrapper is omitted")
+            if item.new_wrapper is None and self.new_wrapper is None:
+                raise ValueError(f"items[{index}].new_wrapper is required when batch new_wrapper is omitted")
+
+    def resolve_old_wrapper_for_item(self, item: HSE2BatchRewrapItem, resolver: PasswordResolver, *, index: int) -> str:
+        spec = item.old_wrapper if item.old_wrapper is not None else self.old_wrapper
+        if spec is None:
+            raise ValueError(f"items[{index}].old_wrapper is required")
+        return resolver.resolve(spec, f"hse2_batch_rewrap.items[{index}].old_wrapper")
+
+    def resolve_new_wrapper_for_item(self, item: HSE2BatchRewrapItem, resolver: PasswordResolver, *, index: int) -> str:
+        spec = item.new_wrapper if item.new_wrapper is not None else self.new_wrapper
+        if spec is None:
+            raise ValueError(f"items[{index}].new_wrapper is required")
+        return resolver.resolve(spec, f"hse2_batch_rewrap.items[{index}].new_wrapper")
 
 
 def _read_items(payload: dict[str, object]) -> list[object]:
