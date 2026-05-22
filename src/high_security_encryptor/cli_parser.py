@@ -36,24 +36,14 @@ def build_cli_parser(
     """Build the top-level CLI parser and wire subcommands to handlers."""
 
     parser = argparse.ArgumentParser(prog="high-security-encryptor")
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        help="Print Python tracebacks for CLI errors.",
-    )
+    parser.add_argument("--debug", action="store_true", help="Print Python tracebacks for CLI errors.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    encrypt_parser = subparsers.add_parser(
-        "encrypt-batch",
-        help="Encrypt a mixed batch of files and folders from a JSON config file.",
-    )
+    encrypt_parser = subparsers.add_parser("encrypt-batch", help="Encrypt a mixed batch of files and folders from a JSON config file.")
     encrypt_parser.add_argument("--config", required=True, help="Path to a JSON batch-encryption config file.")
     encrypt_parser.set_defaults(handler=encrypt_handler)
 
-    decrypt_parser = subparsers.add_parser(
-        "decrypt-batch",
-        help="Decrypt a mixed batch of files and folders from a JSON config file.",
-    )
+    decrypt_parser = subparsers.add_parser("decrypt-batch", help="Decrypt a mixed batch of files and folders from a JSON config file.")
     decrypt_parser.add_argument("--config", required=True, help="Path to a JSON batch-decryption config file.")
     decrypt_parser.add_argument("--disable-brute-force-guard", action="store_true", help="Disable local failed-attempt throttling for this decryption run.")
     decrypt_parser.add_argument("--brute-force-guard-state", required=False, help="Optional path for the local brute-force guard state file.")
@@ -122,6 +112,9 @@ def build_cli_parser(
     if hse2_validate_handler is not None:
         hse2_validate_parser = subparsers.add_parser("hse2-validate", help="EXPERIMENTAL: Validate HSE2 files without writing plaintext output.")
         hse2_validate_parser.add_argument("--config", required=True, help="Path to an HSE2 validation config file.")
+        hse2_validate_parser.add_argument("--output", required=False, help="Optional path to write the full JSON validation report.")
+        hse2_validate_parser.add_argument("--summary-only", action="store_true", help="Print only aggregate counts to stdout while preserving the full report for --output.")
+        hse2_validate_parser.add_argument("--exit-code-on-failure", action="store_true", help="Return a non-zero exit code when any HSE2 item fails validation.")
         hse2_validate_parser.set_defaults(handler=hse2_validate_handler)
 
     validate_parser = subparsers.add_parser("validate-config", help="Validate an encryption or decryption JSON config without executing the workflow.")
