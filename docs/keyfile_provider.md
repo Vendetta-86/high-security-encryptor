@@ -7,6 +7,30 @@ This is primarily useful for HSE2 wrapper fields where operators want a local
 file-backed wrapper instead of an environment variable, prompt, text file, or
 command.
 
+## Generate a Keyfile
+
+Use the built-in generator to create a random keyfile:
+
+```bash
+high-security-encryptor generate-keyfile --output wrapper.key
+```
+
+The default size is 32 bytes. You can choose another size within the supported
+range:
+
+```bash
+high-security-encryptor generate-keyfile --output wrapper.key --size 64
+```
+
+The command refuses to overwrite an existing file unless `--force` is provided:
+
+```bash
+high-security-encryptor generate-keyfile --output wrapper.key --force
+```
+
+The command summary reports only the output path, size, and whether an existing
+file was overwritten. It does not print the generated random bytes.
+
 ## Provider Spec
 
 ```json
@@ -44,9 +68,10 @@ The provider:
 
 The keyfile bytes are not printed in CLI summaries.
 
-## Creating a Keyfile
+## Creating a Keyfile Manually
 
-Use a cryptographically secure random source. For example, with Python:
+The built-in generator is preferred. If you need a manual method, use a
+cryptographically secure random source. For example, with Python:
 
 ```bash
 python -c "import secrets, pathlib; pathlib.Path('wrapper.key').write_bytes(secrets.token_bytes(32))"
@@ -59,15 +84,20 @@ attempt decryption.
 
 Implemented:
 
+- `generate-keyfile` command;
+- random keyfile generation with `secrets.token_bytes`;
+- default 32-byte keyfiles;
+- explicit size control;
+- default refusal to overwrite existing keyfiles;
+- explicit `--force` overwrite;
 - `keyfile` password-source provider;
 - binary keyfile reading in the default CLI resolver;
 - size limits;
 - HSE2 config compatibility;
-- tests for provider behavior and HSE2 encrypt/validate/decrypt round trip.
+- tests for generation, provider behavior, and HSE2 encrypt/validate/decrypt round trip.
 
 Not implemented yet:
 
-- keyfile generation command;
 - keyfile rotation helper;
 - OS keychain/DPAPI/TPM-backed keyfile protection;
 - GUI keyfile selection.
