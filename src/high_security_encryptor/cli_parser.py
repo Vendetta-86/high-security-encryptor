@@ -34,6 +34,7 @@ def build_cli_parser(
     hse1_to_hse2_handler: Handler | None = None,
     hse2_validate_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
+    hse2_rotate_keyfile_handler: Handler | None = None,
 ) -> argparse.ArgumentParser:
     """Build the top-level CLI parser and wire subcommands to handlers."""
 
@@ -60,6 +61,11 @@ def build_cli_parser(
         keyfile_parser.add_argument("--size", type=int, default=DEFAULT_GENERATED_KEYFILE_BYTES, help=f"Keyfile size in bytes. Defaults to {DEFAULT_GENERATED_KEYFILE_BYTES}.")
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
+
+    if hse2_rotate_keyfile_handler is not None:
+        rotate_parser = subparsers.add_parser("hse2-rotate-keyfile", help="EXPERIMENTAL: Rotate HSE2 files from one keyfile to another using a JSON config.")
+        rotate_parser.add_argument("--config", required=True, help="Path to an HSE2 keyfile rotation config file.")
+        rotate_parser.set_defaults(handler=hse2_rotate_keyfile_handler)
 
     if hse2_encrypt_handler is not None:
         hse2_encrypt_parser = subparsers.add_parser("hse2-encrypt", help="EXPERIMENTAL: Encrypt one file with the draft HSE2 container format.")

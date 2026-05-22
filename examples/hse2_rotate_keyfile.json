@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "input": "a.hse2",
+      "output": "a.rotated.hse2"
+    }
+  ],
+  "old_keyfile": "old-wrapper.key",
+  "new_keyfile": "new-wrapper.key",
+  "new_kdf_profile": "hardened",
+  "continue_on_error": false
+}
