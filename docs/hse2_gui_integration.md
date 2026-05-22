@@ -48,17 +48,23 @@ window:
 - keyfile generation;
 - Windows DPAPI protection.
 
-The intended integration point in the main GUI remains:
+## Main GUI Entry Helper
+
+`high_security_encryptor.hse2_gui_entry` exposes `open_hse2_experimental_window(...)`.
+It opens the standalone HSE2 experimental window as a child window and is the
+preferred boundary for future main-GUI wiring.
+
+The intended main-GUI button handler is:
 
 ```python
-from .hse2_gui_tab import build_hse2_experimental_tab
+from .hse2_gui_entry import open_hse2_experimental_window
 
-# inside HighSecurityEncryptorApp._build_controls(...)
-build_hse2_experimental_tab(notebook, lambda argv: self._run_cli(argv, block_prompt_providers=True))
+# inside HighSecurityEncryptorApp
+open_hse2_experimental_window(self.master)
 ```
 
-The tab component is isolated from the large `gui.py` module so it can be tested
-and reviewed independently before a final one-line visible-tab wiring change.
+Keeping this helper separate avoids importing the HSE2 launcher at main-GUI module
+import time and keeps the final `gui.py` wiring small.
 
 ## Why This Boundary Exists
 
@@ -68,7 +74,7 @@ implementation in the GUI and keeps future fixes centralized.
 
 ## Explicit Non-goals
 
-This boundary, tab component, and standalone launcher do not:
+This boundary, tab component, standalone launcher, and main-GUI entry helper do not:
 
 - introduce in-place HSE2 operations;
 - bypass existing provider parsing;
@@ -78,7 +84,7 @@ This boundary, tab component, and standalone launcher do not:
 
 ## Follow-up Main GUI Wiring Plan
 
-A follow-up PR can add the visible `HSE2 实验` tab to the main GUI by importing
-`build_hse2_experimental_tab` in `gui.py` and calling it from `_build_controls()`.
-That PR should be intentionally small and only connect the reusable component to
-the existing notebook and `_run_cli(...)` runner.
+A follow-up PR can add a visible `打开 HSE2 实验工具` button to the main GUI by
+importing `open_hse2_experimental_window` lazily from a button handler and passing
+`self.master`. That PR should be intentionally small and only connect the existing
+main window to the entry helper.
