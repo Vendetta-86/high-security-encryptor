@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import io
 import json
 from pathlib import Path
@@ -90,26 +90,28 @@ class HSE2KeyfileProviderTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            exit_code, payload = _run_cli_capture_json(["hse2-encrypt-config", "--config", str(encrypt_config)])
+            exit_code, stdout, stderr = _run_cli_capture(["hse2-encrypt-config", "--config", str(encrypt_config)])
 
             self.assertNotEqual(exit_code, 0)
-            self.assertIn("keyfile", payload["error"])
-            self.assertIn("at least", payload["error"])
+            self.assertEqual(stdout, "")
+            self.assertIn("keyfile", stderr)
+            self.assertIn("at least", stderr)
             self.assertFalse(encrypted.exists())
 
 
 def _run_cli_json(argv: list[str]) -> dict:
-    exit_code, payload = _run_cli_capture_json(argv)
+    exit_code, stdout, stderr = _run_cli_capture(argv)
     if exit_code != 0:
-        raise AssertionError(f"CLI exited with {exit_code}: {argv}: {payload}")
-    return payload
+        raise AssertionError(f"CLI exited with {exit_code}: {argv}: {stderr}")
+    return json.loads(stdout)
 
 
-def _run_cli_capture_json(argv: list[str]) -> tuple[int, dict]:
+def _run_cli_capture(argv: list[str]) -> tuple[int, str, str]:
     stdout = io.StringIO()
-    with redirect_stdout(stdout):
+    stderr = io.StringIO()
+    with redirect_stdout(stdout), redirect_stderr(stderr):
         exit_code = main(argv)
-    return exit_code, json.loads(stdout.getvalue())
+    return exit_code, stdout.getvalue(), stderr.getvalue()
 
 
 if __name__ == "__main__":
