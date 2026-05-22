@@ -34,6 +34,8 @@ from .cli_summaries import (
 )
 from .config import BatchDecryptionConfig, BatchEncryptionConfig
 from .example_templates import export_example_config
+from .hse1_to_hse2 import migrate_hse1_to_hse2
+from .hse1_to_hse2_config import HSE1ToHSE2MigrationConfig
 from .hse2_batch import decrypt_hse2_batch, encrypt_hse2_batch
 from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig, HSE2BatchRewrapConfig
 from .hse2_batch_rewrap import rewrap_hse2_batch
@@ -78,6 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_batch_encrypt_handler=_handle_hse2_batch_encrypt,
         hse2_batch_decrypt_handler=_handle_hse2_batch_decrypt,
         hse2_batch_rewrap_handler=_handle_hse2_batch_rewrap,
+        hse1_to_hse2_handler=_handle_hse1_to_hse2,
     )
 
 
@@ -314,6 +317,17 @@ def _handle_hse2_batch_rewrap(args: argparse.Namespace) -> dict[str, Any]:
     summary = result.as_dict()
     summary["config_path"] = str(Path(args.config))
     summary["new_kdf_profile"] = config.new_kdf_profile
+    summary["continue_on_error"] = config.continue_on_error
+    return summary
+
+
+def _handle_hse1_to_hse2(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_config_file(args.config, HSE1ToHSE2MigrationConfig.from_json_file, "HSE1 to HSE2 migration")
+    result = migrate_hse1_to_hse2(config, create_default_password_resolver())
+    summary = result.as_dict()
+    summary["config_path"] = str(Path(args.config))
+    summary["kdf_profile"] = config.kdf_profile
+    summary["chunk_size"] = config.chunk_size
     summary["continue_on_error"] = config.continue_on_error
     return summary
 
