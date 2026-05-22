@@ -6,6 +6,7 @@ import argparse
 from typing import Callable
 
 from .kdf_profiles import KDF_PROFILE_COMPATIBLE, KDF_PROFILE_HARDENED, KDF_PROFILE_PARANOID
+from .keyfile_generation import DEFAULT_GENERATED_KEYFILE_BYTES
 from .security_mode import (
     SECURITY_MODE_COMPATIBLE,
     SECURITY_MODE_HARDENED,
@@ -32,6 +33,7 @@ def build_cli_parser(
     hse2_batch_rewrap_handler: Handler | None = None,
     hse1_to_hse2_handler: Handler | None = None,
     hse2_validate_handler: Handler | None = None,
+    generate_keyfile_handler: Handler | None = None,
 ) -> argparse.ArgumentParser:
     """Build the top-level CLI parser and wire subcommands to handlers."""
 
@@ -51,6 +53,13 @@ def build_cli_parser(
     decrypt_parser.add_argument("--brute-force-window-seconds", type=int, default=900, help="Rolling failure-count window in seconds. Defaults to 900.")
     decrypt_parser.add_argument("--brute-force-lock-seconds", type=int, default=1800, help="Lock duration in seconds after too many failures. Defaults to 1800.")
     decrypt_parser.set_defaults(handler=decrypt_handler)
+
+    if generate_keyfile_handler is not None:
+        keyfile_parser = subparsers.add_parser("generate-keyfile", help="Generate a random local keyfile for file-backed wrapper material.")
+        keyfile_parser.add_argument("--output", required=True, help="Path of the keyfile to create.")
+        keyfile_parser.add_argument("--size", type=int, default=DEFAULT_GENERATED_KEYFILE_BYTES, help=f"Keyfile size in bytes. Defaults to {DEFAULT_GENERATED_KEYFILE_BYTES}.")
+        keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
+        keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
     if hse2_encrypt_handler is not None:
         hse2_encrypt_parser = subparsers.add_parser("hse2-encrypt", help="EXPERIMENTAL: Encrypt one file with the draft HSE2 container format.")
