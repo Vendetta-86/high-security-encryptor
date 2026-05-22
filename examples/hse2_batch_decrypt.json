@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "input": "a.txt.hse2",
+      "output": "a.txt"
+    },
+    {
+      "input": "b.txt.hse2",
+      "output": "b.txt"
+    }
+  ],
+  "wrapper": {
+    "type": "env",
+    "name": "HSE2_WRAPPER"
+  },
+  "continue_on_error": false
+}
