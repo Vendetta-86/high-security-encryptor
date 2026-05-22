@@ -35,6 +35,7 @@ def build_cli_parser(
     hse2_validate_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
     hse2_rotate_keyfile_handler: Handler | None = None,
+    dpapi_protect_handler: Handler | None = None,
 ) -> argparse.ArgumentParser:
     """Build the top-level CLI parser and wire subcommands to handlers."""
 
@@ -61,6 +62,14 @@ def build_cli_parser(
         keyfile_parser.add_argument("--size", type=int, default=DEFAULT_GENERATED_KEYFILE_BYTES, help=f"Keyfile size in bytes. Defaults to {DEFAULT_GENERATED_KEYFILE_BYTES}.")
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
+
+    if dpapi_protect_handler is not None:
+        dpapi_parser = subparsers.add_parser("dpapi-protect", help="WINDOWS ONLY: Protect a local binary file with Windows DPAPI.")
+        dpapi_parser.add_argument("--input", required=True, help="Input binary file to protect.")
+        dpapi_parser.add_argument("--output", required=True, help="Output DPAPI blob file.")
+        dpapi_parser.add_argument("--scope", choices=["current_user", "local_machine"], default="current_user", help="DPAPI protection scope. Defaults to current_user.")
+        dpapi_parser.add_argument("--force", action="store_true", help="Overwrite the output DPAPI blob file if it already exists.")
+        dpapi_parser.set_defaults(handler=dpapi_protect_handler)
 
     if hse2_rotate_keyfile_handler is not None:
         rotate_parser = subparsers.add_parser("hse2-rotate-keyfile", help="EXPERIMENTAL: Rotate HSE2 files from one keyfile to another using a JSON config.")

@@ -11,6 +11,8 @@ import subprocess
 import sys
 from typing import Callable
 
+from .windows_dpapi import DPAPIError, DPAPI_WRAPPER_PREFIX, unprotect_dpapi_file
+
 
 SecretSpec = str | dict[str, object]
 ProviderHandler = Callable[[dict[str, object], str], str]
@@ -45,6 +47,7 @@ class PasswordResolver:
         provider_map.setdefault("prompt", self._resolve_prompt)
         provider_map.setdefault("file", self._resolve_file)
         provider_map.setdefault("keyfile", self._resolve_keyfile)
+        provider_map.setdefault("dpapi", self._resolve_dpapi)
         provider_map.setdefault("command", self._resolve_command)
         object.__setattr__(self, "providers", provider_map)
 
@@ -128,6 +131,22 @@ class PasswordResolver:
         if len(raw_value) > MAX_KEYFILE_BYTES:
             raise PasswordSourceError(f"{context}: keyfile is too large")
         return KEYFILE_WRAPPER_PREFIX + base64.urlsafe_b64encode(raw_value).decode("ascii")
+
+    def _resolve_dpapi(self, spec: dict[str, object], context: str) -> str:
+        """通过读取 Windows DPAPI blob 解析本机用户绑定包装材料。"""
+
+        file_path = str(spec.get("path", "")).strip()
+        if not file_path:
+            raise PasswordSourceError(f"{context}: dpapi source missing path")
+        try:
+            raw_value = unprotect_dpapi_file(Path(file_path))
+        except (OSError, DPAPIError) as exc:
+            raise PasswordSourceError(f"{context}: dpapi source could not unprotect {file_path}") from exc
+        if len(raw_value) < MIN_KEYFILE_BYTES:
+            raise PasswordSourceError(f"{context}: dpapi material must contain at least {MIN_KEYFILE_BYTES} bytes")
+        if len(raw_value) > MAX_KEYFILE_BYTES:
+            raise PasswordSourceError(f"{context}: dpapi material is too large")
+        return DPAPI_WRAPPER_PREFIX + base64.urlsafe_b64encode(raw_value).decode("ascii")
 
     def _resolve_command(self, spec: dict[str, object], context: str) -> str:
         """通过执行命令并读取标准输出解析密码。"""
