@@ -35,7 +35,8 @@ from .cli_summaries import (
 from .config import BatchDecryptionConfig, BatchEncryptionConfig
 from .example_templates import export_example_config
 from .hse2_batch import decrypt_hse2_batch, encrypt_hse2_batch
-from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig
+from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig, HSE2BatchRewrapConfig
+from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_rewrap import rewrap_hse2_file
 from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
@@ -76,6 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_rewrap_config_handler=_handle_hse2_rewrap_config,
         hse2_batch_encrypt_handler=_handle_hse2_batch_encrypt,
         hse2_batch_decrypt_handler=_handle_hse2_batch_decrypt,
+        hse2_batch_rewrap_handler=_handle_hse2_batch_rewrap,
     )
 
 
@@ -245,24 +247,18 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _handle_hse2_encrypt(args: argparse.Namespace) -> dict[str, Any]:
-    """Run the experimental one-file HSE2 encryption helper."""
-
     wrapper_material = _resolve_hse2_wrapper_input(args, "secret", "hse2-encrypt wrapper")
     output = encrypt_streaming_hse2(args.input, args.output, wrapper_material, kdf_profile_name=args.kdf_profile, chunk_size=int(args.chunk_size))
     return {"command": "hse2-encrypt", "experimental": True, "input": str(Path(args.input)), "output": str(output), "kdf_profile": args.kdf_profile, "chunk_size": int(args.chunk_size), "wrapper_source": _hse2_wrapper_source_name(args, "secret")}
 
 
 def _handle_hse2_decrypt(args: argparse.Namespace) -> dict[str, Any]:
-    """Run the experimental one-file HSE2 decryption helper."""
-
     wrapper_material = _resolve_hse2_wrapper_input(args, "secret", "hse2-decrypt wrapper")
     output = decrypt_streaming_hse2(args.input, args.output, wrapper_material)
     return {"command": "hse2-decrypt", "experimental": True, "input": str(Path(args.input)), "output": str(output), "wrapper_source": _hse2_wrapper_source_name(args, "secret")}
 
 
 def _handle_hse2_rewrap(args: argparse.Namespace) -> dict[str, Any]:
-    """Run the experimental one-file HSE2 rewrap helper."""
-
     old_wrapper_material = _resolve_hse2_wrapper_input(args, "old_secret", "hse2-rewrap current wrapper")
     new_wrapper_material = _resolve_hse2_wrapper_input(args, "new_secret", "hse2-rewrap replacement wrapper")
     output = rewrap_hse2_file(args.input, args.output, old_wrapper_material, new_wrapper_material, new_kdf_profile_name=args.new_kdf_profile)
@@ -312,6 +308,16 @@ def _handle_hse2_batch_decrypt(args: argparse.Namespace) -> dict[str, Any]:
     return summary
 
 
+def _handle_hse2_batch_rewrap(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_config_file(args.config, HSE2BatchRewrapConfig.from_json_file, "HSE2 batch rewrap")
+    result = rewrap_hse2_batch(config, create_default_password_resolver())
+    summary = result.as_dict()
+    summary["config_path"] = str(Path(args.config))
+    summary["new_kdf_profile"] = config.new_kdf_profile
+    summary["continue_on_error"] = config.continue_on_error
+    return summary
+
+
 def _resolve_hse2_wrapper_input(args: argparse.Namespace, prefix: str, context: str) -> str:
     spec = _hse2_wrapper_spec(args, prefix, context)
     return create_default_password_resolver().resolve(spec, context)
@@ -356,26 +362,14 @@ def _secret_spec_source_name(spec: SecretSpec) -> str:
 
 
 def _build_brute_force_guard(args: argparse.Namespace) -> BruteForceGuard:
-    return BruteForceGuard(
-        BruteForceGuardConfig(
-            enabled=not bool(getattr(args, "disable_brute_force_guard", False)),
-            max_failures=int(getattr(args, "brute_force_max_failures", 5)),
-            window_seconds=int(getattr(args, "brute_force_window_seconds", 900)),
-            lock_seconds=int(getattr(args, "brute_force_lock_seconds", 1800)),
-            state_path=Path(args.brute_force_guard_state) if getattr(args, "brute_force_guard_state", None) else None,
-        )
-    )
+    return BruteForceGuard(BruteForceGuardConfig(enabled=not bool(getattr(args, "disable_brute_force_guard", False)), max_failures=int(getattr(args, "brute_force_max_failures", 5)), window_seconds=int(getattr(args, "brute_force_window_seconds", 900)), lock_seconds=int(getattr(args, "brute_force_lock_seconds", 1800)), state_path=Path(args.brute_force_guard_state) if getattr(args, "brute_force_guard_state", None) else None))
 
 
 def _handle_init_example(args: argparse.Namespace) -> dict[str, Any]:
-    """导出指定安全模式和用途的示例配置文件。"""
-
     return export_example_config(mode=args.mode, kind=args.kind, output=args.output, print_to_stdout=args.print_to_stdout, override_specs=args.set, file_override_specs=args.set_file)
 
 
 def _handle_validate_config(args: argparse.Namespace) -> dict[str, Any]:
-    """只校验配置文件，不执行加解密。"""
-
     config_path = Path(args.config)
     if not config_path.is_file():
         raise CliConfigError(f"config file not found: {config_path}")
@@ -397,7 +391,6 @@ def _handle_validate_config(args: argparse.Namespace) -> dict[str, Any]:
         if args.summary_only:
             summary["__summary_payload__"] = build_validation_report_summary_payload(summary)
         return summary
-
     if args.kind == "encrypt":
         config = _load_config_file(config_path, BatchEncryptionConfig.from_json_file, "encryption")
         if args.strict:
