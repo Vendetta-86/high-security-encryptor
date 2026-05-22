@@ -82,6 +82,55 @@ class WindowsDPAPITests(unittest.TestCase):
             self.assertTrue(value.startswith(DPAPI_WRAPPER_PREFIX))
             self.assertNotIn("\n", value)
 
+    def test_hse2_dpapi_encrypt_validate_decrypt_round_trip_on_windows(self) -> None:
+        if not is_windows():
+            self.skipTest("Windows DPAPI is only available on Windows")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            material = root / "material.bin"
+            blob = root / "wrapper.dpapi"
+            plain = root / "plain.bin"
+            encrypted = root / "cipher.hse2"
+            restored = root / "restored.bin"
+            encrypt_config = root / "encrypt.json"
+            validate_config = root / "validate.json"
+            decrypt_config = root / "decrypt.json"
+            material.write_bytes(bytes(range(96, 128)))
+            plain.write_bytes((b"payload" * 100) + b"tail")
+            protect_file_with_dpapi(material, blob)
+            wrapper_spec = {"type": "dpapi", "path": str(blob)}
+            encrypt_config.write_text(
+                json.dumps(
+                    {
+                        "input": str(plain),
+                        "output": str(encrypted),
+                        "wrapper": wrapper_spec,
+                        "kdf_profile": "compatible",
+                        "chunk_size": 64,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            validate_config.write_text(
+                json.dumps({"items": [{"input": str(encrypted)}], "wrapper": wrapper_spec}),
+                encoding="utf-8",
+            )
+            decrypt_config.write_text(
+                json.dumps({"input": str(encrypted), "output": str(restored), "wrapper": wrapper_spec}),
+                encoding="utf-8",
+            )
+
+            encrypt_summary = _run_cli_json(["hse2-encrypt-config", "--config", str(encrypt_config)])
+            validate_summary = _run_cli_json(["hse2-validate", "--config", str(validate_config)])
+            decrypt_summary = _run_cli_json(["hse2-decrypt-config", "--config", str(decrypt_config)])
+
+            self.assertEqual(restored.read_bytes(), plain.read_bytes())
+            self.assertEqual(encrypt_summary["wrapper_source"], "dpapi")
+            self.assertEqual(decrypt_summary["wrapper_source"], "dpapi")
+            self.assertEqual(validate_summary["succeeded"], 1)
+            self.assertEqual(validate_summary["failed"], 0)
+            self.assertTrue(encrypted.is_file())
+
     def test_dpapi_unavailable_error_on_non_windows(self) -> None:
         if is_windows():
             self.skipTest("Non-Windows behavior only")
