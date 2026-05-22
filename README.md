@@ -40,7 +40,7 @@ pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
 ```
 
-The test suite currently contains 188 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
+The test suite currently contains 189 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
 
 ## CLI
 
@@ -122,6 +122,7 @@ This is a local online-attack throttle. It does not make a copied encrypted file
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 - [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.
 - [Phase 5 Completion](docs/phase5_completion.md): GUI quick-use improvements and Windows removable-storage encryption support.
+- [Phase 6 Completion](docs/phase6_completion.md): HSE2 wrapper providers, Windows DPAPI support, standalone HSE2 GUI, and Windows EXE packaging.
 - [Release Checklist](docs/release_checklist.md): final verification steps before tagging or publishing.
 - [Windows EXE Distribution](docs/windows_exe.md): PyInstaller build and release-asset notes.
 
@@ -183,4 +184,5 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - GUI quick-use mode supports dragging files or folders into the path field.
 - GUI file encryption/decryption tabs include easy multi-file setup, bundled multi-file encryption, and per-file or per-folder-inner passwords.
 - Windows removable-storage encryption is available for version `0.4.0` through a dedicated BitLocker To Go GUI tab.
-- Standalone HSE2 experimental GUI launcher is available through `high-security-encryptor-hse2-gui`.
+- Windows DPAPI wrapper provider and standalone HSE2 experimental GUI are available for version `0.5.0`.
+- Windows executable release automation now includes CLI, main GUI, and standalone HSE2 GUI executables.
