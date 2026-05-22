@@ -43,6 +43,7 @@ dev = [
 [project.scripts]
 high-security-encryptor = "high_security_encryptor.cli:main"
 high-security-encryptor-gui = "high_security_encryptor.gui:main"
+high-security-encryptor-hse2-gui = "high_security_encryptor.hse2_gui_launcher:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
