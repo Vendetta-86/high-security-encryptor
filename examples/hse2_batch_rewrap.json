@@ -1,0 +1,22 @@
+{
+  "items": [
+    {
+      "input": "a.hse2",
+      "output": "a.rewrapped.hse2"
+    },
+    {
+      "input": "b.hse2",
+      "output": "b.rewrapped.hse2"
+    }
+  ],
+  "old_wrapper": {
+    "type": "env",
+    "name": "CURRENT_HSE2_WRAPPER"
+  },
+  "new_wrapper": {
+    "type": "env",
+    "name": "REPLACEMENT_HSE2_WRAPPER"
+  },
+  "new_kdf_profile": "hardened",
+  "continue_on_error": false
+}
