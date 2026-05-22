@@ -29,6 +29,7 @@ def build_cli_parser(
     hse2_rewrap_config_handler: Handler | None = None,
     hse2_batch_encrypt_handler: Handler | None = None,
     hse2_batch_decrypt_handler: Handler | None = None,
+    hse2_batch_rewrap_handler: Handler | None = None,
 ) -> argparse.ArgumentParser:
     """Build the top-level CLI parser and wire subcommands to handlers."""
 
@@ -105,6 +106,11 @@ def build_cli_parser(
         hse2_batch_decrypt_parser = subparsers.add_parser("hse2-batch-decrypt", help="EXPERIMENTAL: Decrypt multiple HSE2 files from a JSON config.")
         hse2_batch_decrypt_parser.add_argument("--config", required=True, help="Path to an HSE2 batch decryption config file.")
         hse2_batch_decrypt_parser.set_defaults(handler=hse2_batch_decrypt_handler)
+
+    if hse2_batch_rewrap_handler is not None:
+        hse2_batch_rewrap_parser = subparsers.add_parser("hse2-batch-rewrap", help="EXPERIMENTAL: Rewrap multiple HSE2 files from a JSON config.")
+        hse2_batch_rewrap_parser.add_argument("--config", required=True, help="Path to an HSE2 batch rewrap config file.")
+        hse2_batch_rewrap_parser.set_defaults(handler=hse2_batch_rewrap_handler)
 
     validate_parser = subparsers.add_parser("validate-config", help="Validate an encryption or decryption JSON config without executing the workflow.")
     validate_parser.add_argument("--kind", required=True, choices=["encrypt", "decrypt"], help="Whether the config should be validated as an encryption or decryption config.")
