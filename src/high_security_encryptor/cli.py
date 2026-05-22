@@ -40,6 +40,7 @@ from .hse2_batch import decrypt_hse2_batch, encrypt_hse2_batch
 from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig, HSE2BatchRewrapConfig
 from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
+from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
 from .hse2_rewrap import rewrap_hse2_file
 from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
 from .hse2_validation_config import HSE2ValidationConfig
@@ -86,6 +87,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse1_to_hse2_handler=_handle_hse1_to_hse2,
         hse2_validate_handler=_handle_hse2_validate,
         generate_keyfile_handler=_handle_generate_keyfile,
+        hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
     )
 
 
@@ -259,6 +261,26 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
 def _handle_generate_keyfile(args: argparse.Namespace) -> dict[str, Any]:
     result = generate_keyfile(args.output, size_bytes=int(args.size), force=bool(args.force))
     return result.as_dict()
+
+
+def _handle_hse2_rotate_keyfile(args: argparse.Namespace) -> dict[str, Any]:
+    config = _load_config_file(args.config, HSE2KeyfileRotationConfig.from_json_file, "HSE2 keyfile rotation")
+    rewrap_config = HSE2BatchRewrapConfig.from_dict(
+        {
+            "items": [{"input": item.input, "output": item.output} for item in config.items],
+            "old_wrapper": {"type": "keyfile", "path": config.old_keyfile},
+            "new_wrapper": {"type": "keyfile", "path": config.new_keyfile},
+            "new_kdf_profile": config.new_kdf_profile,
+            "continue_on_error": config.continue_on_error,
+        }
+    )
+    result = rewrap_hse2_batch(rewrap_config, create_default_password_resolver())
+    summary = result.as_dict()
+    summary["command"] = "hse2-rotate-keyfile"
+    summary["config_path"] = str(Path(args.config))
+    summary["new_kdf_profile"] = config.new_kdf_profile
+    summary["continue_on_error"] = config.continue_on_error
+    return summary
 
 
 def _handle_hse2_encrypt(args: argparse.Namespace) -> dict[str, Any]:
