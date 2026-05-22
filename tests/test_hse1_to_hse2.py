@@ -16,7 +16,7 @@ from high_security_encryptor.hse1_to_hse2_config import HSE1ToHSE2MigrationConfi
 from high_security_encryptor.hse2_streaming import decrypt_streaming_hse2
 from high_security_encryptor.kdf_profiles import KDF_PROFILE_COMPATIBLE
 
-HSE1_PASSWORD = "hse1 migration password"
+HSE1_INPUT_VALUE = "hse1 migration value"
 HSE2_WRAPPER = "hse2 migration wrapper"
 ITEM_HSE2_WRAPPER = "item hse2 migration wrapper"
 
@@ -29,7 +29,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
                     {"input": "a.hse", "output": "a.hse2"},
                     {"input": "b.hse", "output": "b.hse2"},
                 ],
-                "hse1_password": {"type": "env", "name": "HSE1_PASSWORD"},
+                "hse1_password": {"type": "env", "name": "HSE1_INPUT_VALUE"},
                 "hse2_wrapper": {"type": "env", "name": "HSE2_WRAPPER"},
                 "kdf_profile": KDF_PROFILE_COMPATIBLE,
                 "chunk_size": 64,
@@ -47,7 +47,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
             HSE1ToHSE2MigrationConfig.from_dict(
                 {
                     "items": [{"input": "a.hse", "output": "a.hse2"}],
-                    "hse1_password": {"type": "env", "name": "HSE1_PASSWORD"},
+                    "hse1_password": {"type": "env", "name": "HSE1_INPUT_VALUE"},
                 }
             )
 
@@ -60,12 +60,12 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
             restored = root / "restored.bin"
             config_path = root / "migrate.json"
             plain.write_bytes((b"payload" * 100) + b"tail")
-            encrypt_file_streaming(plain, hse1_file, HSE1_PASSWORD)
+            encrypt_file_streaming(plain, hse1_file, HSE1_INPUT_VALUE)
             config_path.write_text(
                 json.dumps(
                     {
                         "items": [{"input": str(hse1_file), "output": str(hse2_file)}],
-                        "hse1_password": {"type": "env", "name": "HSE1_PASSWORD"},
+                        "hse1_password": {"type": "env", "name": "HSE1_INPUT_VALUE"},
                         "hse2_wrapper": {"type": "env", "name": "HSE2_WRAPPER"},
                         "kdf_profile": KDF_PROFILE_COMPATIBLE,
                         "chunk_size": 64,
@@ -76,7 +76,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
 
             with mock.patch.dict(
                 "os.environ",
-                {"HSE1_PASSWORD": HSE1_PASSWORD, "HSE2_WRAPPER": HSE2_WRAPPER},
+                {"HSE1_INPUT_VALUE": HSE1_INPUT_VALUE, "HSE2_WRAPPER": HSE2_WRAPPER},
             ):
                 summary = _run_cli_json(["hse1-to-hse2", "--config", str(config_path)])
             decrypt_streaming_hse2(hse2_file, restored, HSE2_WRAPPER)
@@ -98,7 +98,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
             restored = root / "restored.bin"
             config_path = root / "migrate.json"
             plain.write_bytes(b"payload" * 20)
-            encrypt_file_streaming(plain, hse1_file, HSE1_PASSWORD)
+            encrypt_file_streaming(plain, hse1_file, HSE1_INPUT_VALUE)
             config_path.write_text(
                 json.dumps(
                     {
@@ -109,7 +109,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
                                 "hse2_wrapper": {"type": "env", "name": "ITEM_HSE2_WRAPPER"},
                             }
                         ],
-                        "hse1_password": {"type": "env", "name": "HSE1_PASSWORD"},
+                        "hse1_password": {"type": "env", "name": "HSE1_INPUT_VALUE"},
                         "hse2_wrapper": {"type": "env", "name": "GLOBAL_HSE2_WRAPPER"},
                         "kdf_profile": KDF_PROFILE_COMPATIBLE,
                         "chunk_size": 64,
@@ -121,7 +121,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
             with mock.patch.dict(
                 "os.environ",
                 {
-                    "HSE1_PASSWORD": HSE1_PASSWORD,
+                    "HSE1_INPUT_VALUE": HSE1_INPUT_VALUE,
                     "GLOBAL_HSE2_WRAPPER": HSE2_WRAPPER,
                     "ITEM_HSE2_WRAPPER": ITEM_HSE2_WRAPPER,
                 },
@@ -140,7 +140,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
             hse2_file = root / "plain.bin.hse2"
             config_path = root / "migrate.json"
             plain.write_bytes(b"payload")
-            encrypt_file_streaming(plain, hse1_file, HSE1_PASSWORD)
+            encrypt_file_streaming(plain, hse1_file, HSE1_INPUT_VALUE)
             config_path.write_text(
                 json.dumps(
                     {
@@ -148,7 +148,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
                             {"input": str(missing), "output": str(root / "missing.hse2")},
                             {"input": str(hse1_file), "output": str(hse2_file)},
                         ],
-                        "hse1_password": {"type": "env", "name": "HSE1_PASSWORD"},
+                        "hse1_password": {"type": "env", "name": "HSE1_INPUT_VALUE"},
                         "hse2_wrapper": {"type": "env", "name": "HSE2_WRAPPER"},
                         "kdf_profile": KDF_PROFILE_COMPATIBLE,
                         "chunk_size": 64,
@@ -160,7 +160,7 @@ class HSE1ToHSE2MigrationTests(unittest.TestCase):
 
             with mock.patch.dict(
                 "os.environ",
-                {"HSE1_PASSWORD": HSE1_PASSWORD, "HSE2_WRAPPER": HSE2_WRAPPER},
+                {"HSE1_INPUT_VALUE": HSE1_INPUT_VALUE, "HSE2_WRAPPER": HSE2_WRAPPER},
             ):
                 summary = _run_cli_json(["hse1-to-hse2", "--config", str(config_path)])
 
