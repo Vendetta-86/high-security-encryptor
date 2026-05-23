@@ -112,11 +112,17 @@ jobs:
           $assetName = "high-security-encryptor-$env:RELEASE_TAG-windows-x64.zip"
           $staging = "dist\release\high-security-encryptor"
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
+          New-Item -ItemType Directory -Path "$staging\docs" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$staging\examples" -Force | Out-Null
           Copy-Item "dist\hse-windows-x64\high-security-encryptor.exe" "$staging\high-security-encryptor.exe"
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-gui.exe" "$staging\high-security-encryptor-gui.exe"
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-hse2-gui.exe" "$staging\high-security-encryptor-hse2-gui.exe"
           Copy-Item "README.md" "$staging\README.md"
+          Copy-Item "docs\release_beginner_readme_zh.txt" "$staging\新手必看.txt"
           Copy-Item "docs\windows_exe.md" "$staging\windows_exe.md"
+          Copy-Item "docs\beginner_gui_usage.md" "$staging\docs\beginner_gui_usage.md"
+          Copy-Item "examples\beginner_encrypt_config.json" "$staging\examples\beginner_encrypt_config.json"
+          Copy-Item "examples\beginner_multi_file_encrypt_config.json" "$staging\examples\beginner_multi_file_encrypt_config.json"
           Compress-Archive -Path "$staging\*" -DestinationPath "dist\$assetName" -Force
           "ASSET_NAME=$assetName" >> $env:GITHUB_ENV
           "ASSET_PATH=dist\$assetName" >> $env:GITHUB_ENV
