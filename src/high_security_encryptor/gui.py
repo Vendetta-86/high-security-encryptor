@@ -758,7 +758,7 @@ class HighSecurityEncryptorApp(ttk.Frame):
         ttk.Button(buttons, text="添加文件夹", command=self._add_config_encrypt_folder).pack(fill=tk.X)
 
         self._add_secret_row(frame, 1, "主加密密码", self.config_encrypt_default_password)
-        self._add_secret_row(frame, 2, "密码表/清单密码（留空则同主加密密码）", self.config_encrypt_metadata_password)
+        self._add_secret_row(frame, 2, "密码表/清单密码（留空则同主加密密码）；详见说明", self.config_encrypt_metadata_password)
         self._add_path_row(frame, 3, "输出目录", self.config_encrypt_output_dir, self._browse_config_encrypt_output_dir)
         self._add_choice_row(
             frame,
@@ -779,9 +779,9 @@ class HighSecurityEncryptorApp(ttk.Frame):
             variable=self.config_encrypt_write_internal_password_tables,
         ).pack(side=tk.LEFT)
 
-        ttk.Label(frame, text="单独文件密码\n格式：完整路径=密码").grid(row=6, column=0, sticky="nw", pady=4)
+        ttk.Label(frame, text="单独文件密码\n格式：完整路径=密码\n详见说明").grid(row=6, column=0, sticky="nw", pady=4)
         self.config_encrypt_source_passwords.grid(row=6, column=1, columnspan=2, sticky="nsew", padx=(8, 0), pady=4)
-        ttk.Label(frame, text="文件夹内单独加密\n格式：文件夹路径|相对路径|密码").grid(row=7, column=0, sticky="nw", pady=4)
+        ttk.Label(frame, text="文件夹内单独加密\n格式：文件夹路径|相对路径|密码\n详见说明").grid(row=7, column=0, sticky="nw", pady=4)
         self.config_encrypt_folder_inner.grid(row=7, column=1, columnspan=2, sticky="nsew", padx=(8, 0), pady=4)
 
         self._add_path_row(
