@@ -1,0 +1,27 @@
+{
+  "security_mode": "compatible",
+  "metadata_password": {
+    "type": "literal",
+    "value": "change-this-metadata-password"
+  },
+  "entries": [
+    {
+      "source_path": "C:/Users/your-name/Documents/a.txt",
+      "password": {
+        "type": "literal",
+        "value": "file-a-password"
+      }
+    },
+    {
+      "source_path": "C:/Users/your-name/Documents/b.txt",
+      "password": {
+        "type": "literal",
+        "value": "file-b-password"
+      }
+    }
+  ],
+  "output_dir": "C:/Users/your-name/Documents/encrypted-output",
+  "password_table_path": "C:/Users/your-name/Documents/encrypted-output/batch_password_table.hsm",
+  "manifest_path": "C:/Users/your-name/Documents/encrypted-output/batch_manifest.hsm",
+  "template_path": "C:/Users/your-name/Documents/encrypted-output/batch_template.hsm"
+}
