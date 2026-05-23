@@ -73,10 +73,12 @@ REMOVABLE_ENCRYPTION_METHOD_LABELS = {
 }
 
 PASSWORD_PROVIDER_HINT = (
-    "图形界面不会弹出控制台输入框。配置里的密码请使用直接填写、环境变量、本地文件或命令输出。"
+    "图形界面不会弹出控制台输入框。配置里的密码请使用直接填写、环境变量、本地文件或命令输出。详见说明。"
 )
 
 HELP_TEXT = """使用说明
+
+新手材料：Windows zip 根目录包含“新手必看.txt”，详细示例见 docs/beginner_gui_usage.md，示例配置见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
 
 快速使用
 适合临时、紧急、单次处理。选择文件或文件夹，或者把文件/文件夹直接拖进路径框，输入密码，点击“一键开始”。不需要写 JSON 配置。
@@ -102,9 +104,9 @@ HELP_TEXT = """使用说明
 文件加密
 用于处理多个文件、多个文件夹，或运行已有加密配置。
 
-运行已有配置：选择加密 JSON 配置文件后开始加密。图形界面不支持 prompt 密码来源，请使用直接填写、环境变量、本地文件或命令输出。
-多文件配置：一行一个文件或文件夹。系统会先整理为一个加密包，再用主加密密码保护整个包。需要给某个文件夹内的子文件单独加密时，填写“文件夹路径|子文件相对路径|密码”。
-加密密码表：默认会输出加密的 batch_password_table.hsm。也可以手动指定密码表、manifest、template 的保存路径，不必和加密包放在同一目录。
+运行已有配置：选择加密 JSON 配置文件后开始加密。初次使用请先查看随包附带的 examples/beginner_encrypt_config.json，并按 docs/beginner_gui_usage.md 修改路径和密码来源。图形界面不支持 prompt 密码来源，请使用直接填写、环境变量、本地文件或命令输出。详见说明。
+多文件配置：一行一个文件或文件夹。系统会先整理为一个加密包，再用主加密密码保护整个包。需要给某个文件夹内的子文件单独加密时，填写“文件夹路径|子文件相对路径|密码”。详见说明。
+加密密码表：compatible 模式下，程序会自动创建加密的 batch_password_table.hsm。密码表/清单密码用于保护 batch_password_table.hsm、batch_manifest.hsm 和 batch_template.hsm。也可以手动指定密码表、manifest、template 的保存路径，不必和加密包放在同一目录。详见说明。
 
 文件解密
 用于恢复多个已加密文件、文件夹包，或运行已有解密配置。
@@ -115,7 +117,7 @@ HELP_TEXT = """使用说明
 生成配置
 用于生成可编辑的示例 JSON。先生成示例，再按实际文件路径和密码来源修改，最后用“检查配置”验证。
 
-密码表保存方式：选择安全模式。简单兼容会保存完整密码表；推荐安全会减少顶层密码表；最高隐私不保存密码表，需要模板和运行时密码来源。
+密码表保存方式：选择安全模式。简单兼容会保存完整密码表；推荐安全会减少顶层密码表；最高隐私不保存密码表，需要模板和运行时密码来源。详见说明。
 配置用途：选择生成加密配置或解密配置。
 保存为：选择示例 JSON 的保存位置。
 生成配置文件：写出示例配置文件。"""
@@ -756,7 +758,7 @@ class HighSecurityEncryptorApp(ttk.Frame):
         ttk.Button(buttons, text="添加文件夹", command=self._add_config_encrypt_folder).pack(fill=tk.X)
 
         self._add_secret_row(frame, 1, "主加密密码", self.config_encrypt_default_password)
-        self._add_secret_row(frame, 2, "密码表/清单密码（留空则同主加密密码）", self.config_encrypt_metadata_password)
+        self._add_secret_row(frame, 2, "密码表/清单密码（留空则同主加密密码）；详见说明", self.config_encrypt_metadata_password)
         self._add_path_row(frame, 3, "输出目录", self.config_encrypt_output_dir, self._browse_config_encrypt_output_dir)
         self._add_choice_row(
             frame,
@@ -777,9 +779,9 @@ class HighSecurityEncryptorApp(ttk.Frame):
             variable=self.config_encrypt_write_internal_password_tables,
         ).pack(side=tk.LEFT)
 
-        ttk.Label(frame, text="单独文件密码\n格式：完整路径=密码").grid(row=6, column=0, sticky="nw", pady=4)
+        ttk.Label(frame, text="单独文件密码\n格式：完整路径=密码\n详见说明").grid(row=6, column=0, sticky="nw", pady=4)
         self.config_encrypt_source_passwords.grid(row=6, column=1, columnspan=2, sticky="nsew", padx=(8, 0), pady=4)
-        ttk.Label(frame, text="文件夹内单独加密\n格式：文件夹路径|相对路径|密码").grid(row=7, column=0, sticky="nw", pady=4)
+        ttk.Label(frame, text="文件夹内单独加密\n格式：文件夹路径|相对路径|密码\n详见说明").grid(row=7, column=0, sticky="nw", pady=4)
         self.config_encrypt_folder_inner.grid(row=7, column=1, columnspan=2, sticky="nsew", padx=(8, 0), pady=4)
 
         self._add_path_row(
