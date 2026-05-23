@@ -636,6 +636,31 @@ def create_gui_root() -> tk.Tk:
         return TkinterDnD.Tk()
     return tk.Tk()
 
+def get_gui_resource_base_dir() -> Path:
+    """Return the directory that contains packaged docs/examples resources."""
+
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[2]
+
+
+def open_path_in_file_manager(path: Path) -> None:
+    """Open a file or folder with the platform default application."""
+
+    if not path.exists():
+        raise FileNotFoundError(path)
+    if sys.platform.startswith("win"):
+        os.startfile(path)  # type: ignore[attr-defined]
+        return
+    if sys.platform == "darwin":
+        import subprocess
+
+        subprocess.Popen(["open", str(path)])
+        return
+
+    import subprocess
+
+    subprocess.Popen(["xdg-open", str(path)])
 
 class HighSecurityEncryptorApp(ttk.Frame):
     """Main Tkinter application."""
@@ -1083,15 +1108,34 @@ class HighSecurityEncryptorApp(ttk.Frame):
             sticky="w",
             pady=(14, 0),
         )
+    def _open_beginner_guide(self) -> None:
+        try:
+            open_path_in_file_manager(get_gui_resource_base_dir() / "docs" / "beginner_gui_usage.md")
+        except OSError as exc:
+            messagebox.showerror("打开失败", f"无法打开新手说明：{exc}")
+
+    def _open_beginner_examples(self) -> None:
+        try:
+            open_path_in_file_manager(get_gui_resource_base_dir() / "examples")
+        except OSError as exc:
+            messagebox.showerror("打开失败", f"无法打开示例文件夹：{exc}")
 
     def _build_help_tab(self, notebook: ttk.Notebook) -> None:
         frame = ttk.Frame(notebook, padding=12)
         notebook.add(frame, text="说明")
         frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(0, weight=1)
+        frame.rowconfigure(1, weight=1)
+
+        action_row = ttk.Frame(frame)
+        action_row.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        ttk.Button(action_row, text="打开新手说明", command=self._open_beginner_guide).pack(side=tk.LEFT)
+        ttk.Button(action_row, text="打开示例文件夹", command=self._open_beginner_examples).pack(
+            side=tk.LEFT,
+            padx=(8, 0),
+        )
 
         help_text = scrolledtext.ScrolledText(frame, wrap=tk.WORD)
-        help_text.grid(row=0, column=0, sticky="nsew")
+        help_text.grid(row=1, column=0, sticky="nsew")
         help_text.insert("1.0", HELP_TEXT)
         help_text.configure(state="disabled")
 
