@@ -40,6 +40,13 @@ from .password_kdf import (
     derive_kek_from_password,
     normalize_password,
 )
+from .wrapper_builders import (
+    BuiltWrapper,
+    build_keyfile_wrapper,
+    build_password_keyfile_wrapper,
+    build_password_wrapper,
+    build_wrapper_from_kek,
+)
 from .wrapper_serialization import (
     WrappedKeyPairBlobs,
     build_wrapper_record,
@@ -56,6 +63,7 @@ from .wrapping import (
 )
 
 __all__ = [
+    "BuiltWrapper",
     "CipherSuite",
     "CombinedKDFResult",
     "HSE2Header",
@@ -79,6 +87,10 @@ __all__ = [
     "WrapperRecord",
     "b64decode_bytes",
     "b64encode_bytes",
+    "build_keyfile_wrapper",
+    "build_password_keyfile_wrapper",
+    "build_password_wrapper",
+    "build_wrapper_from_kek",
     "build_wrapper_record",
     "canonical_json_bytes",
     "derive_kek_from_keyfile",
