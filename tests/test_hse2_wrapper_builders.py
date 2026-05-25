@@ -3,6 +3,7 @@ import unittest
 from high_security_encryptor.hse2 import (
     HSE2_KEYFILE_MIN_SIZE,
     HSE2_KDF_SALT_SIZE,
+    HSE2_KEY_SIZE,
     b64decode_bytes,
     build_keyfile_wrapper,
     build_password_keyfile_wrapper,
@@ -35,8 +36,9 @@ class HSE2WrapperBuilderTests(unittest.TestCase):
         self.assertEqual(data["label"], "recovery keyfile")
         self.assertEqual(data["kdf"], {"algorithm": "test"})
         self.assertTrue(b64decode_bytes(data["nonce"]))
-        self.assertTrue(b64decode_bytes(data["wrapped_keys"]["dek"]))
-        self.assertTrue(b64decode_bytes(data["wrapped_keys"]["mek"]))
+        self.assertEqual(len(b64decode_bytes(data["wrapped_keys"]["dek"])), HSE2_KEY_SIZE)
+        self.assertEqual(len(b64decode_bytes(data["wrapped_keys"]["mek"])), HSE2_KEY_SIZE)
+        self.assertEqual(len(b64decode_bytes(data["auth_tag"])), 16)
 
     def test_build_password_wrapper_uses_password_type_and_kdf_metadata(self) -> None:
         built = build_password_wrapper(
