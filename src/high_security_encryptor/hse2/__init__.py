@@ -1,5 +1,6 @@
 """HSE2 container model helpers."""
 
+from .encoding import b64decode_bytes, b64encode_bytes
 from .keys import (
     HSE2_KEY_SIZE,
     HSE2KeyMaterial,
@@ -20,6 +21,12 @@ from .models import (
     WrapperRecord,
     canonical_json_bytes,
     get_kdf_profile,
+)
+from .wrapper_serialization import (
+    WrappedKeyPairBlobs,
+    build_wrapper_record,
+    wrapped_blob_from_metadata,
+    wrapped_blob_to_metadata,
 )
 from .wrapping import (
     HSE2_WRAP_AUTH_TAG_SIZE,
@@ -42,8 +49,12 @@ __all__ = [
     "ManifestPolicy",
     "PayloadLayout",
     "WrappedKeyBlob",
+    "WrappedKeyPairBlobs",
     "WrappedKeys",
     "WrapperRecord",
+    "b64decode_bytes",
+    "b64encode_bytes",
+    "build_wrapper_record",
     "canonical_json_bytes",
     "generate_dek",
     "generate_kek",
@@ -54,4 +65,6 @@ __all__ = [
     "unwrap_key_material",
     "validate_key_bytes",
     "wrap_key_material",
+    "wrapped_blob_from_metadata",
+    "wrapped_blob_to_metadata",
 ]
