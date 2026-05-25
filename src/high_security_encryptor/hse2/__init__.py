@@ -1,5 +1,10 @@
 """HSE2 container model helpers."""
 
+from .combined_kdf import (
+    HSE2_COMBINED_KDF_CONTEXT,
+    CombinedKDFResult,
+    derive_kek_from_password_and_keyfile,
+)
 from .encoding import b64decode_bytes, b64encode_bytes
 from .keyfile_kdf import (
     HSE2_KEYFILE_CONTEXT,
@@ -52,9 +57,11 @@ from .wrapping import (
 
 __all__ = [
     "CipherSuite",
+    "CombinedKDFResult",
     "HSE2Header",
     "HSE2ModelError",
     "HSE2KeyMaterial",
+    "HSE2_COMBINED_KDF_CONTEXT",
     "HSE2_KEYFILE_CONTEXT",
     "HSE2_KEYFILE_MIN_SIZE",
     "HSE2_KEY_SIZE",
@@ -76,6 +83,7 @@ __all__ = [
     "canonical_json_bytes",
     "derive_kek_from_keyfile",
     "derive_kek_from_password",
+    "derive_kek_from_password_and_keyfile",
     "generate_dek",
     "generate_kek",
     "generate_key_material",
