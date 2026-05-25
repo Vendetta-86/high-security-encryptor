@@ -7,14 +7,17 @@ performs no file I/O, no CLI handling, and no GUI work.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import secrets
+
+from Crypto.Cipher import AES
 
 from .combined_kdf import derive_kek_from_password_and_keyfile
 from .keyfile_kdf import derive_kek_from_keyfile
-from .keys import HSE2KeyMaterial
-from .models import WrapperRecord
+from .keys import HSE2_KEY_SIZE, HSE2KeyMaterial
+from .models import HSE2ModelError, WrapperRecord
 from .password_kdf import derive_kek_from_password
 from .wrapper_serialization import WrappedKeyPairBlobs, build_wrapper_record
-from .wrapping import key_confirmation_tag, wrap_key_material
+from .wrapping import HSE2_WRAP_NONCE_SIZE, WrappedKeyBlob
 
 
 @dataclass(frozen=True)
@@ -23,6 +26,47 @@ class BuiltWrapper:
 
     record: WrapperRecord
     kdf_metadata: dict[str, object] | None
+
+
+def _wrap_dek_mek_together(
+    *,
+    dek: HSE2KeyMaterial,
+    mek: HSE2KeyMaterial,
+    kek: HSE2KeyMaterial,
+    wrapper_type: str,
+) -> tuple[WrappedKeyPairBlobs, bytes]:
+    """Wrap DEK and MEK in one AES-GCM operation.
+
+    A single wrapper record has one nonce and one authentication tag, so the two
+    content keys are encrypted as one 64-byte plaintext and then split into DEK
+    and MEK ciphertext fields for the JSON header model.
+    """
+
+    if dek.purpose != "DEK":
+        raise HSE2ModelError("wrapper construction requires a DEK")
+    if mek.purpose != "MEK":
+        raise HSE2ModelError("wrapper construction requires a MEK")
+    if kek.purpose != "KEK":
+        raise HSE2ModelError("wrapper construction requires a KEK")
+
+    nonce = secrets.token_bytes(HSE2_WRAP_NONCE_SIZE)
+    cipher = AES.new(kek.as_bytes(), AES.MODE_GCM, nonce=nonce)
+    cipher.update(f"HSE2:wrapper-record:{wrapper_type}".encode("ascii"))
+    ciphertext, auth_tag = cipher.encrypt_and_digest(dek.as_bytes() + mek.as_bytes())
+    if len(ciphertext) != HSE2_KEY_SIZE * 2:
+        raise HSE2ModelError("combined wrapped key ciphertext has invalid length")
+
+    wrapped_dek = WrappedKeyBlob(
+        nonce=nonce,
+        ciphertext=ciphertext[:HSE2_KEY_SIZE],
+        auth_tag=auth_tag,
+    )
+    wrapped_mek = WrappedKeyBlob(
+        nonce=nonce,
+        ciphertext=ciphertext[HSE2_KEY_SIZE:],
+        auth_tag=auth_tag,
+    )
+    return WrappedKeyPairBlobs(dek=wrapped_dek, mek=wrapped_mek), auth_tag
 
 
 def build_wrapper_from_kek(
@@ -38,20 +82,19 @@ def build_wrapper_from_kek(
 ) -> BuiltWrapper:
     """Build a wrapper record from an already-derived KEK."""
 
-    wrapped_dek = wrap_key_material(dek, kek=kek)
-    wrapped_mek = wrap_key_material(mek, kek=kek)
-    wrapped_mek = type(wrapped_mek)(
-        nonce=wrapped_dek.nonce,
-        ciphertext=wrapped_mek.ciphertext,
-        auth_tag=wrapped_mek.auth_tag,
+    wrapped_blobs, auth_tag = _wrap_dek_mek_together(
+        dek=dek,
+        mek=mek,
+        kek=kek,
+        wrapper_type=wrapper_type,
     )
     record = build_wrapper_record(
         wrapper_id=wrapper_id,
         wrapper_type=wrapper_type,
         label=label,
         created_utc=created_utc,
-        wrapped_blobs=WrappedKeyPairBlobs(dek=wrapped_dek, mek=wrapped_mek),
-        auth_tag=key_confirmation_tag(kek=kek, context=wrapper_id.encode("utf-8"))[:16],
+        wrapped_blobs=wrapped_blobs,
+        auth_tag=auth_tag,
         kdf=kdf_metadata,
     )
     return BuiltWrapper(record=record, kdf_metadata=kdf_metadata)
