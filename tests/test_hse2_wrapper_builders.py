@@ -13,6 +13,8 @@ from high_security_encryptor.hse2 import (
     generate_mek,
 )
 
+_TEST_PASSPHRASE = "unit-test passphrase only"
+
 
 class HSE2WrapperBuilderTests(unittest.TestCase):
     def test_build_wrapper_from_kek_builds_record(self) -> None:
@@ -40,7 +42,7 @@ class HSE2WrapperBuilderTests(unittest.TestCase):
         built = build_password_wrapper(
             wrapper_id="password-1",
             created_utc="2026-05-25T00:00:00Z",
-            password="password",
+            password=_TEST_PASSPHRASE,
             dek=generate_dek(),
             mek=generate_mek(),
             profile_name="compatible",
@@ -71,7 +73,7 @@ class HSE2WrapperBuilderTests(unittest.TestCase):
         built = build_password_keyfile_wrapper(
             wrapper_id="password-keyfile-1",
             created_utc="2026-05-25T00:00:00Z",
-            password="password",
+            password=_TEST_PASSPHRASE,
             keyfile_bytes=b"k" * HSE2_KEYFILE_MIN_SIZE,
             dek=generate_dek(),
             mek=generate_mek(),
