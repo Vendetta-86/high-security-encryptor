@@ -23,6 +23,12 @@ from .keys import (
     generate_mek,
     validate_key_bytes,
 )
+from .manifest_crypto import (
+    EncryptedManifest,
+    decrypt_manifest,
+    encrypt_manifest,
+    encrypted_manifest_from_dict,
+)
 from .models import (
     CipherSuite,
     HSE2Header,
@@ -74,6 +80,7 @@ __all__ = [
     "BuiltWrapper",
     "CipherSuite",
     "CombinedKDFResult",
+    "EncryptedManifest",
     "HSE2Header",
     "HSE2ModelError",
     "HSE2KeyMaterial",
@@ -103,11 +110,14 @@ __all__ = [
     "build_wrapper_from_kek",
     "build_wrapper_record",
     "canonical_json_bytes",
+    "decrypt_manifest",
     "derive_kek_from_keyfile",
     "derive_kek_from_password",
     "derive_kek_from_password_and_keyfile",
     "dpapi_protect_bytes",
     "dpapi_unprotect_bytes",
+    "encrypt_manifest",
+    "encrypted_manifest_from_dict",
     "generate_dek",
     "generate_kek",
     "generate_key_material",
