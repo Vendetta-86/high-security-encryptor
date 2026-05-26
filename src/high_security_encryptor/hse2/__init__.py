@@ -7,6 +7,12 @@ from .combined_kdf import (
 )
 from .dpapi import dpapi_protect_bytes, dpapi_unprotect_bytes, is_dpapi_available
 from .encoding import b64decode_bytes, b64encode_bytes
+from .header_auth import (
+    attach_header_auth_tag,
+    compute_header_auth_tag,
+    require_valid_header_auth_tag,
+    verify_header_auth_tag,
+)
 from .keyfile_kdf import (
     HSE2_KEYFILE_CONTEXT,
     HSE2_KEYFILE_MIN_SIZE,
@@ -108,6 +114,7 @@ __all__ = [
     "WrappedKeyPairBlobs",
     "WrappedKeys",
     "WrapperRecord",
+    "attach_header_auth_tag",
     "b64decode_bytes",
     "b64encode_bytes",
     "build_dpapi_wrapper",
@@ -117,6 +124,7 @@ __all__ = [
     "build_wrapper_from_kek",
     "build_wrapper_record",
     "canonical_json_bytes",
+    "compute_header_auth_tag",
     "decrypt_manifest",
     "decrypt_payload_chunk",
     "derive_kek_from_keyfile",
@@ -136,6 +144,7 @@ __all__ = [
     "is_dpapi_available",
     "key_confirmation_tag",
     "normalize_password",
+    "require_valid_header_auth_tag",
     "unwrap_dpapi_wrapper",
     "unwrap_key_material",
     "unwrap_keyfile_wrapper",
@@ -144,6 +153,7 @@ __all__ = [
     "unwrap_wrapper_with_kek",
     "validate_key_bytes",
     "validate_keyfile_bytes",
+    "verify_header_auth_tag",
     "wrap_key_material",
     "wrapped_blob_from_metadata",
     "wrapped_blob_to_metadata",
