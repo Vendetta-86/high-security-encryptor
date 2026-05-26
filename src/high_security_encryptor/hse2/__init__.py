@@ -42,10 +42,12 @@ from .password_kdf import (
 )
 from .wrapper_builders import (
     BuiltWrapper,
+    UnwrappedContentKeys,
     build_keyfile_wrapper,
     build_password_keyfile_wrapper,
     build_password_wrapper,
     build_wrapper_from_kek,
+    unwrap_wrapper_with_kek,
 )
 from .wrapper_serialization import (
     WrappedKeyPairBlobs,
@@ -81,6 +83,7 @@ __all__ = [
     "ManifestPolicy",
     "PasswordKDFResult",
     "PayloadLayout",
+    "UnwrappedContentKeys",
     "WrappedKeyBlob",
     "WrappedKeyPairBlobs",
     "WrappedKeys",
@@ -104,6 +107,7 @@ __all__ = [
     "key_confirmation_tag",
     "normalize_password",
     "unwrap_key_material",
+    "unwrap_wrapper_with_kek",
     "validate_key_bytes",
     "validate_keyfile_bytes",
     "wrap_key_material",
