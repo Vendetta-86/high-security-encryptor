@@ -47,6 +47,12 @@ from .password_kdf import (
     derive_kek_from_password,
     normalize_password,
 )
+from .payload_crypto import (
+    EncryptedPayloadChunk,
+    decrypt_payload_chunk,
+    encrypt_payload_chunk,
+    encrypted_payload_chunk_from_dict,
+)
 from .wrapper_builders import (
     BuiltWrapper,
     UnwrappedContentKeys,
@@ -81,6 +87,7 @@ __all__ = [
     "CipherSuite",
     "CombinedKDFResult",
     "EncryptedManifest",
+    "EncryptedPayloadChunk",
     "HSE2Header",
     "HSE2ModelError",
     "HSE2KeyMaterial",
@@ -111,13 +118,16 @@ __all__ = [
     "build_wrapper_record",
     "canonical_json_bytes",
     "decrypt_manifest",
+    "decrypt_payload_chunk",
     "derive_kek_from_keyfile",
     "derive_kek_from_password",
     "derive_kek_from_password_and_keyfile",
     "dpapi_protect_bytes",
     "dpapi_unprotect_bytes",
     "encrypt_manifest",
+    "encrypt_payload_chunk",
     "encrypted_manifest_from_dict",
+    "encrypted_payload_chunk_from_dict",
     "generate_dek",
     "generate_kek",
     "generate_key_material",
