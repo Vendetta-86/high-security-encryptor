@@ -1,5 +1,6 @@
 """HSE2 container model helpers."""
 
+from .archive_manifest import HSE2ArchiveEntry, archive_manifest_digest, build_archive_manifest
 from .combined_kdf import (
     HSE2_COMBINED_KDF_CONTEXT,
     CombinedKDFResult,
@@ -122,6 +123,7 @@ __all__ = [
     "CombinedKDFResult",
     "EncryptedManifest",
     "EncryptedPayloadChunk",
+    "HSE2ArchiveEntry",
     "HSE2ContainerBytes",
     "HSE2Header",
     "HSE2ModelError",
@@ -149,9 +151,11 @@ __all__ = [
     "WrappedKeyPairBlobs",
     "WrappedKeys",
     "WrapperRecord",
+    "archive_manifest_digest",
     "attach_header_auth_tag",
     "b64decode_bytes",
     "b64encode_bytes",
+    "build_archive_manifest",
     "build_dpapi_wrapper",
     "build_keyfile_wrapper",
     "build_password_keyfile_wrapper",
