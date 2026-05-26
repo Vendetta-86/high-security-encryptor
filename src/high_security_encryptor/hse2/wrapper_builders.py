@@ -41,6 +41,24 @@ def _wrapper_aad(wrapper_type: str) -> bytes:
     return f"HSE2:wrapper-record:{wrapper_type}".encode("ascii")
 
 
+def _salt_from_record(record: WrapperRecord) -> bytes:
+    if not record.kdf:
+        raise HSE2ModelError("wrapper record is missing KDF metadata")
+    salt = record.kdf.get("salt")
+    if not isinstance(salt, str):
+        raise HSE2ModelError("wrapper KDF salt is missing or invalid")
+    return b64decode_bytes(salt, field_name="wrapper KDF salt")
+
+
+def _profile_from_record(record: WrapperRecord) -> str:
+    if not record.kdf:
+        raise HSE2ModelError("wrapper record is missing KDF metadata")
+    profile = record.kdf.get("profile")
+    if not isinstance(profile, str):
+        raise HSE2ModelError("wrapper KDF profile is missing or invalid")
+    return profile
+
+
 def _wrap_dek_mek_together(
     *,
     dek: HSE2KeyMaterial,
@@ -153,3 +171,35 @@ def build_keyfile_wrapper(*, wrapper_id: str, created_utc: str, keyfile_bytes: b
 def build_password_keyfile_wrapper(*, wrapper_id: str, created_utc: str, password: str, keyfile_bytes: bytes, dek: HSE2KeyMaterial, mek: HSE2KeyMaterial, profile_name: str = "hardened", salt: bytes | None = None, label: str | None = None) -> BuiltWrapper:
     result = derive_kek_from_password_and_keyfile(password, keyfile_bytes, profile_name=profile_name, salt=salt)
     return build_wrapper_from_kek(wrapper_id=wrapper_id, wrapper_type="password_keyfile", created_utc=created_utc, dek=dek, mek=mek, kek=result.kek, label=label, kdf_metadata=result.kdf_metadata())
+
+
+def unwrap_password_wrapper(record: WrapperRecord, *, password: str) -> UnwrappedContentKeys:
+    """Recover DEK and MEK from a password wrapper."""
+
+    if record.type != "password":
+        raise HSE2ModelError("expected a password wrapper")
+    result = derive_kek_from_password(password, profile_name=_profile_from_record(record), salt=_salt_from_record(record))
+    return unwrap_wrapper_with_kek(record, kek=result.kek)
+
+
+def unwrap_keyfile_wrapper(record: WrapperRecord, *, keyfile_bytes: bytes) -> UnwrappedContentKeys:
+    """Recover DEK and MEK from a keyfile wrapper."""
+
+    if record.type != "keyfile":
+        raise HSE2ModelError("expected a keyfile wrapper")
+    result = derive_kek_from_keyfile(keyfile_bytes)
+    return unwrap_wrapper_with_kek(record, kek=result.kek)
+
+
+def unwrap_password_keyfile_wrapper(record: WrapperRecord, *, password: str, keyfile_bytes: bytes) -> UnwrappedContentKeys:
+    """Recover DEK and MEK from a password+keyfile wrapper."""
+
+    if record.type != "password_keyfile":
+        raise HSE2ModelError("expected a password_keyfile wrapper")
+    result = derive_kek_from_password_and_keyfile(
+        password,
+        keyfile_bytes,
+        profile_name=_profile_from_record(record),
+        salt=_salt_from_record(record),
+    )
+    return unwrap_wrapper_with_kek(record, kek=result.kek)
