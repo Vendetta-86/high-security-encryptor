@@ -22,6 +22,12 @@ from .container_codec import (
 )
 from .dpapi import dpapi_protect_bytes, dpapi_unprotect_bytes, is_dpapi_available
 from .encoding import b64decode_bytes, b64encode_bytes
+from .file_io import (
+    read_container_bytes,
+    read_hse2_container,
+    write_container_bytes,
+    write_hse2_container,
+)
 from .header_auth import (
     attach_header_auth_tag,
     compute_header_auth_tag,
@@ -170,6 +176,8 @@ __all__ = [
     "is_dpapi_available",
     "key_confirmation_tag",
     "normalize_password",
+    "read_container_bytes",
+    "read_hse2_container",
     "require_valid_header_auth_tag",
     "unwrap_dpapi_wrapper",
     "unwrap_key_material",
@@ -183,4 +191,6 @@ __all__ = [
     "wrap_key_material",
     "wrapped_blob_from_metadata",
     "wrapped_blob_to_metadata",
+    "write_container_bytes",
+    "write_hse2_container",
 ]
