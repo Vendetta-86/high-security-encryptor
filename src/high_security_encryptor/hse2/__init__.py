@@ -5,6 +5,16 @@ from .combined_kdf import (
     CombinedKDFResult,
     derive_kek_from_password_and_keyfile,
 )
+from .container_codec import (
+    HSE2_HEADER_ENCODING_CANONICAL_JSON,
+    HSE2_MAGIC,
+    HSE2_PREAMBLE_SIZE,
+    HSE2_PREAMBLE_VERSION,
+    HSE2Preamble,
+    decode_header_frame,
+    encode_header_frame,
+    hse2_header_from_dict,
+)
 from .dpapi import dpapi_protect_bytes, dpapi_unprotect_bytes, is_dpapi_available
 from .encoding import b64decode_bytes, b64encode_bytes
 from .header_auth import (
@@ -97,11 +107,16 @@ __all__ = [
     "HSE2Header",
     "HSE2ModelError",
     "HSE2KeyMaterial",
+    "HSE2Preamble",
     "HSE2_COMBINED_KDF_CONTEXT",
+    "HSE2_HEADER_ENCODING_CANONICAL_JSON",
     "HSE2_KEYFILE_CONTEXT",
     "HSE2_KEYFILE_MIN_SIZE",
     "HSE2_KEY_SIZE",
     "HSE2_KDF_SALT_SIZE",
+    "HSE2_MAGIC",
+    "HSE2_PREAMBLE_SIZE",
+    "HSE2_PREAMBLE_VERSION",
     "HSE2_WRAP_AUTH_TAG_SIZE",
     "HSE2_WRAP_NONCE_SIZE",
     "KDFProfile",
@@ -125,6 +140,7 @@ __all__ = [
     "build_wrapper_record",
     "canonical_json_bytes",
     "compute_header_auth_tag",
+    "decode_header_frame",
     "decrypt_manifest",
     "decrypt_payload_chunk",
     "derive_kek_from_keyfile",
@@ -132,6 +148,7 @@ __all__ = [
     "derive_kek_from_password_and_keyfile",
     "dpapi_protect_bytes",
     "dpapi_unprotect_bytes",
+    "encode_header_frame",
     "encrypt_manifest",
     "encrypt_payload_chunk",
     "encrypted_manifest_from_dict",
@@ -141,6 +158,7 @@ __all__ = [
     "generate_key_material",
     "generate_mek",
     "get_kdf_profile",
+    "hse2_header_from_dict",
     "is_dpapi_available",
     "key_confirmation_tag",
     "normalize_password",
