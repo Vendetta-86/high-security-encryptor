@@ -12,9 +12,10 @@ import secrets
 from Crypto.Cipher import AES
 
 from .combined_kdf import derive_kek_from_password_and_keyfile
-from .encoding import b64decode_bytes
+from .dpapi import dpapi_protect_bytes, dpapi_unprotect_bytes
+from .encoding import b64decode_bytes, b64encode_bytes
 from .keyfile_kdf import derive_kek_from_keyfile
-from .keys import HSE2_KEY_SIZE, HSE2KeyMaterial
+from .keys import HSE2_KEY_SIZE, HSE2KeyMaterial, generate_kek
 from .models import HSE2ModelError, WrapperRecord
 from .password_kdf import derive_kek_from_password
 from .wrapper_serialization import WrappedKeyPairBlobs, build_wrapper_record
@@ -57,6 +58,15 @@ def _profile_from_record(record: WrapperRecord) -> str:
     if not isinstance(profile, str):
         raise HSE2ModelError("wrapper KDF profile is missing or invalid")
     return profile
+
+
+def _protected_kek_from_record(record: WrapperRecord) -> bytes:
+    if not record.kdf:
+        raise HSE2ModelError("wrapper record is missing KDF metadata")
+    protected_kek = record.kdf.get("protected_kek")
+    if not isinstance(protected_kek, str):
+        raise HSE2ModelError("DPAPI wrapper protected KEK is missing or invalid")
+    return b64decode_bytes(protected_kek, field_name="DPAPI protected KEK")
 
 
 def _wrap_dek_mek_together(
@@ -173,6 +183,18 @@ def build_password_keyfile_wrapper(*, wrapper_id: str, created_utc: str, passwor
     return build_wrapper_from_kek(wrapper_id=wrapper_id, wrapper_type="password_keyfile", created_utc=created_utc, dek=dek, mek=mek, kek=result.kek, label=label, kdf_metadata=result.kdf_metadata())
 
 
+def build_dpapi_wrapper(*, wrapper_id: str, created_utc: str, dek: HSE2KeyMaterial, mek: HSE2KeyMaterial, entropy: bytes | None = None, label: str | None = None) -> BuiltWrapper:
+    """Build a DPAPI wrapper record using a random KEK protected by DPAPI."""
+
+    kek = generate_kek()
+    protected_kek = dpapi_protect_bytes(kek.as_bytes(), entropy=entropy, description="HSE2 DPAPI KEK")
+    metadata = {
+        "algorithm": "windows-dpapi-user",
+        "protected_kek": b64encode_bytes(protected_kek),
+    }
+    return build_wrapper_from_kek(wrapper_id=wrapper_id, wrapper_type="dpapi", created_utc=created_utc, dek=dek, mek=mek, kek=kek, label=label, kdf_metadata=metadata)
+
+
 def unwrap_password_wrapper(record: WrapperRecord, *, password: str) -> UnwrappedContentKeys:
     """Recover DEK and MEK from a password wrapper."""
 
@@ -203,3 +225,14 @@ def unwrap_password_keyfile_wrapper(record: WrapperRecord, *, password: str, key
         salt=_salt_from_record(record),
     )
     return unwrap_wrapper_with_kek(record, kek=result.kek)
+
+
+def unwrap_dpapi_wrapper(record: WrapperRecord, *, entropy: bytes | None = None) -> UnwrappedContentKeys:
+    """Recover DEK and MEK from a DPAPI wrapper."""
+
+    if record.type != "dpapi":
+        raise HSE2ModelError("expected a dpapi wrapper")
+    protected_kek = _protected_kek_from_record(record)
+    kek_bytes = dpapi_unprotect_bytes(protected_kek, entropy=entropy)
+    kek = HSE2KeyMaterial(purpose="KEK", value=kek_bytes)
+    return unwrap_wrapper_with_kek(record, kek=kek)
