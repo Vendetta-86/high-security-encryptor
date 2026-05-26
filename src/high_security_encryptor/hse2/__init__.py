@@ -5,6 +5,7 @@ from .combined_kdf import (
     CombinedKDFResult,
     derive_kek_from_password_and_keyfile,
 )
+from .dpapi import dpapi_protect_bytes, dpapi_unprotect_bytes, is_dpapi_available
 from .encoding import b64decode_bytes, b64encode_bytes
 from .keyfile_kdf import (
     HSE2_KEYFILE_CONTEXT,
@@ -102,11 +103,14 @@ __all__ = [
     "derive_kek_from_keyfile",
     "derive_kek_from_password",
     "derive_kek_from_password_and_keyfile",
+    "dpapi_protect_bytes",
+    "dpapi_unprotect_bytes",
     "generate_dek",
     "generate_kek",
     "generate_key_material",
     "generate_mek",
     "get_kdf_profile",
+    "is_dpapi_available",
     "key_confirmation_tag",
     "normalize_password",
     "unwrap_key_material",
