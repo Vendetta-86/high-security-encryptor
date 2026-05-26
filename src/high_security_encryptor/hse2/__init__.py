@@ -1,6 +1,7 @@
 """HSE2 container model helpers."""
 
 from .archive_manifest import HSE2ArchiveEntry, archive_manifest_digest, build_archive_manifest
+from .archive_traversal import build_archive_entries_from_root, build_archive_entries_from_roots
 from .combined_kdf import (
     HSE2_COMBINED_KDF_CONTEXT,
     CombinedKDFResult,
@@ -155,6 +156,8 @@ __all__ = [
     "attach_header_auth_tag",
     "b64decode_bytes",
     "b64encode_bytes",
+    "build_archive_entries_from_root",
+    "build_archive_entries_from_roots",
     "build_archive_manifest",
     "build_dpapi_wrapper",
     "build_keyfile_wrapper",
