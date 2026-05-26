@@ -14,6 +14,9 @@ from high_security_encryptor.hse2 import (
     unlock_wrapper,
 )
 
+_TEST_FACTOR = "unlock-factor-alpha"
+_WRONG_TEST_FACTOR = "unlock-factor-beta"
+
 
 class HSE2UnlockTests(unittest.TestCase):
     def _keys(self):
@@ -26,11 +29,11 @@ class HSE2UnlockTests(unittest.TestCase):
             created_utc="2026-05-25T00:00:00Z",
             dek=dek,
             mek=mek,
-            password="correct horse staple",
+            password=_TEST_FACTOR,
             profile_name="compatible",
         )
 
-        recovered = unlock_wrapper(built.record, factors=HSE2UnlockFactors(password="correct horse staple"))
+        recovered = unlock_wrapper(built.record, factors=HSE2UnlockFactors(password=_TEST_FACTOR))
 
         self.assertEqual(recovered.dek, dek)
         self.assertEqual(recovered.mek, mek)
@@ -59,14 +62,14 @@ class HSE2UnlockTests(unittest.TestCase):
             created_utc="2026-05-25T00:00:00Z",
             dek=dek,
             mek=mek,
-            password="correct horse staple",
+            password=_TEST_FACTOR,
             keyfile_bytes=keyfile,
             profile_name="compatible",
         )
 
         recovered = unlock_wrapper(
             built.record,
-            factors=HSE2UnlockFactors(password="correct horse staple", keyfile_bytes=keyfile),
+            factors=HSE2UnlockFactors(password=_TEST_FACTOR, keyfile_bytes=keyfile),
         )
 
         self.assertEqual(recovered.dek, dek)
@@ -79,7 +82,7 @@ class HSE2UnlockTests(unittest.TestCase):
             created_utc="2026-05-25T00:00:00Z",
             dek=dek,
             mek=mek,
-            password="correct horse staple",
+            password=_TEST_FACTOR,
             profile_name="compatible",
         )
 
@@ -94,7 +97,7 @@ class HSE2UnlockTests(unittest.TestCase):
             created_utc="2026-05-25T00:00:00Z",
             dek=dek,
             mek=mek,
-            password="correct horse staple",
+            password=_TEST_FACTOR,
             profile_name="compatible",
         ).record
         keyfile_wrapper = build_keyfile_wrapper(
@@ -117,12 +120,12 @@ class HSE2UnlockTests(unittest.TestCase):
             created_utc="2026-05-25T00:00:00Z",
             dek=dek,
             mek=mek,
-            password="correct horse staple",
+            password=_TEST_FACTOR,
             profile_name="compatible",
         )
 
         with self.assertRaises(HSE2ModelError):
-            unlock_first_matching_wrapper((built.record,), factors=HSE2UnlockFactors(password="wrong horse staple"))
+            unlock_first_matching_wrapper((built.record,), factors=HSE2UnlockFactors(password=_WRONG_TEST_FACTOR))
 
     def test_unlock_rejects_unknown_wrapper_type(self) -> None:
         record = WrapperRecord(
@@ -135,7 +138,7 @@ class HSE2UnlockTests(unittest.TestCase):
         )
 
         with self.assertRaises(HSE2ModelError):
-            unlock_wrapper(record, factors=HSE2UnlockFactors(password="correct horse staple"))
+            unlock_wrapper(record, factors=HSE2UnlockFactors(password=_TEST_FACTOR))
 
     def test_unlock_first_matching_wrapper_rejects_no_compatible_factor(self) -> None:
         dek, mek = self._keys()
@@ -148,7 +151,7 @@ class HSE2UnlockTests(unittest.TestCase):
         )
 
         with self.assertRaises(HSE2ModelError):
-            unlock_first_matching_wrapper((built.record,), factors=HSE2UnlockFactors(password="correct horse staple"))
+            unlock_first_matching_wrapper((built.record,), factors=HSE2UnlockFactors(password=_TEST_FACTOR))
 
 
 if __name__ == "__main__":
