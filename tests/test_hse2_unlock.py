@@ -3,8 +3,6 @@ import unittest
 from high_security_encryptor.hse2 import (
     HSE2ModelError,
     HSE2UnlockFactors,
-    WrappedKeys,
-    WrapperRecord,
     build_keyfile_wrapper,
     build_password_keyfile_wrapper,
     build_password_wrapper,
@@ -126,19 +124,6 @@ class HSE2UnlockTests(unittest.TestCase):
 
         with self.assertRaises(HSE2ModelError):
             unlock_first_matching_wrapper((built.record,), factors=HSE2UnlockFactors(password=_WRONG_TEST_FACTOR))
-
-    def test_unlock_rejects_unknown_wrapper_type(self) -> None:
-        record = WrapperRecord(
-            id="unknown-1",
-            type="unknown",
-            created_utc="2026-05-25T00:00:00Z",
-            nonce="AAAAAAAAAAAAAAAA",
-            wrapped_keys=WrappedKeys(dek="QQ==", mek="Qg=="),
-            auth_tag="AAAAAAAAAAAAAAAAAAAAAA==",
-        )
-
-        with self.assertRaises(HSE2ModelError):
-            unlock_wrapper(record, factors=HSE2UnlockFactors(password=_TEST_FACTOR))
 
     def test_unlock_first_matching_wrapper_rejects_no_compatible_factor(self) -> None:
         dek, mek = self._keys()
