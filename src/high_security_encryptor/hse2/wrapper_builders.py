@@ -12,6 +12,7 @@ import secrets
 from Crypto.Cipher import AES
 
 from .combined_kdf import derive_kek_from_password_and_keyfile
+from .encoding import b64decode_bytes
 from .keyfile_kdf import derive_kek_from_keyfile
 from .keys import HSE2_KEY_SIZE, HSE2KeyMaterial
 from .models import HSE2ModelError, WrapperRecord
@@ -26,6 +27,18 @@ class BuiltWrapper:
 
     record: WrapperRecord
     kdf_metadata: dict[str, object] | None
+
+
+@dataclass(frozen=True)
+class UnwrappedContentKeys:
+    """DEK and MEK recovered from one wrapper record."""
+
+    dek: HSE2KeyMaterial
+    mek: HSE2KeyMaterial
+
+
+def _wrapper_aad(wrapper_type: str) -> bytes:
+    return f"HSE2:wrapper-record:{wrapper_type}".encode("ascii")
 
 
 def _wrap_dek_mek_together(
@@ -51,7 +64,7 @@ def _wrap_dek_mek_together(
 
     nonce = secrets.token_bytes(HSE2_WRAP_NONCE_SIZE)
     cipher = AES.new(kek.as_bytes(), AES.MODE_GCM, nonce=nonce)
-    cipher.update(f"HSE2:wrapper-record:{wrapper_type}".encode("ascii"))
+    cipher.update(_wrapper_aad(wrapper_type))
     ciphertext, auth_tag = cipher.encrypt_and_digest(dek.as_bytes() + mek.as_bytes())
     if len(ciphertext) != HSE2_KEY_SIZE * 2:
         raise HSE2ModelError("combined wrapped key ciphertext has invalid length")
@@ -98,6 +111,33 @@ def build_wrapper_from_kek(
         kdf=kdf_metadata,
     )
     return BuiltWrapper(record=record, kdf_metadata=kdf_metadata)
+
+
+def unwrap_wrapper_with_kek(record: WrapperRecord, *, kek: HSE2KeyMaterial) -> UnwrappedContentKeys:
+    """Recover DEK and MEK from a wrapper record using an already-derived KEK."""
+
+    if kek.purpose != "KEK":
+        raise HSE2ModelError("wrapper unwrapping requires a KEK")
+    nonce = b64decode_bytes(record.nonce, field_name="wrapper nonce")
+    dek_ciphertext = b64decode_bytes(record.wrapped_keys.dek, field_name="wrapped DEK")
+    mek_ciphertext = b64decode_bytes(record.wrapped_keys.mek, field_name="wrapped MEK")
+    auth_tag = b64decode_bytes(record.auth_tag, field_name="wrapper auth_tag")
+    ciphertext = dek_ciphertext + mek_ciphertext
+    if len(ciphertext) != HSE2_KEY_SIZE * 2:
+        raise HSE2ModelError("combined wrapped key ciphertext has invalid length")
+
+    cipher = AES.new(kek.as_bytes(), AES.MODE_GCM, nonce=nonce)
+    cipher.update(_wrapper_aad(record.type))
+    try:
+        plaintext = cipher.decrypt_and_verify(ciphertext, auth_tag)
+    except ValueError as exc:
+        raise HSE2ModelError("wrapper authentication failed") from exc
+    if len(plaintext) != HSE2_KEY_SIZE * 2:
+        raise HSE2ModelError("unwrapped content key material has invalid length")
+    return UnwrappedContentKeys(
+        dek=HSE2KeyMaterial(purpose="DEK", value=plaintext[:HSE2_KEY_SIZE]),
+        mek=HSE2KeyMaterial(purpose="MEK", value=plaintext[HSE2_KEY_SIZE:]),
+    )
 
 
 def build_password_wrapper(*, wrapper_id: str, created_utc: str, password: str, dek: HSE2KeyMaterial, mek: HSE2KeyMaterial, profile_name: str = "hardened", salt: bytes | None = None, label: str | None = None) -> BuiltWrapper:
