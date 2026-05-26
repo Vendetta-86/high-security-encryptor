@@ -86,6 +86,7 @@ from .payload_crypto import (
     encrypt_payload_chunk,
     encrypted_payload_chunk_from_dict,
 )
+from .unlock import HSE2UnlockFactors, unlock_first_matching_wrapper, unlock_wrapper
 from .wrapper_builders import (
     BuiltWrapper,
     UnwrappedContentKeys,
@@ -126,6 +127,7 @@ __all__ = [
     "HSE2ModelError",
     "HSE2KeyMaterial",
     "HSE2Preamble",
+    "HSE2UnlockFactors",
     "HSE2_COMBINED_KDF_CONTEXT",
     "HSE2_HEADER_ENCODING_CANONICAL_JSON",
     "HSE2_KEYFILE_CONTEXT",
@@ -188,6 +190,8 @@ __all__ = [
     "read_hse2_container",
     "require_valid_header_auth_tag",
     "restore_header_from_backup_bytes",
+    "unlock_first_matching_wrapper",
+    "unlock_wrapper",
     "unwrap_dpapi_wrapper",
     "unwrap_key_material",
     "unwrap_keyfile_wrapper",
