@@ -47,6 +47,9 @@ from .wrapper_builders import (
     build_password_keyfile_wrapper,
     build_password_wrapper,
     build_wrapper_from_kek,
+    unwrap_keyfile_wrapper,
+    unwrap_password_keyfile_wrapper,
+    unwrap_password_wrapper,
     unwrap_wrapper_with_kek,
 )
 from .wrapper_serialization import (
@@ -107,6 +110,9 @@ __all__ = [
     "key_confirmation_tag",
     "normalize_password",
     "unwrap_key_material",
+    "unwrap_keyfile_wrapper",
+    "unwrap_password_keyfile_wrapper",
+    "unwrap_password_wrapper",
     "unwrap_wrapper_with_kek",
     "validate_key_bytes",
     "validate_keyfile_bytes",
