@@ -1,6 +1,11 @@
 """HSE2 container model helpers."""
 
 from .archive_manifest import HSE2ArchiveEntry, archive_manifest_digest, build_archive_manifest
+from .archive_payload import (
+    DEFAULT_ARCHIVE_CHUNK_SIZE,
+    build_payload_chunks_from_file,
+    build_payload_chunks_from_files,
+)
 from .archive_traversal import build_archive_entries_from_root, build_archive_entries_from_roots
 from .combined_kdf import (
     HSE2_COMBINED_KDF_CONTEXT,
@@ -122,6 +127,7 @@ __all__ = [
     "BuiltWrapper",
     "CipherSuite",
     "CombinedKDFResult",
+    "DEFAULT_ARCHIVE_CHUNK_SIZE",
     "EncryptedManifest",
     "EncryptedPayloadChunk",
     "HSE2ArchiveEntry",
@@ -163,6 +169,8 @@ __all__ = [
     "build_keyfile_wrapper",
     "build_password_keyfile_wrapper",
     "build_password_wrapper",
+    "build_payload_chunks_from_file",
+    "build_payload_chunks_from_files",
     "build_wrapper_from_kek",
     "build_wrapper_record",
     "canonical_json_bytes",
