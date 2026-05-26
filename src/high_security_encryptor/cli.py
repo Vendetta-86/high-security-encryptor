@@ -36,6 +36,7 @@ from .config import BatchDecryptionConfig, BatchEncryptionConfig
 from .example_templates import export_example_config
 from .hse1_to_hse2 import migrate_hse1_to_hse2
 from .hse1_to_hse2_config import HSE1ToHSE2MigrationConfig
+from .hse2 import read_hse2_container
 from .hse2_batch import decrypt_hse2_batch, encrypt_hse2_batch
 from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig, HSE2BatchRewrapConfig
 from .hse2_batch_rewrap import rewrap_hse2_batch
@@ -87,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_batch_rewrap_handler=_handle_hse2_batch_rewrap,
         hse1_to_hse2_handler=_handle_hse1_to_hse2,
         hse2_validate_handler=_handle_hse2_validate,
+        hse2_inspect_handler=_handle_hse2_inspect,
         generate_keyfile_handler=_handle_generate_keyfile,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
         dpapi_protect_handler=_handle_dpapi_protect,
@@ -396,6 +398,28 @@ def _handle_hse2_validate(args: argparse.Namespace) -> dict[str, Any]:
     if summary["summary_only"]:
         summary["__summary_payload__"] = _hse2_validation_summary_payload(summary)
     return summary
+
+
+def _handle_hse2_inspect(args: argparse.Namespace) -> dict[str, Any]:
+    container = read_hse2_container(args.input)
+    header = container.header
+    return {
+        "command": "hse2-inspect",
+        "experimental": True,
+        "input": str(Path(args.input)),
+        "format": header.format,
+        "format_version": header.format_version,
+        "created_utc": header.created_utc,
+        "cipher_suite": header.cipher_suite.to_dict(),
+        "manifest_policy": header.manifest_policy.to_dict(),
+        "payload_layout": header.payload_layout.to_dict(),
+        "wrapper_count": len(header.wrappers),
+        "wrapper_types": [wrapper.type for wrapper in header.wrappers],
+        "header_auth_algorithm": header.header_auth_algorithm,
+        "has_header_auth_tag": header.header_auth_tag is not None,
+        "has_manifest": container.manifest is not None,
+        "payload_chunk_count": len(container.payload_chunks),
+    }
 
 
 def _hse2_validation_summary_payload(summary: dict[str, Any]) -> dict[str, Any]:
