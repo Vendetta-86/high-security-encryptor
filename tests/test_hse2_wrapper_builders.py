@@ -1,3 +1,4 @@
+import sys
 import unittest
 
 from high_security_encryptor.hse2 import (
@@ -6,6 +7,7 @@ from high_security_encryptor.hse2 import (
     HSE2_KEY_SIZE,
     HSE2ModelError,
     b64decode_bytes,
+    build_dpapi_wrapper,
     build_keyfile_wrapper,
     build_password_keyfile_wrapper,
     build_password_wrapper,
@@ -13,6 +15,7 @@ from high_security_encryptor.hse2 import (
     generate_dek,
     generate_kek,
     generate_mek,
+    unwrap_dpapi_wrapper,
     unwrap_keyfile_wrapper,
     unwrap_password_keyfile_wrapper,
     unwrap_password_wrapper,
@@ -149,6 +152,37 @@ class HSE2WrapperBuilderTests(unittest.TestCase):
 
         with self.assertRaises(HSE2ModelError):
             unwrap_password_wrapper(built.record, password=_WRONG_TEST_PHRASE)
+
+    @unittest.skipUnless(sys.platform == "win32", "DPAPI is Windows-only")
+    def test_dpapi_wrapper_round_trips_on_windows(self) -> None:
+        dek = generate_dek()
+        mek = generate_mek()
+        entropy = b"hse2 dpapi wrapper entropy"
+        built = build_dpapi_wrapper(
+            wrapper_id="dpapi-1",
+            created_utc="2026-05-25T00:00:00Z",
+            dek=dek,
+            mek=mek,
+            entropy=entropy,
+        )
+
+        recovered = unwrap_dpapi_wrapper(built.record, entropy=entropy)
+
+        self.assertEqual(built.record.type, "dpapi")
+        self.assertEqual(built.record.kdf["algorithm"], "windows-dpapi-user")
+        self.assertIn("protected_kek", built.record.kdf)
+        self.assertEqual(recovered.dek.as_bytes(), dek.as_bytes())
+        self.assertEqual(recovered.mek.as_bytes(), mek.as_bytes())
+
+    @unittest.skipIf(sys.platform == "win32", "non-Windows behavior only")
+    def test_dpapi_wrapper_rejects_on_non_windows(self) -> None:
+        with self.assertRaises(HSE2ModelError):
+            build_dpapi_wrapper(
+                wrapper_id="dpapi-1",
+                created_utc="2026-05-25T00:00:00Z",
+                dek=generate_dek(),
+                mek=generate_mek(),
+            )
 
     def test_build_password_wrapper_uses_password_type_and_kdf_metadata(self) -> None:
         built = build_password_wrapper(
