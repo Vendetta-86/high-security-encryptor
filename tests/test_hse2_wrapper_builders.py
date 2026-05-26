@@ -13,6 +13,9 @@ from high_security_encryptor.hse2 import (
     generate_dek,
     generate_kek,
     generate_mek,
+    unwrap_keyfile_wrapper,
+    unwrap_password_keyfile_wrapper,
+    unwrap_password_wrapper,
     unwrap_wrapper_with_kek,
 )
 
@@ -72,6 +75,79 @@ class HSE2WrapperBuilderTests(unittest.TestCase):
 
         with self.assertRaises(HSE2ModelError):
             unwrap_wrapper_with_kek(built.record, kek=generate_kek())
+
+    def test_password_wrapper_round_trips_with_password(self) -> None:
+        dek = generate_dek()
+        mek = generate_mek()
+        built = build_password_wrapper(
+            wrapper_id="password-1",
+            created_utc="2026-05-25T00:00:00Z",
+            password=_TEST_PASSPHRASE,
+            dek=dek,
+            mek=mek,
+            profile_name="compatible",
+            salt=b"s" * HSE2_KDF_SALT_SIZE,
+        )
+
+        recovered = unwrap_password_wrapper(built.record, password=_TEST_PASSPHRASE)
+
+        self.assertEqual(recovered.dek.as_bytes(), dek.as_bytes())
+        self.assertEqual(recovered.mek.as_bytes(), mek.as_bytes())
+
+    def test_keyfile_wrapper_round_trips_with_keyfile(self) -> None:
+        dek = generate_dek()
+        mek = generate_mek()
+        keyfile_bytes = b"k" * HSE2_KEYFILE_MIN_SIZE
+        built = build_keyfile_wrapper(
+            wrapper_id="keyfile-1",
+            created_utc="2026-05-25T00:00:00Z",
+            keyfile_bytes=keyfile_bytes,
+            dek=dek,
+            mek=mek,
+        )
+
+        recovered = unwrap_keyfile_wrapper(built.record, keyfile_bytes=keyfile_bytes)
+
+        self.assertEqual(recovered.dek.as_bytes(), dek.as_bytes())
+        self.assertEqual(recovered.mek.as_bytes(), mek.as_bytes())
+
+    def test_password_keyfile_wrapper_round_trips_with_both_factors(self) -> None:
+        dek = generate_dek()
+        mek = generate_mek()
+        keyfile_bytes = b"k" * HSE2_KEYFILE_MIN_SIZE
+        built = build_password_keyfile_wrapper(
+            wrapper_id="password-keyfile-1",
+            created_utc="2026-05-25T00:00:00Z",
+            password=_TEST_PASSPHRASE,
+            keyfile_bytes=keyfile_bytes,
+            dek=dek,
+            mek=mek,
+            profile_name="compatible",
+            salt=b"s" * HSE2_KDF_SALT_SIZE,
+        )
+
+        recovered = unwrap_password_keyfile_wrapper(
+            built.record,
+            password=_TEST_PASSPHRASE,
+            keyfile_bytes=keyfile_bytes,
+        )
+
+        self.assertEqual(recovered.dek.as_bytes(), dek.as_bytes())
+        self.assertEqual(recovered.mek.as_bytes(), mek.as_bytes())
+
+    def test_password_wrapper_rejects_wrong_password(self) -> None:
+        built = build_password_wrapper(
+            wrapper_id="password-1",
+            created_utc="2026-05-25T00:00:00Z",
+            password=_TEST_PASSPHRASE,
+            dek=generate_dek(),
+            mek=generate_mek(),
+            profile_name="compatible",
+            salt=b"s" * HSE2_KDF_SALT_SIZE,
+        )
+
+        with self.assertRaises(HSE2ModelError):
+            unwrap_password_wrapper(built.record, password="unit-test wrong passphrase")
 
     def test_build_password_wrapper_uses_password_type_and_kdf_metadata(self) -> None:
         built = build_password_wrapper(
