@@ -34,6 +34,12 @@ from .header_auth import (
     require_valid_header_auth_tag,
     verify_header_auth_tag,
 )
+from .header_backup import (
+    export_header_backup_bytes,
+    read_header_backup,
+    restore_header_from_backup_bytes,
+    write_header_backup,
+)
 from .keyfile_kdf import (
     HSE2_KEYFILE_CONTEXT,
     HSE2_KEYFILE_MIN_SIZE,
@@ -167,6 +173,7 @@ __all__ = [
     "encrypt_payload_chunk",
     "encrypted_manifest_from_dict",
     "encrypted_payload_chunk_from_dict",
+    "export_header_backup_bytes",
     "generate_dek",
     "generate_kek",
     "generate_key_material",
@@ -177,8 +184,10 @@ __all__ = [
     "key_confirmation_tag",
     "normalize_password",
     "read_container_bytes",
+    "read_header_backup",
     "read_hse2_container",
     "require_valid_header_auth_tag",
+    "restore_header_from_backup_bytes",
     "unwrap_dpapi_wrapper",
     "unwrap_key_material",
     "unwrap_keyfile_wrapper",
@@ -192,5 +201,6 @@ __all__ = [
     "wrapped_blob_from_metadata",
     "wrapped_blob_to_metadata",
     "write_container_bytes",
+    "write_header_backup",
     "write_hse2_container",
 ]
