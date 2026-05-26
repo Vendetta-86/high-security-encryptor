@@ -20,6 +20,7 @@ from high_security_encryptor.hse2 import (
 )
 
 _TEST_PASSPHRASE = "unit-test passphrase only"
+_WRONG_TEST_PHRASE = "unit-test mismatch phrase only"
 
 
 class HSE2WrapperBuilderTests(unittest.TestCase):
@@ -147,7 +148,7 @@ class HSE2WrapperBuilderTests(unittest.TestCase):
         )
 
         with self.assertRaises(HSE2ModelError):
-            unwrap_password_wrapper(built.record, password="unit-test wrong passphrase")
+            unwrap_password_wrapper(built.record, password=_WRONG_TEST_PHRASE)
 
     def test_build_password_wrapper_uses_password_type_and_kdf_metadata(self) -> None:
         built = build_password_wrapper(
