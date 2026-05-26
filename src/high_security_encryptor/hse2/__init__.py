@@ -5,6 +5,11 @@ from .combined_kdf import (
     CombinedKDFResult,
     derive_kek_from_password_and_keyfile,
 )
+from .container_bytes import (
+    HSE2ContainerBytes,
+    decode_container_bytes,
+    encode_container_bytes,
+)
 from .container_codec import (
     HSE2_HEADER_ENCODING_CANONICAL_JSON,
     HSE2_MAGIC,
@@ -104,6 +109,7 @@ __all__ = [
     "CombinedKDFResult",
     "EncryptedManifest",
     "EncryptedPayloadChunk",
+    "HSE2ContainerBytes",
     "HSE2Header",
     "HSE2ModelError",
     "HSE2KeyMaterial",
@@ -140,6 +146,7 @@ __all__ = [
     "build_wrapper_record",
     "canonical_json_bytes",
     "compute_header_auth_tag",
+    "decode_container_bytes",
     "decode_header_frame",
     "decrypt_manifest",
     "decrypt_payload_chunk",
@@ -148,6 +155,7 @@ __all__ = [
     "derive_kek_from_password_and_keyfile",
     "dpapi_protect_bytes",
     "dpapi_unprotect_bytes",
+    "encode_container_bytes",
     "encode_header_frame",
     "encrypt_manifest",
     "encrypt_payload_chunk",
