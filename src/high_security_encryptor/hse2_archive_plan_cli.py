@@ -7,7 +7,9 @@ import json
 import sys
 from pathlib import Path
 
-from .hse2 import build_archive_plan_summary
+from .hse2 import build_archive_assembly_plan, build_archive_entries_from_roots
+
+DEFAULT_PLAN_CHUNK_SIZE = 1024 * 1024
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -18,15 +20,24 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="File or directory root to include. May be supplied multiple times.",
     )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=DEFAULT_PLAN_CHUNK_SIZE,
+        help=f"Payload chunk size used for planning only. Defaults to {DEFAULT_PLAN_CHUNK_SIZE}.",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
-    summary = build_archive_plan_summary(tuple(Path(root) for root in args.root))
+    roots = tuple(Path(root) for root in args.root)
+    entries = build_archive_entries_from_roots(roots)
+    summary = build_archive_assembly_plan(entries, chunk_size=int(args.chunk_size))
     summary["command"] = "hse2-plan-archive"
     summary["experimental"] = True
-    summary["roots"] = [str(Path(root)) for root in args.root]
+    summary["root_count"] = len(roots)
+    summary["roots"] = [str(root) for root in roots]
     print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
