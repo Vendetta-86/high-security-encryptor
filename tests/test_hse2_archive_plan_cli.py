@@ -32,6 +32,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             self.assertEqual(payload["chunk_size"], 2)
             self.assertEqual(payload["payload_chunk_count"], 2)
             self.assertIsNone(payload["output_path"])
+            self.assertEqual(len(payload["plan_digest_sha256"]), 64)
             self.assertEqual(
                 [entry["path"] for entry in payload["entries"]],
                 ["root", "root/a.txt", "root/nested", "root/nested/b.txt"],
@@ -92,6 +93,41 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             self.assertNotIn("\n  ", stdout.getvalue())
             self.assertIn("\n  ", output.read_text(encoding="utf-8"))
             self.assertEqual(json.loads(stdout.getvalue()), json.loads(output.read_text(encoding="utf-8")))
+
+    def test_archive_plan_digest_ignores_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            first_stdout = io.StringIO()
+            second_stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(first_stdout):
+                first_exit = main([
+                    "--root",
+                    str(root),
+                    "--chunk-size",
+                    "2",
+                    "--output",
+                    str(Path(temp_dir) / "first.json"),
+                ])
+            with contextlib.redirect_stdout(second_stdout):
+                second_exit = main([
+                    "--root",
+                    str(root),
+                    "--chunk-size",
+                    "2",
+                    "--output",
+                    str(Path(temp_dir) / "second.json"),
+                ])
+
+            self.assertEqual(first_exit, 0)
+            self.assertEqual(second_exit, 0)
+            first_payload = json.loads(first_stdout.getvalue())
+            second_payload = json.loads(second_stdout.getvalue())
+            self.assertNotEqual(first_payload["output_path"], second_payload["output_path"])
+            self.assertEqual(first_payload["plan_digest_sha256"], second_payload["plan_digest_sha256"])
+            self.assertEqual(len(first_payload["plan_digest_sha256"]), 64)
 
     def test_archive_plan_cli_reports_invalid_chunk_size(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
