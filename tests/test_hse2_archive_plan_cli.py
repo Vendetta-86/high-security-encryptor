@@ -178,6 +178,35 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             self.assertIn("plan digest mismatch", stderr.getvalue())
             self.assertIn("expected=" + "0" * 64, stderr.getvalue())
 
+    def test_archive_plan_cli_rejects_malformed_expected_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stderr(stderr):
+                short_exit = main([
+                    "--root",
+                    str(root),
+                    "--expect-digest",
+                    "abc",
+                ])
+
+            self.assertEqual(short_exit, 2)
+            self.assertIn("expected digest must be a 64-character", stderr.getvalue())
+
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr):
+                invalid_hex_exit = main([
+                    "--root",
+                    str(root),
+                    "--expect-digest",
+                    "g" * 64,
+                ])
+
+            self.assertEqual(invalid_hex_exit, 2)
+            self.assertIn("hexadecimal SHA-256", stderr.getvalue())
+
     def test_archive_plan_cli_reports_invalid_chunk_size(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
