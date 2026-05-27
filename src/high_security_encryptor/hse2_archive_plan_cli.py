@@ -111,7 +111,7 @@ def _format_json(payload: dict[str, Any], *, compact: bool) -> str:
 
 
 def _write_json_report(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_format_json(payload, compact=False) + "\n", encoding="utf-8")
 
 
