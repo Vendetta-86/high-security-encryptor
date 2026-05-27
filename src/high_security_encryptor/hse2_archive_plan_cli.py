@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
         required=False,
         help="Optional path to write the metadata-only archive planning JSON report.",
     )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Emit compact single-line JSON to stdout. Report files remain pretty-printed.",
+    )
     return parser
 
 
@@ -54,13 +59,19 @@ def main(argv: list[str] | None = None) -> int:
     except (HSE2ModelError, OSError, ValueError) as exc:
         print(f"hse2-plan-archive: {exc}", file=sys.stderr)
         return 2
-    print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+    print(_format_json(summary, compact=bool(args.compact)))
     return 0
+
+
+def _format_json(payload: dict[str, Any], *, compact: bool) -> str:
+    if compact:
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
 
 
 def _write_json_report(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(_format_json(payload, compact=False) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
