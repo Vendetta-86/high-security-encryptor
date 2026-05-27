@@ -31,6 +31,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             self.assertEqual(payload["file_count"], 2)
             self.assertEqual(payload["chunk_size"], 2)
             self.assertEqual(payload["payload_chunk_count"], 2)
+            self.assertIsNone(payload["output_path"])
             self.assertEqual(
                 [entry["path"] for entry in payload["entries"]],
                 ["root", "root/a.txt", "root/nested", "root/nested/b.txt"],
@@ -38,6 +39,33 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             self.assertEqual(payload["payload_ranges"], [
                 {"path": "root/a.txt", "size": 1, "start_chunk": 0, "chunk_count": 1},
                 {"path": "root/nested/b.txt", "size": 2, "start_chunk": 1, "chunk_count": 1},
+            ])
+
+    def test_archive_plan_cli_can_write_metadata_only_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            output = Path(temp_dir) / "reports" / "plan.json"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--chunk-size",
+                    "2",
+                    "--output",
+                    str(output),
+                ])
+
+            self.assertEqual(exit_code, 0)
+            stdout_payload = json.loads(stdout.getvalue())
+            file_payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(stdout_payload, file_payload)
+            self.assertEqual(file_payload["output_path"], str(output))
+            self.assertEqual(file_payload["payload_ranges"], [
+                {"path": "root/a.txt", "size": 3, "start_chunk": 0, "chunk_count": 2},
             ])
 
 
