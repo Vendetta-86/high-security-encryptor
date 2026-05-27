@@ -66,12 +66,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"hse2-plan-archive: {exc}", file=sys.stderr)
         return 2
     print(_format_json(summary, compact=bool(args.compact)))
-    if expected_digest and expected_digest != summary["plan_digest_sha256"]:
-        print(
-            "hse2-plan-archive: plan digest mismatch "
-            f"expected={expected_digest} actual={summary['plan_digest_sha256']}",
-            file=sys.stderr,
-        )
+    actual_digest = summary["plan_digest_sha256"]
+    if expected_digest and expected_digest != actual_digest:
+        print(_digest_mismatch_message(expected_digest, actual_digest), file=sys.stderr)
         return DIGEST_MISMATCH_EXIT_CODE
     return 0
 
@@ -83,6 +80,13 @@ def _normalize_expected_digest(value: str | None) -> str | None:
     if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
         raise ValueError("expected digest must be a 64-character hexadecimal SHA-256 value")
     return normalized
+
+
+def _digest_mismatch_message(expected_digest: str, actual_digest: str) -> str:
+    return (
+        "hse2-plan-archive: plan digest mismatch "
+        f"expected={expected_digest} actual={actual_digest}"
+    )
 
 
 def _plan_digest_sha256(payload: dict[str, Any]) -> str:
@@ -107,7 +111,7 @@ def _format_json(payload: dict[str, Any], *, compact: bool) -> str:
 
 
 def _write_json_report(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True)
     path.write_text(_format_json(payload, compact=False) + "\n", encoding="utf-8")
 
 
