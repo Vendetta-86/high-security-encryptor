@@ -50,6 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
     try:
+        expected_digest = _normalize_expected_digest(args.expect_digest)
         roots = tuple(Path(root) for root in args.root)
         entries = build_archive_entries_from_roots(roots)
         summary = build_archive_assembly_plan(entries, chunk_size=int(args.chunk_size))
@@ -65,14 +66,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"hse2-plan-archive: {exc}", file=sys.stderr)
         return 2
     print(_format_json(summary, compact=bool(args.compact)))
-    if args.expect_digest and args.expect_digest.lower() != summary["plan_digest_sha256"]:
+    if expected_digest and expected_digest != summary["plan_digest_sha256"]:
         print(
             "hse2-plan-archive: plan digest mismatch "
-            f"expected={args.expect_digest.lower()} actual={summary['plan_digest_sha256']}",
+            f"expected={expected_digest} actual={summary['plan_digest_sha256']}",
             file=sys.stderr,
         )
         return DIGEST_MISMATCH_EXIT_CODE
     return 0
+
+
+def _normalize_expected_digest(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.lower()
+    if len(normalized) != 64 or any(char not in "0123456789abcdef" for char in normalized):
+        raise ValueError("expected digest must be a 64-character hexadecimal SHA-256 value")
+    return normalized
 
 
 def _plan_digest_sha256(payload: dict[str, Any]) -> str:
