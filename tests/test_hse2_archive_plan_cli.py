@@ -19,18 +19,26 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             stdout = io.StringIO()
 
             with contextlib.redirect_stdout(stdout):
-                exit_code = main(["--root", str(root)])
+                exit_code = main(["--root", str(root), "--chunk-size", "2"])
 
             self.assertEqual(exit_code, 0)
             payload = json.loads(stdout.getvalue())
             self.assertEqual(payload["command"], "hse2-plan-archive")
             self.assertTrue(payload["experimental"])
+            self.assertEqual(payload["format"], "HSE2-archive-assembly-plan-v1")
             self.assertEqual(payload["root_count"], 1)
             self.assertEqual(payload["entry_count"], 4)
             self.assertEqual(payload["file_count"], 2)
-            self.assertEqual(payload["directory_count"], 2)
-            self.assertEqual(payload["total_file_size"], 3)
-            self.assertEqual([entry["path"] for entry in payload["entries"]], ["root", "root/a.txt", "root/nested", "root/nested/b.txt"])
+            self.assertEqual(payload["chunk_size"], 2)
+            self.assertEqual(payload["payload_chunk_count"], 2)
+            self.assertEqual(
+                [entry["path"] for entry in payload["entries"]],
+                ["root", "root/a.txt", "root/nested", "root/nested/b.txt"],
+            )
+            self.assertEqual(payload["payload_ranges"], [
+                {"path": "root/a.txt", "size": 1, "start_chunk": 0, "chunk_count": 1},
+                {"path": "root/nested/b.txt", "size": 2, "start_chunk": 1, "chunk_count": 1},
+            ])
 
 
 if __name__ == "__main__":
