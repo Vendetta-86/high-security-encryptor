@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -50,17 +51,30 @@ def main(argv: list[str] | None = None) -> int:
         summary["experimental"] = True
         summary["root_count"] = len(roots)
         summary["roots"] = [str(root) for root in roots]
+        summary["output_path"] = str(Path(args.output)) if args.output else None
+        summary["plan_digest_sha256"] = _plan_digest_sha256(summary)
         if args.output:
-            output_path = Path(args.output)
-            summary["output_path"] = str(output_path)
-            _write_json_report(output_path, summary)
-        else:
-            summary["output_path"] = None
+            _write_json_report(Path(args.output), summary)
     except (HSE2ModelError, OSError, ValueError) as exc:
         print(f"hse2-plan-archive: {exc}", file=sys.stderr)
         return 2
     print(_format_json(summary, compact=bool(args.compact)))
     return 0
+
+
+def _plan_digest_sha256(payload: dict[str, Any]) -> str:
+    digest_payload = {
+        key: value
+        for key, value in payload.items()
+        if key not in {"output_path", "plan_digest_sha256"}
+    }
+    canonical = json.dumps(
+        digest_payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
 
 
 def _format_json(payload: dict[str, Any], *, compact: bool) -> str:
