@@ -194,6 +194,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
                 stderr.getvalue().strip(),
                 _digest_mismatch_message(expected_digest, actual_digest),
             )
+            self.assertEqual(stderr.getvalue().count("\n"), 1)
 
     def test_archive_plan_cli_rejects_malformed_expected_digest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
