@@ -5,10 +5,22 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from high_security_encryptor.hse2_archive_plan_cli import main
+from high_security_encryptor.hse2_archive_plan_cli import _digest_mismatch_message, main
 
 
 class HSE2ArchivePlanCliTests(unittest.TestCase):
+    def test_archive_plan_digest_mismatch_message_includes_expected_and_actual(self) -> None:
+        expected = "0" * 64
+        actual = "f" * 64
+
+        message = _digest_mismatch_message(expected, actual)
+
+        self.assertEqual(
+            message,
+            "hse2-plan-archive: plan digest mismatch "
+            f"expected={expected} actual={actual}",
+        )
+
     def test_archive_plan_cli_reports_metadata_only_summary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
