@@ -20,6 +20,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             "hse2-plan-archive: plan digest mismatch "
             f"expected={expected} actual={actual}",
         )
+        self.assertNotIn("\n", message)
 
     def test_archive_plan_cli_reports_metadata_only_summary(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
