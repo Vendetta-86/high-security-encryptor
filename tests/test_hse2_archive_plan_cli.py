@@ -172,6 +172,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             root = Path(temp_dir) / "root"
             root.mkdir()
             (root / "a.txt").write_bytes(b"abc")
+            expected_digest = "0" * 64
             stdout = io.StringIO()
             stderr = io.StringIO()
 
@@ -182,7 +183,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
                     "--chunk-size",
                     "2",
                     "--expect-digest",
-                    "0" * 64,
+                    expected_digest,
                 ])
 
             actual_digest = json.loads(stdout.getvalue())["plan_digest_sha256"]
@@ -190,7 +191,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             self.assertEqual(len(actual_digest), 64)
             self.assertEqual(
                 stderr.getvalue().strip(),
-                _digest_mismatch_message("0" * 64, actual_digest),
+                _digest_mismatch_message(expected_digest, actual_digest),
             )
 
     def test_archive_plan_cli_rejects_malformed_expected_digest(self) -> None:
