@@ -1,5 +1,10 @@
 """HSE2 container model helpers."""
 
+from .archive_assembly_plan import (
+    HSE2ArchivePayloadRange,
+    build_archive_assembly_plan,
+    build_archive_payload_plan,
+)
 from .archive_manifest import HSE2ArchiveEntry, archive_manifest_digest, build_archive_manifest
 from .archive_payload import (
     DEFAULT_ARCHIVE_CHUNK_SIZE,
@@ -132,6 +137,7 @@ __all__ = [
     "EncryptedManifest",
     "EncryptedPayloadChunk",
     "HSE2ArchiveEntry",
+    "HSE2ArchivePayloadRange",
     "HSE2ContainerBytes",
     "HSE2Header",
     "HSE2ModelError",
@@ -163,9 +169,11 @@ __all__ = [
     "attach_header_auth_tag",
     "b64decode_bytes",
     "b64encode_bytes",
+    "build_archive_assembly_plan",
     "build_archive_entries_from_root",
     "build_archive_entries_from_roots",
     "build_archive_manifest",
+    "build_archive_payload_plan",
     "build_archive_plan_summary",
     "build_dpapi_wrapper",
     "build_keyfile_wrapper",
