@@ -6,6 +6,7 @@ from .archive_payload import (
     build_payload_chunks_from_file,
     build_payload_chunks_from_files,
 )
+from .archive_plan import build_archive_plan_summary
 from .archive_traversal import build_archive_entries_from_root, build_archive_entries_from_roots
 from .combined_kdf import (
     HSE2_COMBINED_KDF_CONTEXT,
@@ -165,6 +166,7 @@ __all__ = [
     "build_archive_entries_from_root",
     "build_archive_entries_from_roots",
     "build_archive_manifest",
+    "build_archive_plan_summary",
     "build_dpapi_wrapper",
     "build_keyfile_wrapper",
     "build_password_keyfile_wrapper",
