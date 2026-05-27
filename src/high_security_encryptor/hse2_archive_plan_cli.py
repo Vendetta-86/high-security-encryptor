@@ -12,6 +12,7 @@ from typing import Any
 from .hse2 import HSE2ModelError, build_archive_assembly_plan, build_archive_entries_from_roots
 
 DEFAULT_PLAN_CHUNK_SIZE = 1024 * 1024
+DIGEST_MISMATCH_EXIT_CODE = 3
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -38,6 +39,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Emit compact single-line JSON to stdout. Report files remain pretty-printed.",
     )
+    parser.add_argument(
+        "--expect-digest",
+        required=False,
+        help="Optional expected plan_digest_sha256. Returns 3 if the computed digest differs.",
+    )
     return parser
 
 
@@ -59,6 +65,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"hse2-plan-archive: {exc}", file=sys.stderr)
         return 2
     print(_format_json(summary, compact=bool(args.compact)))
+    if args.expect_digest and args.expect_digest.lower() != summary["plan_digest_sha256"]:
+        print(
+            "hse2-plan-archive: plan digest mismatch "
+            f"expected={args.expect_digest.lower()} actual={summary['plan_digest_sha256']}",
+            file=sys.stderr,
+        )
+        return DIGEST_MISMATCH_EXIT_CODE
     return 0
 
 
