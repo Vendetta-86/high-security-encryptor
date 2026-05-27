@@ -68,6 +68,31 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
                 {"path": "root/a.txt", "size": 3, "start_chunk": 0, "chunk_count": 2},
             ])
 
+    def test_archive_plan_cli_compact_stdout_keeps_report_pretty(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            output = Path(temp_dir) / "plan.json"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--chunk-size",
+                    "2",
+                    "--output",
+                    str(output),
+                    "--compact",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().count("\n"), 1)
+            self.assertNotIn("\n  ", stdout.getvalue())
+            self.assertIn("\n  ", output.read_text(encoding="utf-8"))
+            self.assertEqual(json.loads(stdout.getvalue()), json.loads(output.read_text(encoding="utf-8")))
+
     def test_archive_plan_cli_reports_invalid_chunk_size(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
