@@ -34,6 +34,7 @@ def build_cli_parser(
     hse1_to_hse2_handler: Handler | None = None,
     hse2_validate_handler: Handler | None = None,
     hse2_inspect_handler: Handler | None = None,
+    hse2_plan_archive_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
     hse2_rotate_keyfile_handler: Handler | None = None,
     dpapi_protect_handler: Handler | None = None,
@@ -146,6 +147,11 @@ def build_cli_parser(
         hse2_inspect_parser = subparsers.add_parser("hse2-inspect", help="EXPERIMENTAL: Inspect HSE2 container metadata without decrypting payload content.")
         hse2_inspect_parser.add_argument("--input", required=True, help="Input HSE2 container path.")
         hse2_inspect_parser.set_defaults(handler=hse2_inspect_handler)
+
+    if hse2_plan_archive_handler is not None:
+        hse2_plan_archive_parser = subparsers.add_parser("hse2-plan-archive", help="EXPERIMENTAL: Preview archive manifest metadata from filesystem roots without encrypting or writing a container.")
+        hse2_plan_archive_parser.add_argument("--root", action="append", required=True, help="File or directory root to include. May be supplied multiple times.")
+        hse2_plan_archive_parser.set_defaults(handler=hse2_plan_archive_handler)
 
     validate_parser = subparsers.add_parser("validate-config", help="Validate an encryption or decryption JSON config without executing the workflow.")
     validate_parser.add_argument("--kind", required=True, choices=["encrypt", "decrypt"], help="Whether the config should be validated as an encryption or decryption config.")
