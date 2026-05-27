@@ -185,10 +185,13 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
                     "0" * 64,
                 ])
 
+            actual_digest = json.loads(stdout.getvalue())["plan_digest_sha256"]
             self.assertEqual(exit_code, 3)
-            self.assertEqual(len(json.loads(stdout.getvalue())["plan_digest_sha256"]), 64)
-            self.assertIn("plan digest mismatch", stderr.getvalue())
-            self.assertIn("expected=" + "0" * 64, stderr.getvalue())
+            self.assertEqual(len(actual_digest), 64)
+            self.assertEqual(
+                stderr.getvalue().strip(),
+                _digest_mismatch_message("0" * 64, actual_digest),
+            )
 
     def test_archive_plan_cli_rejects_malformed_expected_digest(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
