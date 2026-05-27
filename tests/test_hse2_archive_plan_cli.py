@@ -129,6 +129,55 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
             self.assertEqual(first_payload["plan_digest_sha256"], second_payload["plan_digest_sha256"])
             self.assertEqual(len(first_payload["plan_digest_sha256"]), 64)
 
+    def test_archive_plan_cli_accepts_matching_expected_digest(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            baseline_stdout = io.StringIO()
+            checked_stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(baseline_stdout):
+                baseline_exit = main(["--root", str(root), "--chunk-size", "2"])
+            digest = json.loads(baseline_stdout.getvalue())["plan_digest_sha256"]
+
+            with contextlib.redirect_stdout(checked_stdout):
+                checked_exit = main([
+                    "--root",
+                    str(root),
+                    "--chunk-size",
+                    "2",
+                    "--expect-digest",
+                    digest.upper(),
+                ])
+
+            self.assertEqual(baseline_exit, 0)
+            self.assertEqual(checked_exit, 0)
+            self.assertEqual(json.loads(checked_stdout.getvalue())["plan_digest_sha256"], digest)
+
+    def test_archive_plan_cli_reports_expected_digest_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--chunk-size",
+                    "2",
+                    "--expect-digest",
+                    "0" * 64,
+                ])
+
+            self.assertEqual(exit_code, 3)
+            self.assertEqual(len(json.loads(stdout.getvalue())["plan_digest_sha256"]), 64)
+            self.assertIn("plan digest mismatch", stderr.getvalue())
+            self.assertIn("expected=" + "0" * 64, stderr.getvalue())
+
     def test_archive_plan_cli_reports_invalid_chunk_size(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
