@@ -248,6 +248,18 @@ Duress or decoy support is deferred. If added later, it must open decoy content 
 
 A future duress wrapper should be documented as a limited decoy mechanism, not a full plausible-deniability guarantee.
 
+## Guarded create/open CLI staging
+
+The first HSE2 create/open CLI workflows must remain guarded until inspect and archive-planning behavior stays stable under CI.
+
+Initial create/open CLI staging rules:
+
+- create commands should support a metadata-only or dry-run mode before writing `.hse2` output;
+- open commands should inspect and authenticate container structure before attempting manifest or payload decryption;
+- validation failures must write diagnostics to stderr and avoid partial plaintext output on stdout;
+- destructive actions, wrapper removal, and access-destruction flows must stay out of the initial create/open command path;
+- GUI integration should consume the same command semantics rather than inventing separate security behavior.
+
 ## Error behavior
 
 HSE2 errors should remain stable and non-leaky.
@@ -258,21 +270,3 @@ Recommended behavior:
 - debug mode may provide more detail for development, but must not reveal secrets;
 - missing provider material should produce a provider error rather than an integrity error;
 - wrapper enumeration should not reveal plaintext key material.
-
-## Implementation stages
-
-1. Add pure data models for header, wrapper records, KDF profiles, and manifest policy.
-2. Add deterministic header serialization and validation.
-3. Add random DEK/MEK generation and AES-GCM key wrapping.
-4. Add password, keyfile, password_keyfile, and DPAPI wrapper handlers.
-5. Add header export and restore commands.
-6. Add wrapper list/add/remove commands.
-7. Add explicit destroy-access command.
-8. Integrate hardened/paranoid defaults into CLI and HSE2 GUI.
-9. Add end-to-end tests for wrong password, wrong keyfile, missing provider, header restore, wrapper removal, and payload tampering.
-
-## Compatibility
-
-HSE1 compatibility must remain unchanged. HSE1 fixed Argon2id parameters must not be altered because HSE1 does not serialize KDF parameters in the file header.
-
-HSE2 code should live beside existing HSE1 code and avoid breaking existing CLI batch workflows. Migration from HSE1 to HSE2 should be explicit rather than automatic.
