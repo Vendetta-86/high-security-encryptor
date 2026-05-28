@@ -233,24 +233,28 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
             root.mkdir()
+            stdout = io.StringIO()
             stderr = io.StringIO()
 
-            with contextlib.redirect_stderr(stderr):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = main(["--root", str(root), "--chunk-size", "0"])
 
             self.assertEqual(exit_code, 2)
+            self.assertEqual(stdout.getvalue(), "")
             self.assertIn("hse2-plan-archive:", stderr.getvalue())
             self.assertIn("chunk_size must be positive", stderr.getvalue())
 
     def test_archive_plan_cli_reports_missing_root(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             missing = Path(temp_dir) / "missing"
+            stdout = io.StringIO()
             stderr = io.StringIO()
 
-            with contextlib.redirect_stderr(stderr):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = main(["--root", str(missing)])
 
             self.assertEqual(exit_code, 2)
+            self.assertEqual(stdout.getvalue(), "")
             self.assertIn("hse2-plan-archive:", stderr.getvalue())
             self.assertIn("archive root does not exist", stderr.getvalue())
 
