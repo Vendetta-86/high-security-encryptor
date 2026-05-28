@@ -200,9 +200,10 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
             root.mkdir()
+            stdout = io.StringIO()
             stderr = io.StringIO()
 
-            with contextlib.redirect_stderr(stderr):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 short_exit = main([
                     "--root",
                     str(root),
@@ -211,10 +212,12 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
                 ])
 
             self.assertEqual(short_exit, 2)
+            self.assertEqual(stdout.getvalue(), "")
             self.assertIn("expected digest must be a 64-character", stderr.getvalue())
 
+            stdout = io.StringIO()
             stderr = io.StringIO()
-            with contextlib.redirect_stderr(stderr):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 invalid_hex_exit = main([
                     "--root",
                     str(root),
@@ -223,6 +226,7 @@ class HSE2ArchivePlanCliTests(unittest.TestCase):
                 ])
 
             self.assertEqual(invalid_hex_exit, 2)
+            self.assertEqual(stdout.getvalue(), "")
             self.assertIn("hexadecimal SHA-256", stderr.getvalue())
 
     def test_archive_plan_cli_reports_invalid_chunk_size(self) -> None:
