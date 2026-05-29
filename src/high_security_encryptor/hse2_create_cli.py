@@ -11,6 +11,7 @@ from typing import Any
 from .hse2 import HSE2ModelError, build_archive_assembly_plan, build_archive_entries_from_roots
 
 DEFAULT_CREATE_CHUNK_SIZE = 1024 * 1024
+HSE2_CONTAINER_SUFFIX = ".hse2"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -50,6 +51,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if not args.dry_run:
             raise ValueError("guarded HSE2 create currently requires --dry-run")
+        output_path = Path(args.output)
+        _validate_output_path(output_path)
         roots = tuple(Path(root) for root in args.root)
         entries = build_archive_entries_from_roots(roots)
         summary = build_archive_assembly_plan(entries, chunk_size=int(args.chunk_size))
@@ -59,12 +62,17 @@ def main(argv: list[str] | None = None) -> int:
         summary["container_written"] = False
         summary["root_count"] = len(roots)
         summary["roots"] = [str(root) for root in roots]
-        summary["output_path"] = str(Path(args.output))
+        summary["output_path"] = str(output_path)
     except (HSE2ModelError, OSError, ValueError) as exc:
         print(f"hse2-create: {exc}", file=sys.stderr)
         return 2
     print(_format_json(summary, compact=bool(args.compact)))
     return 0
+
+
+def _validate_output_path(path: Path) -> None:
+    if path.suffix.lower() != HSE2_CONTAINER_SUFFIX:
+        raise ValueError("output path must use the .hse2 suffix")
 
 
 def _format_json(payload: dict[str, Any], *, compact: bool) -> str:
