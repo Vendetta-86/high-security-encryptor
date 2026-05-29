@@ -120,6 +120,31 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertIn("hse2-create:", stderr.getvalue())
             self.assertIn("requires --dry-run", stderr.getvalue())
 
+    def test_create_cli_rejects_invalid_chunk_size_on_stderr(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            output = Path(temp_dir) / "out.hse2"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--dry-run",
+                    "--chunk-size",
+                    "0",
+                ])
+
+            self.assertEqual(exit_code, 2)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertFalse(output.exists())
+            self.assertIn("hse2-create:", stderr.getvalue())
+            self.assertIn("chunk_size must be positive", stderr.getvalue())
+
     def test_create_cli_rejects_missing_root_on_stderr(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             missing = Path(temp_dir) / "missing"
