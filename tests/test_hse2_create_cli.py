@@ -127,6 +127,27 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertFalse(output.parent.exists())
             self.assertFalse(output.exists())
 
+    def test_create_cli_accepts_uppercase_hse2_output_suffix(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            output = Path(temp_dir) / "out.HSE2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--dry-run",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["output_path"], str(output))
+            self.assertFalse(output.exists())
+
     def test_create_cli_requires_dry_run_before_container_write(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
