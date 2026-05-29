@@ -43,6 +43,32 @@ class HSE2CreateCliTests(unittest.TestCase):
                 {"path": "root/a.txt", "size": 3, "start_chunk": 0, "chunk_count": 2},
             ])
 
+    def test_create_cli_compact_dry_run_outputs_single_line_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            output = Path(temp_dir) / "out.hse2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--dry-run",
+                    "--compact",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue().count("\n"), 1)
+            self.assertNotIn("\n  ", stdout.getvalue())
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["command"], "hse2-create")
+            self.assertTrue(payload["dry_run"])
+            self.assertFalse(output.exists())
+
     def test_create_cli_requires_dry_run_before_container_write(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
