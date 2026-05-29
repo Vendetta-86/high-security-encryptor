@@ -69,6 +69,40 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertTrue(payload["dry_run"])
             self.assertFalse(output.exists())
 
+    def test_create_cli_dry_run_reports_multiple_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            first = Path(temp_dir) / "first.txt"
+            second = Path(temp_dir) / "second.txt"
+            first.write_bytes(b"a")
+            second.write_bytes(b"bb")
+            output = Path(temp_dir) / "out.hse2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root",
+                    str(first),
+                    "--root",
+                    str(second),
+                    "--output",
+                    str(output),
+                    "--dry-run",
+                    "--chunk-size",
+                    "2",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["root_count"], 2)
+            self.assertEqual(payload["roots"], [str(first), str(second)])
+            self.assertEqual(payload["file_count"], 2)
+            self.assertEqual(payload["payload_chunk_count"], 2)
+            self.assertEqual(payload["payload_ranges"], [
+                {"path": "first.txt", "size": 1, "start_chunk": 0, "chunk_count": 1},
+                {"path": "second.txt", "size": 2, "start_chunk": 1, "chunk_count": 1},
+            ])
+            self.assertFalse(output.exists())
+
     def test_create_cli_requires_dry_run_before_container_write(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
