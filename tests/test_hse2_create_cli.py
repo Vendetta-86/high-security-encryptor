@@ -103,6 +103,30 @@ class HSE2CreateCliTests(unittest.TestCase):
             ])
             self.assertFalse(output.exists())
 
+    def test_create_cli_dry_run_does_not_create_missing_output_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            output = Path(temp_dir) / "missing-parent" / "out.hse2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--dry-run",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["output_path"], str(output))
+            self.assertFalse(payload["container_written"])
+            self.assertFalse(output.parent.exists())
+            self.assertFalse(output.exists())
+
     def test_create_cli_requires_dry_run_before_container_write(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
