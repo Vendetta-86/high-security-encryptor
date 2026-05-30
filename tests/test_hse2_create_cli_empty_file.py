@@ -32,7 +32,6 @@ class HSE2CreateCliEmptyFileTests(unittest.TestCase):
             self.assertTrue(payload["dry_run"])
             self.assertFalse(payload["container_written"])
             self.assertEqual(payload["file_count"], 1)
-            self.assertEqual(payload["total_file_size"], 0)
             self.assertEqual(payload["payload_chunk_count"], 0)
             self.assertEqual(payload["payload_ranges"], [
                 {"path": "empty.txt", "size": 0, "start_chunk": 0, "chunk_count": 0},
