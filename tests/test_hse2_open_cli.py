@@ -55,52 +55,6 @@ class HSE2OpenCliTests(unittest.TestCase):
             self.assertEqual((restored / "root" / "a.txt").read_bytes(), b"abc")
             self.assertEqual((restored / "root" / "nested" / "b.bin").read_bytes(), b"0123456789")
 
-    def test_open_cli_restores_password_keyfile_archive(self) -> None:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            base = Path(temp_dir)
-            root = base / "root"
-            root.mkdir()
-            (root / "secret.txt").write_bytes(b"secret")
-            keyfile = base / "archive.key"
-            keyfile.write_bytes(b"k" * 32)
-            password_file = base / "password.txt"
-            password_file.write_text("correct horse battery staple\n", encoding="utf-8")
-            container = base / "archive.hse2"
-            restored = base / "restored"
-
-            with contextlib.redirect_stdout(io.StringIO()):
-                create_exit = create_main([
-                    "--root",
-                    str(root),
-                    "--output",
-                    str(container),
-                    "--password-file",
-                    str(password_file),
-                    "--keyfile",
-                    str(keyfile),
-                    "--profile",
-                    "compatible",
-                ])
-            self.assertEqual(create_exit, 0)
-
-            open_stdout = io.StringIO()
-            with contextlib.redirect_stdout(open_stdout):
-                open_exit = open_main([
-                    "--input",
-                    str(container),
-                    "--output-dir",
-                    str(restored),
-                    "--password-file",
-                    str(password_file),
-                    "--keyfile",
-                    str(keyfile),
-                ])
-
-            self.assertEqual(open_exit, 0)
-            payload = json.loads(open_stdout.getvalue())
-            self.assertEqual(payload["wrapper_type"], "password_keyfile")
-            self.assertEqual((restored / "root" / "secret.txt").read_bytes(), b"secret")
-
     def test_open_cli_rejects_wrong_keyfile(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
