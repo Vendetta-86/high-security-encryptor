@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .archive_assembly_plan import build_archive_assembly_plan
@@ -126,7 +126,13 @@ def create_hse2_archive(
         wrappers=(wrapper.record,),
     )
     header = attach_header_auth_tag(header, mek=mek)
-    write_hse2_container(output_path, header=header, manifest=encrypted_manifest, payload_chunks=payload_chunks, overwrite=overwrite)
+    write_hse2_container(
+        output_path,
+        header=header,
+        manifest=encrypted_manifest,
+        payload_chunks=payload_chunks,
+        overwrite=overwrite,
+    )
 
     return HSE2ArchiveCreateResult(
         output_path=str(Path(output_path)),
@@ -164,7 +170,7 @@ def open_hse2_archive(
         manifest,
         payload_chunks=container.payload_chunks,
         output_dir=destination,
-        password_keys=unlocked,
+        content_keys=unlocked,
         overwrite=overwrite,
     )
 
@@ -213,7 +219,15 @@ def _build_payload_chunks(paths: tuple[Path, ...], *, dek: Any, chunk_size: int)
     return tuple(chunks)
 
 
-def _build_create_wrapper(*, password: str | None, keyfile_bytes: bytes | None, profile_name: str, created_utc: str, dek: Any, mek: Any) -> Any:
+def _build_create_wrapper(
+    *,
+    password: str | None,
+    keyfile_bytes: bytes | None,
+    profile_name: str,
+    created_utc: str,
+    dek: Any,
+    mek: Any,
+) -> Any:
     if password and keyfile_bytes is not None:
         return build_password_keyfile_wrapper(
             wrapper_id="password-keyfile-1",
@@ -289,22 +303,44 @@ def _validate_payload_chunk_count(manifest: dict[str, Any], actual_count: int) -
     for item in manifest["payload_ranges"]:
         if not isinstance(item, dict):
             raise HSE2ModelError("payload range must be a dictionary")
+        _manifest_path_key(item)
+        start = item.get("start_chunk")
         count = item.get("chunk_count")
+        if not isinstance(start, int) or start < 0:
+            raise HSE2ModelError("payload range start_chunk is missing or invalid")
         if not isinstance(count, int) or count < 0:
             raise HSE2ModelError("payload range chunk_count is missing or invalid")
+        if start + count > actual_count:
+            raise HSE2ModelError("payload range extends beyond available chunks")
         expected += count
     if expected != actual_count:
         raise HSE2ModelError("payload chunk count does not match manifest ranges")
 
 
-def _restore_manifest_entries(*, manifest: dict[str, Any], payload_chunks: tuple[Any, ...], output_dir: Path, password_keys: Any, overwrite: bool) -> None:
-    ranges = {str(item["path"]): item for item in manifest["payload_ranges"]}
+def _restore_manifest_entries(
+    *,
+    manifest: dict[str, Any],
+    payload_chunks: tuple[Any, ...],
+    output_dir: Path,
+    content_keys: Any,
+    overwrite: bool,
+) -> None:
+    ranges: dict[str, dict[str, Any]] = {}
+    for item in manifest["payload_ranges"]:
+        if not isinstance(item, dict):
+            raise HSE2ModelError("payload range must be a dictionary")
+        path_key = _manifest_path_key(item)
+        if path_key in ranges:
+            raise HSE2ModelError(f"duplicate payload range for file: {path_key}")
+        ranges[path_key] = item
+
     for item in manifest["entries"]:
         if not isinstance(item, dict):
             raise HSE2ModelError("archive manifest entry must be a dictionary")
-        relative_path = _safe_manifest_path(str(item.get("path", "")))
+        archive_path = _manifest_path_key(item)
+        relative_path = _safe_manifest_path(archive_path)
+        target = output_dir.joinpath(*relative_path.parts)
         kind = item.get("kind")
-        target = output_dir / relative_path
         if kind == "directory":
             target.mkdir(parents=True, exist_ok=True)
             continue
@@ -313,15 +349,15 @@ def _restore_manifest_entries(*, manifest: dict[str, Any], payload_chunks: tuple
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists() and not overwrite:
             raise HSE2ModelError(f"target already exists: {target}")
-        payload_range = ranges.get(str(item["path"]))
+        payload_range = ranges.get(archive_path)
         if payload_range is None:
-            raise HSE2ModelError(f"payload range missing for file: {item['path']}")
-        plaintext = _decrypt_file_range(payload_range, payload_chunks=payload_chunks, dek=password_keys.dek)
+            raise HSE2ModelError(f"payload range missing for file: {archive_path}")
+        plaintext = _decrypt_file_range(payload_range, payload_chunks=payload_chunks, dek=content_keys.dek)
         expected_size = item.get("size")
         if not isinstance(expected_size, int) or expected_size < 0:
             raise HSE2ModelError("archive file size is missing or invalid")
         if len(plaintext) != expected_size:
-            raise HSE2ModelError(f"restored file size mismatch: {item['path']}")
+            raise HSE2ModelError(f"restored file size mismatch: {archive_path}")
         _atomic_write_file(target, plaintext)
 
 
@@ -334,17 +370,25 @@ def _decrypt_file_range(payload_range: dict[str, Any], *, payload_chunks: tuple[
         raise HSE2ModelError("payload range chunk_count is missing or invalid")
     if count == 0:
         return b""
-    selected = payload_chunks[start : start + count]
+    end = start + count
+    selected = payload_chunks[start:end]
     if len(selected) != count:
         raise HSE2ModelError("payload range extends beyond available chunks")
     return b"".join(decrypt_payload_chunk(chunk, dek=dek) for chunk in selected)
 
 
-def _safe_manifest_path(value: str) -> Path:
-    if not value or value.startswith("/") or "\\" in value:
+def _manifest_path_key(item: dict[str, Any]) -> str:
+    value = item.get("path")
+    if not isinstance(value, str):
+        raise HSE2ModelError("archive manifest path is missing or invalid")
+    return value
+
+
+def _safe_manifest_path(value: str) -> PurePosixPath:
+    if not value or "\\" in value:
         raise HSE2ModelError("unsafe archive path in manifest")
-    path = Path(value)
-    if any(part in {"", ".", ".."} for part in path.parts):
+    path = PurePosixPath(value)
+    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
         raise HSE2ModelError("unsafe archive path in manifest")
     return path
 
