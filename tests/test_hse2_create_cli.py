@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 import unittest
 
+from high_security_encryptor.hse2 import read_hse2_container
 from high_security_encryptor.hse2_create_cli import main
 
 
@@ -148,7 +149,39 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertEqual(payload["output_path"], str(output))
             self.assertFalse(output.exists())
 
-    def test_create_cli_requires_dry_run_before_container_write(self) -> None:
+    def test_create_cli_writes_keyfile_only_container(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "a.txt").write_bytes(b"abc")
+            keyfile = Path(temp_dir) / "archive.key"
+            keyfile.write_bytes(b"k" * 32)
+            output = Path(temp_dir) / "out.hse2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root",
+                    str(root),
+                    "--output",
+                    str(output),
+                    "--keyfile",
+                    str(keyfile),
+                    "--chunk-size",
+                    "2",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(output.exists())
+            payload = json.loads(stdout.getvalue())
+            self.assertTrue(payload["container_written"])
+            self.assertEqual(payload["wrapper_type"], "keyfile")
+            self.assertEqual(payload["payload_chunk_count"], 2)
+            container = read_hse2_container(output)
+            self.assertEqual(container.header.payload_layout.chunk_count, 2)
+            self.assertEqual([wrapper.type for wrapper in container.header.wrappers], ["keyfile"])
+
+    def test_create_cli_rejects_missing_wrapper_material_on_stderr(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "root"
             root.mkdir()
@@ -163,7 +196,7 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertEqual(stdout.getvalue(), "")
             self.assertFalse(output.exists())
             self.assertIn("hse2-create:", stderr.getvalue())
-            self.assertIn("requires --dry-run", stderr.getvalue())
+            self.assertIn("requires --password-file, --keyfile, or both", stderr.getvalue())
 
     def test_create_cli_rejects_invalid_chunk_size_on_stderr(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
