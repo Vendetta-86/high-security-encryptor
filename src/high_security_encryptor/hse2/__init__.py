@@ -100,7 +100,7 @@ from .payload_crypto import (
     encrypted_payload_chunk_from_dict,
 )
 from .unlock import HSE2UnlockFactors, unlock_first_matching_wrapper, unlock_wrapper
-from .workflow_api import (
+from .workflows import (
     HSE2ArchiveCreateResult,
     HSE2ArchiveOpenResult,
     create_hse2_archive,
