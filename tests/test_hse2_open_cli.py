@@ -6,13 +6,6 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from high_security_encryptor.hse2 import (
-    HSE2UnlockFactors,
-    decrypt_manifest,
-    read_hse2_container,
-    require_valid_header_auth_tag,
-    unlock_first_matching_wrapper,
-)
 from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2_open_cli import main as open_main
 
@@ -200,24 +193,6 @@ class HSE2OpenCliTests(unittest.TestCase):
             "open_stderr": open_stderr.getvalue() if open_stderr is not None else None,
             "restored_tree": _tree(restored),
         }
-        if container.exists():
-            try:
-                parsed = read_hse2_container(container)
-                data["container_summary"] = {
-                    "wrapper_types": [wrapper.type for wrapper in parsed.header.wrappers],
-                    "payload_chunk_count": len(parsed.payload_chunks),
-                    "header_chunk_count": parsed.header.payload_layout.chunk_count,
-                }
-                unlocked = unlock_first_matching_wrapper(
-                    parsed.header.wrappers,
-                    factors=HSE2UnlockFactors(keyfile_bytes=keyfile.read_bytes()),
-                )
-                require_valid_header_auth_tag(parsed.header, mek=unlocked.mek)
-                manifest = decrypt_manifest(parsed.manifest, mek=unlocked.mek)
-                data["manifest_entries"] = manifest.get("entries")
-                data["manifest_payload_ranges"] = manifest.get("payload_ranges")
-            except Exception as exc:  # pragma: no cover - diagnostic path
-                data["debug_error"] = f"{type(exc).__name__}: {exc}"
         output_path = os.environ.get("HSE2_OPEN_DEBUG_JSON")
         if output_path:
             Path(output_path).write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
