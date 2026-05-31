@@ -167,7 +167,7 @@ def open_hse2_archive(
 
     destination = Path(output_dir)
     _restore_manifest_entries(
-        manifest,
+        manifest=manifest,
         payload_chunks=container.payload_chunks,
         output_dir=destination,
         content_keys=unlocked,
