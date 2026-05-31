@@ -1,10 +1,18 @@
 import contextlib
 import io
 import json
+import os
 import tempfile
 from pathlib import Path
 import unittest
 
+from high_security_encryptor.hse2 import (
+    HSE2UnlockFactors,
+    decrypt_manifest,
+    read_hse2_container,
+    require_valid_header_auth_tag,
+    unlock_first_matching_wrapper,
+)
 from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2_open_cli import main as open_main
 
@@ -24,7 +32,8 @@ class HSE2OpenCliTests(unittest.TestCase):
             restored = base / "restored"
 
             create_stdout = io.StringIO()
-            with contextlib.redirect_stdout(create_stdout):
+            create_stderr = io.StringIO()
+            with contextlib.redirect_stdout(create_stdout), contextlib.redirect_stderr(create_stderr):
                 create_exit = create_main([
                     "--root",
                     str(root),
@@ -35,10 +44,11 @@ class HSE2OpenCliTests(unittest.TestCase):
                     "--chunk-size",
                     "4",
                 ])
-            self.assertEqual(create_exit, 0)
+            self.assertEqual(create_exit, 0, self._debug_payload(base, container, keyfile, restored, create_stdout, create_stderr))
 
             open_stdout = io.StringIO()
-            with contextlib.redirect_stdout(open_stdout):
+            open_stderr = io.StringIO()
+            with contextlib.redirect_stdout(open_stdout), contextlib.redirect_stderr(open_stderr):
                 open_exit = open_main([
                     "--input",
                     str(container),
@@ -48,12 +58,13 @@ class HSE2OpenCliTests(unittest.TestCase):
                     str(keyfile),
                 ])
 
-            self.assertEqual(open_exit, 0)
+            debug = self._debug_payload(base, container, keyfile, restored, create_stdout, create_stderr, open_stdout, open_stderr, open_exit)
+            self.assertEqual(open_exit, 0, debug)
             payload = json.loads(open_stdout.getvalue())
-            self.assertTrue(payload["container_opened"])
-            self.assertEqual(payload["wrapper_type"], "keyfile")
-            self.assertEqual((restored / "root" / "a.txt").read_bytes(), b"abc")
-            self.assertEqual((restored / "root" / "nested" / "b.bin").read_bytes(), b"0123456789")
+            self.assertTrue(payload["container_opened"], debug)
+            self.assertEqual(payload["wrapper_type"], "keyfile", debug)
+            self.assertEqual((restored / "root" / "a.txt").read_bytes(), b"abc", debug)
+            self.assertEqual((restored / "root" / "nested" / "b.bin").read_bytes(), b"0123456789", debug)
 
     def test_open_cli_rejects_wrong_keyfile(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -165,6 +176,58 @@ class HSE2OpenCliTests(unittest.TestCase):
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("hse2-open:", stderr.getvalue())
             self.assertIn("requires --password-file, --keyfile, or both", stderr.getvalue())
+
+    def _debug_payload(
+        self,
+        base: Path,
+        container: Path,
+        keyfile: Path,
+        restored: Path,
+        create_stdout: io.StringIO,
+        create_stderr: io.StringIO,
+        open_stdout: io.StringIO | None = None,
+        open_stderr: io.StringIO | None = None,
+        open_exit: int | None = None,
+    ) -> str:
+        data: dict[str, object] = {
+            "base": str(base),
+            "container_exists": container.exists(),
+            "container_size": container.stat().st_size if container.exists() else None,
+            "create_stdout": create_stdout.getvalue(),
+            "create_stderr": create_stderr.getvalue(),
+            "open_exit": open_exit,
+            "open_stdout": open_stdout.getvalue() if open_stdout is not None else None,
+            "open_stderr": open_stderr.getvalue() if open_stderr is not None else None,
+            "restored_tree": _tree(restored),
+        }
+        if container.exists():
+            try:
+                parsed = read_hse2_container(container)
+                data["container_summary"] = {
+                    "wrapper_types": [wrapper.type for wrapper in parsed.header.wrappers],
+                    "payload_chunk_count": len(parsed.payload_chunks),
+                    "header_chunk_count": parsed.header.payload_layout.chunk_count,
+                }
+                unlocked = unlock_first_matching_wrapper(
+                    parsed.header.wrappers,
+                    factors=HSE2UnlockFactors(keyfile_bytes=keyfile.read_bytes()),
+                )
+                require_valid_header_auth_tag(parsed.header, mek=unlocked.mek)
+                manifest = decrypt_manifest(parsed.manifest, mek=unlocked.mek)
+                data["manifest_entries"] = manifest.get("entries")
+                data["manifest_payload_ranges"] = manifest.get("payload_ranges")
+            except Exception as exc:  # pragma: no cover - diagnostic path
+                data["debug_error"] = f"{type(exc).__name__}: {exc}"
+        output_path = os.environ.get("HSE2_OPEN_DEBUG_JSON")
+        if output_path:
+            Path(output_path).write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+        return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _tree(path: Path) -> list[str]:
+    if not path.exists():
+        return []
+    return sorted(item.relative_to(path).as_posix() for item in path.rglob("*"))
 
 
 if __name__ == "__main__":
