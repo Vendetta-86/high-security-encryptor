@@ -100,6 +100,14 @@ from .payload_crypto import (
     encrypted_payload_chunk_from_dict,
 )
 from .unlock import HSE2UnlockFactors, unlock_first_matching_wrapper, unlock_wrapper
+from .workflow_api import (
+    HSE2ArchiveCreateResult,
+    HSE2ArchiveOpenResult,
+    create_hse2_archive,
+    open_hse2_archive,
+    read_keyfile_bytes,
+    read_secret_text_file,
+)
 from .wrapper_builders import (
     BuiltWrapper,
     UnwrappedContentKeys,
@@ -136,7 +144,9 @@ __all__ = [
     "DEFAULT_ARCHIVE_CHUNK_SIZE",
     "EncryptedManifest",
     "EncryptedPayloadChunk",
+    "HSE2ArchiveCreateResult",
     "HSE2ArchiveEntry",
+    "HSE2ArchiveOpenResult",
     "HSE2ArchivePayloadRange",
     "HSE2ContainerBytes",
     "HSE2Header",
@@ -185,6 +195,7 @@ __all__ = [
     "build_wrapper_record",
     "canonical_json_bytes",
     "compute_header_auth_tag",
+    "create_hse2_archive",
     "decode_container_bytes",
     "decode_header_frame",
     "decrypt_manifest",
@@ -210,9 +221,12 @@ __all__ = [
     "is_dpapi_available",
     "key_confirmation_tag",
     "normalize_password",
+    "open_hse2_archive",
     "read_container_bytes",
     "read_header_backup",
     "read_hse2_container",
+    "read_keyfile_bytes",
+    "read_secret_text_file",
     "require_valid_header_auth_tag",
     "restore_header_from_backup_bytes",
     "unlock_first_matching_wrapper",
