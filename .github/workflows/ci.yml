@@ -41,8 +41,17 @@ jobs:
       - name: Run HSE2 create CLI tests
         run: python -m unittest tests.test_hse2_create_cli -v
 
-      - name: Run HSE2 open CLI tests
-        run: python -m unittest tests.test_hse2_open_cli -v
+      - name: Run HSE2 open CLI restore test
+        run: python -m unittest tests.test_hse2_open_cli.HSE2OpenCliTests.test_open_cli_restores_keyfile_only_archive -v
+
+      - name: Run HSE2 open CLI wrong-keyfile test
+        run: python -m unittest tests.test_hse2_open_cli.HSE2OpenCliTests.test_open_cli_rejects_wrong_keyfile -v
+
+      - name: Run HSE2 open CLI overwrite test
+        run: python -m unittest tests.test_hse2_open_cli.HSE2OpenCliTests.test_open_cli_refuses_existing_file_without_overwrite -v
+
+      - name: Run HSE2 open CLI missing-material test
+        run: python -m unittest tests.test_hse2_open_cli.HSE2OpenCliTests.test_open_cli_requires_unlock_material -v
 
       - name: Run full test suite
         run: python -m unittest discover -s tests -v
