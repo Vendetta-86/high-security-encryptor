@@ -38,7 +38,13 @@ jobs:
       - name: Check syntax
         run: python -m compileall -q src tests
 
-      - name: Run tests
+      - name: Run HSE2 create CLI tests
+        run: python -m unittest tests.test_hse2_create_cli -v
+
+      - name: Run HSE2 open CLI tests
+        run: python -m unittest tests.test_hse2_open_cli -v
+
+      - name: Run full test suite
         run: python -m unittest discover -s tests -v
 
       - name: Smoke test console script
