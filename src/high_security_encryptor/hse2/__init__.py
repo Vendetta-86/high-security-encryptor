@@ -49,7 +49,10 @@ from .header_auth import (
 )
 from .header_backup import (
     export_header_backup_bytes,
+    export_header_backup_from_container,
     read_header_backup,
+    replace_container_header_with_backup_bytes,
+    restore_container_header_from_backup,
     restore_header_from_backup_bytes,
     write_header_backup,
 )
@@ -201,6 +204,7 @@ __all__ = [
     "encrypted_manifest_from_dict",
     "encrypted_payload_chunk_from_dict",
     "export_header_backup_bytes",
+    "export_header_backup_from_container",
     "generate_dek",
     "generate_kek",
     "generate_key_material",
@@ -213,7 +217,9 @@ __all__ = [
     "read_container_bytes",
     "read_header_backup",
     "read_hse2_container",
+    "replace_container_header_with_backup_bytes",
     "require_valid_header_auth_tag",
+    "restore_container_header_from_backup",
     "restore_header_from_backup_bytes",
     "unlock_first_matching_wrapper",
     "unlock_wrapper",
