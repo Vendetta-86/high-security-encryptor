@@ -46,6 +46,7 @@ high-security-encryptor-gui = "high_security_encryptor.gui:main"
 high-security-encryptor-hse2-gui = "high_security_encryptor.hse2_gui_launcher:main"
 high-security-encryptor-hse2-create = "high_security_encryptor.hse2_create_cli:main"
 high-security-encryptor-hse2-open = "high_security_encryptor.hse2_open_cli:main"
+high-security-encryptor-hse2-header-backup = "high_security_encryptor.hse2_header_backup_cli:main"
 high-security-encryptor-hse2-plan-archive = "high_security_encryptor.hse2_archive_plan_cli:main"
 
 [tool.setuptools]
