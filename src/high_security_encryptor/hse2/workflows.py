@@ -2,7 +2,7 @@
 
 This module wires the already-isolated HSE2 primitives into a guarded archive
 round trip. It stays free of prompting and GUI behavior: callers must provide
-already-collected password text and/or keyfile bytes.
+already-collected password text, keyfile bytes, and/or an explicit DPAPI mode.
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ from typing import Any
 from .archive_assembly_plan import build_archive_assembly_plan
 from .archive_manifest import build_archive_manifest
 from .archive_traversal import build_archive_entries_from_roots
+from .dpapi import is_dpapi_available
 from .file_io import read_hse2_container, write_hse2_container
 from .header_auth import attach_header_auth_tag, require_valid_header_auth_tag
 from .keys import generate_dek, generate_mek
@@ -23,7 +24,7 @@ from .manifest_crypto import decrypt_manifest, encrypt_manifest
 from .models import CipherSuite, HSE2Header, HSE2ModelError, ManifestPolicy, PayloadLayout
 from .payload_crypto import decrypt_payload_chunk, encrypt_payload_chunk
 from .unlock import HSE2UnlockFactors, unlock_first_matching_wrapper
-from .wrapper_builders import build_keyfile_wrapper, build_password_keyfile_wrapper, build_password_wrapper
+from .wrapper_builders import build_dpapi_wrapper, build_keyfile_wrapper, build_password_keyfile_wrapper, build_password_wrapper
 
 
 @dataclass(frozen=True)
@@ -82,6 +83,7 @@ def create_hse2_archive(
     output_path: str | os.PathLike[str],
     password: str | None = None,
     keyfile_bytes: bytes | None = None,
+    use_dpapi: bool = False,
     profile_name: str = "hardened",
     chunk_size: int = 1024 * 1024,
     overwrite: bool = False,
@@ -91,8 +93,12 @@ def create_hse2_archive(
 
     if chunk_size <= 0:
         raise HSE2ModelError("chunk_size must be positive")
-    if not password and keyfile_bytes is None:
-        raise HSE2ModelError("hse2-create requires --password-file, --keyfile, or both")
+    if not password and keyfile_bytes is None and not use_dpapi:
+        raise HSE2ModelError("hse2-create requires --password-file, --keyfile, --dpapi, or a valid combination")
+    if use_dpapi and (password or keyfile_bytes is not None):
+        raise HSE2ModelError("--dpapi cannot be combined with password or keyfile wrappers in this workflow")
+    if use_dpapi and not is_dpapi_available():
+        raise HSE2ModelError("Windows DPAPI is only available on Windows")
 
     root_paths = tuple(Path(root) for root in roots)
     entries = build_archive_entries_from_roots(root_paths)
@@ -113,6 +119,7 @@ def create_hse2_archive(
     wrapper = _build_create_wrapper(
         password=password,
         keyfile_bytes=keyfile_bytes,
+        use_dpapi=use_dpapi,
         profile_name=profile_name,
         created_utc=created,
         dek=dek,
@@ -150,15 +157,18 @@ def open_hse2_archive(
     output_dir: str | os.PathLike[str],
     password: str | None = None,
     keyfile_bytes: bytes | None = None,
+    allow_dpapi: bool = False,
     overwrite: bool = False,
 ) -> HSE2ArchiveOpenResult:
     """Open an HSE2 archive container into a destination directory."""
 
-    if not password and keyfile_bytes is None:
-        raise HSE2ModelError("hse2-open requires --password-file, --keyfile, or both")
+    if not password and keyfile_bytes is None and not allow_dpapi:
+        raise HSE2ModelError("hse2-open requires --password-file, --keyfile, --dpapi, or a valid combination")
+    if allow_dpapi and not is_dpapi_available():
+        raise HSE2ModelError("Windows DPAPI is only available on Windows")
 
     container = read_hse2_container(input_path)
-    factors = HSE2UnlockFactors(password=password, keyfile_bytes=keyfile_bytes)
+    factors = HSE2UnlockFactors(password=password, keyfile_bytes=keyfile_bytes, allow_dpapi=allow_dpapi)
     unlocked = unlock_first_matching_wrapper(container.header.wrappers, factors=factors)
     require_valid_header_auth_tag(container.header, mek=unlocked.mek)
     manifest = decrypt_manifest(container.manifest, mek=unlocked.mek)
@@ -223,11 +233,20 @@ def _build_create_wrapper(
     *,
     password: str | None,
     keyfile_bytes: bytes | None,
+    use_dpapi: bool,
     profile_name: str,
     created_utc: str,
     dek: Any,
     mek: Any,
 ) -> Any:
+    if use_dpapi:
+        return build_dpapi_wrapper(
+            wrapper_id="dpapi-1",
+            created_utc=created_utc,
+            dek=dek,
+            mek=mek,
+            label="windows dpapi",
+        )
     if password and keyfile_bytes is not None:
         return build_password_keyfile_wrapper(
             wrapper_id="password-keyfile-1",
@@ -420,6 +439,8 @@ def _selected_wrapper_type(wrappers: tuple[Any, ...], factors: HSE2UnlockFactors
         if wrapper.type == "keyfile" and factors.keyfile_bytes is not None:
             return wrapper.type
         if wrapper.type == "password_keyfile" and factors.password is not None and factors.keyfile_bytes is not None:
+            return wrapper.type
+        if wrapper.type == "dpapi" and factors.allow_dpapi:
             return wrapper.type
     return "unknown"
 

@@ -48,6 +48,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Binary keyfile used to create a keyfile or password+keyfile wrapper.",
     )
     parser.add_argument(
+        "--dpapi",
+        action="store_true",
+        help="Create a Windows DPAPI wrapper bound to the current Windows user.",
+    )
+    parser.add_argument(
         "--profile",
         default="hardened",
         choices=["compatible", "hardened", "paranoid"],
@@ -82,6 +87,7 @@ def main(argv: list[str] | None = None) -> int:
                 output_path=output_path,
                 password=password,
                 keyfile_bytes=keyfile_bytes,
+                use_dpapi=bool(args.dpapi),
                 profile_name=args.profile,
                 chunk_size=int(args.chunk_size),
                 overwrite=bool(args.overwrite),
@@ -104,7 +110,20 @@ def _build_dry_run_summary(*, args: argparse.Namespace, roots: tuple[Path, ...],
     summary["root_count"] = len(roots)
     summary["roots"] = [str(root) for root in roots]
     summary["output_path"] = str(output_path)
+    summary["wrapper_type"] = _dry_run_wrapper_type(args)
     return summary
+
+
+def _dry_run_wrapper_type(args: argparse.Namespace) -> str:
+    if bool(args.dpapi):
+        return "dpapi"
+    if args.password_file and args.keyfile:
+        return "password_keyfile"
+    if args.password_file:
+        return "password"
+    if args.keyfile:
+        return "keyfile"
+    return "none"
 
 
 def _validate_output_path(path: Path) -> None:

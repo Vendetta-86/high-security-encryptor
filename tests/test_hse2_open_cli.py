@@ -164,7 +164,7 @@ class HSE2OpenCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 2)
             self.assertEqual(stdout.getvalue(), "")
             self.assertIn("hse2-open:", stderr.getvalue())
-            self.assertIn("requires --password-file, --keyfile, or both", stderr.getvalue())
+            self.assertIn("requires --password-file, --keyfile, --dpapi", stderr.getvalue())
 
 
 if __name__ == "__main__":

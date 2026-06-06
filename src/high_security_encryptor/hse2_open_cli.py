@@ -27,6 +27,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Binary keyfile used to unlock keyfile or password+keyfile wrappers.",
     )
     parser.add_argument(
+        "--dpapi",
+        action="store_true",
+        help="Allow unlocking a Windows DPAPI wrapper with the current Windows user.",
+    )
+    parser.add_argument(
         "--overwrite",
         action="store_true",
         help="Allow replacing existing restored files.",
@@ -51,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
             output_dir=Path(args.output_dir),
             password=password,
             keyfile_bytes=keyfile_bytes,
+            allow_dpapi=bool(args.dpapi),
             overwrite=bool(args.overwrite),
         )
     except (HSE2ModelError, OSError, ValueError) as exc:
