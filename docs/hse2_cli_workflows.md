@@ -2,38 +2,40 @@
 
 HSE2 remains an explicit experimental workflow, but the core archive lifecycle is now available through focused CLI entry points. These commands do not prompt for secrets and do not store plaintext key material in summaries.
 
+The path values below are placeholders. Replace angle-bracketed values with local test files when running the commands.
+
 ## Create and Open
 
 Create a portable keyfile-backed archive:
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./archive.hse2 \
-  --keyfile ./archive.key
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
+  --keyfile <KEYFILE_PATH>
 ```
 
 Open it later with the matching keyfile:
 
 ```bash
 high-security-encryptor-hse2-open \
-  --input ./archive.hse2 \
-  --output-dir ./restored \
-  --keyfile ./archive.key
+  --input <ARCHIVE_PATH> \
+  --output-dir <RESTORE_DIR> \
+  --keyfile <KEYFILE_PATH>
 ```
 
-For password-backed workflows, pass a UTF-8 password file. One trailing newline is stripped by the CLI:
+For passphrase-file backed workflows, pass a UTF-8 file containing the passphrase. One trailing newline is stripped by the CLI:
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./archive.hse2 \
-  --password-file ./archive-password.txt
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
+  --password-file <PASSPHRASE_FILE_PATH>
 
 high-security-encryptor-hse2-open \
-  --input ./archive.hse2 \
-  --output-dir ./restored \
-  --password-file ./archive-password.txt
+  --input <ARCHIVE_PATH> \
+  --output-dir <RESTORE_DIR> \
+  --password-file <PASSPHRASE_FILE_PATH>
 ```
 
 Password+keyfile wrappers are also supported by supplying both `--password-file` and `--keyfile` to create/open.
@@ -44,8 +46,8 @@ On Windows, create a current-user DPAPI-backed archive:
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./archive.hse2 \
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
   --dpapi
 ```
 
@@ -53,8 +55,8 @@ Open it under the same Windows user context:
 
 ```bash
 high-security-encryptor-hse2-open \
-  --input ./archive.hse2 \
-  --output-dir ./restored \
+  --input <ARCHIVE_PATH> \
+  --output-dir <RESTORE_DIR> \
   --dpapi
 ```
 
@@ -66,33 +68,33 @@ Export a header backup from a complete `.hse2` container:
 
 ```bash
 high-security-encryptor-hse2-header-backup export \
-  --input ./archive.hse2 \
-  --output ./archive.hse2.header
+  --input <ARCHIVE_PATH> \
+  --output <HEADER_BACKUP_PATH>
 ```
 
 Restore a damaged-header container by replacing the current header frame with the backup header while preserving the encrypted body:
 
 ```bash
 high-security-encryptor-hse2-header-backup restore \
-  --input ./damaged.hse2 \
-  --backup ./archive.hse2.header \
-  --output ./restored-header.hse2
+  --input <DAMAGED_ARCHIVE_PATH> \
+  --backup <HEADER_BACKUP_PATH> \
+  --output <RESTORED_ARCHIVE_PATH>
 ```
 
 Header backups include non-secret recovery metadata:
 
-- `body_offset`
-- `body_sha256`
-- `body_size`
-- `container_size`
+- body offset
+- encrypted body SHA-256 digest
+- body size
+- container size
 
 By default, restore verifies the encrypted body digest before writing the restored container. For advanced recovery cases, a manual body offset can be supplied:
 
 ```bash
 high-security-encryptor-hse2-header-backup restore \
-  --input ./damaged-preamble.hse2 \
-  --backup ./archive.hse2.header \
-  --output ./restored-header.hse2 \
+  --input <DAMAGED_ARCHIVE_PATH> \
+  --backup <HEADER_BACKUP_PATH> \
+  --output <RESTORED_ARCHIVE_PATH> \
   --body-offset 4096
 ```
 
@@ -104,8 +106,8 @@ high-security-encryptor-hse2-header-backup restore \
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./archive.hse2 \
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
   --dry-run
 ```
 
