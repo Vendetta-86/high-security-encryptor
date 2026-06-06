@@ -24,16 +24,17 @@ help text remains visible.
 
 Double-clicking `high-security-encryptor-gui.exe` opens the Chinese GUI. The GUI
 wraps the existing CLI commands for config validation, batch encryption, batch
-decryption, removable-storage BitLocker management, and example config
-generation. Prompt password providers are blocked in GUI batch workflows because
-they can wait on console input; use literal, env, file, or command providers
-instead.
+decryption, removable-storage BitLocker management, example config generation,
+and a launcher button for the standalone HSE2 experimental tool. Prompt password
+providers are blocked in GUI batch workflows because they can wait on console
+input; use literal, env, file, or command providers instead.
 
 Double-clicking `high-security-encryptor-hse2-gui.exe` opens the standalone
 experimental HSE2 GUI. It wraps existing HSE2 CLI workflows for config-based
 HSE2 encryption, decryption, validation, keyfile rotation, keyfile generation,
-and Windows DPAPI protection. It does not reimplement HSE2 cryptographic logic in
-the GUI layer.
+quickstart workspace generation, one-click quickstart execution, and Windows
+DPAPI protection. It does not reimplement HSE2 cryptographic logic in the GUI
+layer.
 
 ## Release Asset
 
@@ -50,6 +51,25 @@ The zip contains:
 - `high-security-encryptor-hse2-gui.exe`
 - `README.md`
 - this Windows executable note
+
+For version `0.5.0`, the intended release tag is `v0.5.0` and the expected asset
+name is:
+
+```text
+high-security-encryptor-v0.5.0-windows-x64.zip
+```
+
+## Release Verification
+
+Before publishing or announcing the Windows zip:
+
+- confirm the workflow ran against the intended tag;
+- confirm all three executables listed above are present;
+- run `high-security-encryptor.exe --help`;
+- run `high-security-encryptor-gui.exe --smoke-test`;
+- confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip;
+- confirm no user-generated quickstart workspace, wrapper material, DPAPI blob,
+  local build cache, or private config file is included.
 
 ## Security Notes
 
