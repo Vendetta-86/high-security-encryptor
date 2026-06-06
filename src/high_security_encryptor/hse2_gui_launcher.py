@@ -9,7 +9,7 @@ from tkinter import messagebox, scrolledtext, ttk
 from .gui import invoke_cli_command
 from .hse2_gui_tab import build_hse2_experimental_tab
 from .hse2_quickstart_gui_tab import build_hse2_quickstart_tab
-from .hse2_quickstart_wizard import HSE2QuickstartWorkspace
+from .hse2_quickstart_wizard import HSE2QuickstartCommandStep, HSE2QuickstartWorkspace
 
 
 class HSE2ExperimentalApp(ttk.Frame):
@@ -29,7 +29,7 @@ class HSE2ExperimentalApp(ttk.Frame):
 
         notebook = ttk.Notebook(self)
         notebook.grid(row=0, column=0, sticky="nsew")
-        build_hse2_quickstart_tab(notebook, self._handle_quickstart_created)
+        build_hse2_quickstart_tab(notebook, self._handle_quickstart_created, self._run_quickstart_steps)
         build_hse2_experimental_tab(notebook, self._run_hse2_command)
 
         log_frame = ttk.LabelFrame(self, text="执行日志", padding=8)
@@ -41,7 +41,38 @@ class HSE2ExperimentalApp(ttk.Frame):
 
     def _handle_quickstart_created(self, workspace: HSE2QuickstartWorkspace, message: str) -> None:
         self._append_log(f"{message}\n")
-        self._append_log(f"下一步：打开命令清单并按顺序执行：{workspace.command_notes}\n\n")
+        self._append_log(f"下一步：可点击“一键执行三步”，或打开命令清单手动执行：{workspace.command_notes}\n\n")
+
+    def _run_quickstart_steps(self, steps: tuple[HSE2QuickstartCommandStep, ...]) -> None:
+        if self._is_busy:
+            messagebox.showinfo("正在执行", "已有任务正在执行，请等待完成。")
+            return
+        if not steps:
+            messagebox.showerror("执行失败", "没有可执行的 HSE2 入门步骤。")
+            return
+        self._is_busy = True
+        self.after(10, lambda: self._execute_quickstart_steps(steps))
+
+    def _execute_quickstart_steps(self, steps: tuple[HSE2QuickstartCommandStep, ...]) -> None:
+        try:
+            for index, step in enumerate(steps, start=1):
+                self._append_log(f"\n[{index}/{len(steps)}] {step.name}\n")
+                self._append_log(f"$ high-security-encryptor {_quote_argv(list(step.argv))}\n")
+                result = invoke_cli_command(list(step.argv))
+                if result.stdout:
+                    self._append_log(result.stdout)
+                if result.stderr:
+                    self._append_log(result.stderr)
+                self._append_log(f"退出码：{result.exit_code}\n")
+                if result.exit_code != 0:
+                    messagebox.showerror("执行失败", f"HSE2 入门步骤失败：{step.name}。请查看日志。")
+                    return
+            messagebox.showinfo("执行完成", "HSE2 入门三步已完成。")
+        except Exception as exc:  # noqa: BLE001 - GUI boundary reports user-facing errors.
+            self._append_log(f"异常：{exc}\n")
+            messagebox.showerror("执行失败", str(exc))
+        finally:
+            self._is_busy = False
 
     def _run_hse2_command(self, argv: list[str]) -> None:
         if self._is_busy:

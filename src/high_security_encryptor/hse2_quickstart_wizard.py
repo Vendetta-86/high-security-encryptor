@@ -37,6 +37,14 @@ class HSE2QuickstartWorkspace:
         )
 
 
+@dataclass(frozen=True)
+class HSE2QuickstartCommandStep:
+    """One executable quickstart CLI step."""
+
+    name: str
+    argv: tuple[str, ...]
+
+
 def build_hse2_quickstart_paths(base_dir: str | Path) -> HSE2QuickstartWorkspace:
     """Return the conventional file layout for a quickstart workspace."""
 
@@ -111,24 +119,68 @@ def create_hse2_quickstart_workspace(
     return workspace
 
 
+def build_hse2_quickstart_command_steps(workspace: HSE2QuickstartWorkspace) -> tuple[HSE2QuickstartCommandStep, ...]:
+    """Return the three local quickstart steps in execution order."""
+
+    return (
+        HSE2QuickstartCommandStep(
+            name="加密示例文件",
+            argv=("hse2-encrypt-config", "--config", str(workspace.encrypt_config)),
+        ),
+        HSE2QuickstartCommandStep(
+            name="校验 HSE2 容器",
+            argv=(
+                "hse2-validate",
+                "--config",
+                str(workspace.validate_config),
+                "--output",
+                str(workspace.validation_report),
+            ),
+        ),
+        HSE2QuickstartCommandStep(
+            name="解密 HSE2 容器",
+            argv=("hse2-decrypt-config", "--config", str(workspace.decrypt_config)),
+        ),
+    )
+
+
+def build_hse2_quickstart_dpapi_step(workspace: HSE2QuickstartWorkspace) -> HSE2QuickstartCommandStep:
+    """Return the optional Windows DPAPI local-protection command."""
+
+    return HSE2QuickstartCommandStep(
+        name="DPAPI 保护 keyfile",
+        argv=(
+            "dpapi-protect",
+            "--input",
+            str(workspace.keyfile),
+            "--output",
+            str(workspace.keyfile.with_suffix(workspace.keyfile.suffix + ".dpapi")),
+            "--scope",
+            "current_user",
+        ),
+    )
+
+
 def build_hse2_quickstart_commands(workspace: HSE2QuickstartWorkspace) -> str:
     """Return copyable commands for the generated quickstart workspace."""
 
+    steps = build_hse2_quickstart_command_steps(workspace)
+    dpapi_step = build_hse2_quickstart_dpapi_step(workspace)
     lines = [
         "HSE2 quickstart commands",
         "========================",
         "",
-        "1. Encrypt the sample file:",
-        f"high-security-encryptor hse2-encrypt-config --config {_quote_path(workspace.encrypt_config)}",
+        f"1. {steps[0].name}:",
+        _render_command(steps[0].argv),
         "",
-        "2. Validate the container:",
-        f"high-security-encryptor hse2-validate --config {_quote_path(workspace.validate_config)} --output {_quote_path(workspace.validation_report)}",
+        f"2. {steps[1].name}:",
+        _render_command(steps[1].argv),
         "",
-        "3. Decrypt the container:",
-        f"high-security-encryptor hse2-decrypt-config --config {_quote_path(workspace.decrypt_config)}",
+        f"3. {steps[2].name}:",
+        _render_command(steps[2].argv),
         "",
         "Optional Windows-only DPAPI local protection command:",
-        f"high-security-encryptor dpapi-protect --input {_quote_path(workspace.keyfile)} --output {_quote_path(workspace.keyfile.with_suffix(workspace.keyfile.suffix + '.dpapi'))} --scope current_user",
+        _render_command(dpapi_step.argv),
         "",
         "Notes:",
         "- Keep wrapper.key with the .hse2 file; losing it means the sample cannot be opened.",
@@ -149,6 +201,10 @@ def _refuse_existing_outputs(paths: tuple[Path, ...], *, overwrite: bool) -> Non
 
 def _write_json(path: Path, payload: dict[str, object]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _render_command(argv: tuple[str, ...]) -> str:
+    return "high-security-encryptor " + " ".join(_quote_path(Path(part)) if index > 0 and part not in {"--config", "--output", "--input", "--scope"} else part for index, part in enumerate(argv))
 
 
 def _quote_path(path: Path) -> str:

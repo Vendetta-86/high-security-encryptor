@@ -7,23 +7,37 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable
 
-from .hse2_quickstart_wizard import HSE2QuickstartWorkspace, create_hse2_quickstart_workspace
+from .hse2_quickstart_wizard import (
+    HSE2QuickstartCommandStep,
+    HSE2QuickstartWorkspace,
+    build_hse2_quickstart_command_steps,
+    build_hse2_quickstart_paths,
+    create_hse2_quickstart_workspace,
+)
 
 NotifyQuickstart = Callable[[HSE2QuickstartWorkspace, str], None]
+RunQuickstartSteps = Callable[[tuple[HSE2QuickstartCommandStep, ...]], None]
 
 
 class HSE2QuickstartTab(ttk.Frame):
-    """Small guided entry point that creates local quickstart files."""
+    """Small guided entry point that creates and runs local quickstart files."""
 
-    def __init__(self, master: tk.Misc, notify: NotifyQuickstart | None = None) -> None:
+    def __init__(
+        self,
+        master: tk.Misc,
+        notify: NotifyQuickstart | None = None,
+        run_steps: RunQuickstartSteps | None = None,
+    ) -> None:
         super().__init__(master, padding=12)
         self._notify = notify
+        self._run_steps = run_steps
         self.columnconfigure(1, weight=1)
 
         self.base_dir = tk.StringVar()
         self.keyfile_size = tk.IntVar(value=32)
         self.overwrite = tk.BooleanVar(value=False)
         self.status = tk.StringVar(value="选择一个空目录，然后生成 HSE2 入门文件。")
+        self._last_workspace: HSE2QuickstartWorkspace | None = None
         self._build_widgets()
 
     def _build_widgets(self) -> None:
@@ -31,7 +45,7 @@ class HSE2QuickstartTab(ttk.Frame):
             self,
             text=(
                 "HSE2 入门向导：生成一个本地测试工作区，包括示例文件、随机 keyfile、"
-                "三份 JSON 配置和命令清单。向导不会自动执行加密或解密。"
+                "三份 JSON 配置和命令清单。生成后可一键执行加密、校验、解密三步。"
             ),
             wraplength=780,
             justify=tk.LEFT,
@@ -56,12 +70,17 @@ class HSE2QuickstartTab(ttk.Frame):
             sticky="w",
             pady=(6, 0),
         )
-        ttk.Button(self, text="生成 HSE2 入门文件", command=self.create_quickstart).grid(
-            row=4,
-            column=0,
-            sticky="w",
-            pady=(14, 0),
+        action_row = ttk.Frame(self)
+        action_row.grid(row=4, column=0, columnspan=3, sticky="w", pady=(14, 0))
+        ttk.Button(action_row, text="生成 HSE2 入门文件", command=self.create_quickstart).pack(
+            side=tk.LEFT,
+            padx=(0, 8),
         )
+        ttk.Button(action_row, text="一键执行三步", command=self.run_all_steps).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(action_row, text="只运行加密", command=lambda: self.run_step(0)).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(action_row, text="只运行校验", command=lambda: self.run_step(1)).pack(side=tk.LEFT, padx=(0, 8))
+        ttk.Button(action_row, text="只运行解密", command=lambda: self.run_step(2)).pack(side=tk.LEFT)
+
         ttk.Label(self, textvariable=self.status, wraplength=780, justify=tk.LEFT).grid(
             row=5,
             column=0,
@@ -82,21 +101,69 @@ class HSE2QuickstartTab(ttk.Frame):
             self.status.set(f"生成失败：{exc}")
             messagebox.showerror("HSE2 入门向导", str(exc))
             return
+        self._last_workspace = workspace
         message = _format_success_message(workspace)
         self.status.set(message)
         if self._notify is not None:
             self._notify(workspace, message)
 
+    def run_all_steps(self) -> None:
+        workspace = self._current_workspace()
+        if workspace is None:
+            return
+        self._dispatch_steps(build_hse2_quickstart_command_steps(workspace))
+
+    def run_step(self, index: int) -> None:
+        workspace = self._current_workspace()
+        if workspace is None:
+            return
+        steps = build_hse2_quickstart_command_steps(workspace)
+        try:
+            selected = steps[index]
+        except IndexError:
+            messagebox.showerror("HSE2 入门向导", "未知的 HSE2 入门步骤。")
+            return
+        self._dispatch_steps((selected,))
+
+    def _current_workspace(self) -> HSE2QuickstartWorkspace | None:
+        if self._last_workspace is not None:
+            return self._last_workspace
+        try:
+            base_dir = _require_directory_text(self.base_dir.get())
+        except ValueError as exc:
+            self.status.set(f"无法运行：{exc}")
+            messagebox.showerror("HSE2 入门向导", str(exc))
+            return None
+        workspace = build_hse2_quickstart_paths(base_dir)
+        missing = [path for path in (workspace.encrypt_config, workspace.validate_config, workspace.decrypt_config) if not path.is_file()]
+        if missing:
+            self.status.set("无法运行：请先生成 HSE2 入门文件。")
+            messagebox.showerror("HSE2 入门向导", "请先生成 HSE2 入门文件。")
+            return None
+        self._last_workspace = workspace
+        return workspace
+
+    def _dispatch_steps(self, steps: tuple[HSE2QuickstartCommandStep, ...]) -> None:
+        if self._run_steps is None:
+            messagebox.showerror("HSE2 入门向导", "当前窗口未连接 HSE2 命令执行器。")
+            return
+        self._run_steps(steps)
+
     def _browse_base_dir(self) -> None:
         path = filedialog.askdirectory(title="选择 HSE2 入门工作目录")
         if path:
             self.base_dir.set(path)
+            self._last_workspace = None
 
 
-def build_hse2_quickstart_tab(notebook: ttk.Notebook, notify: NotifyQuickstart | None = None) -> HSE2QuickstartTab:
+def build_hse2_quickstart_tab(
+    notebook: ttk.Notebook,
+    notify: NotifyQuickstart | None = None,
+    run_steps: RunQuickstartSteps | None = None,
+) -> HSE2QuickstartTab:
     """Create and add the quickstart tab to a notebook."""
 
-    tab = HSE2QuickstartTab(notebook, notify)
+    tab = HSE2QuickstartTab(notebook, notify, run_steps)
     notebook.add(tab, text="HSE2 入门向导")
     return tab
 

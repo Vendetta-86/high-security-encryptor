@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import unittest
 
 from high_security_encryptor import hse2_gui_launcher
@@ -16,6 +17,13 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertTrue(callable(HSE2ExperimentalApp))
         self.assertTrue(callable(HSE2QuickstartTab))
         self.assertTrue(callable(build_hse2_quickstart_tab))
+
+    def test_launcher_wires_quickstart_tab_to_sequential_runner(self) -> None:
+        init_source = inspect.getsource(HSE2ExperimentalApp.__init__)
+        runner_source = inspect.getsource(HSE2ExperimentalApp._execute_quickstart_steps)
+        self.assertIn("_run_quickstart_steps", init_source)
+        self.assertIn("invoke_cli_command", runner_source)
+        self.assertIn("result.exit_code != 0", runner_source)
 
     def test_quote_argv_handles_spaces(self) -> None:
         self.assertEqual(
