@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import tempfile
+import unittest
+
+from high_security_encryptor.hse2_config import HSE2DecryptConfig, HSE2EncryptConfig
+from high_security_encryptor.hse2_quickstart_wizard import (
+    DEFAULT_KEYFILE_BYTES,
+    build_hse2_quickstart_commands,
+    build_hse2_quickstart_paths,
+    create_hse2_quickstart_workspace,
+)
+from high_security_encryptor.hse2_validation_config import HSE2ValidationConfig
+
+
+class HSE2QuickstartWizardTests(unittest.TestCase):
+    def test_create_quickstart_workspace_writes_parseable_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = create_hse2_quickstart_workspace(Path(temp_dir) / "quickstart")
+
+            self.assertEqual(workspace.keyfile.stat().st_size, DEFAULT_KEYFILE_BYTES)
+            self.assertTrue(workspace.sample_input.read_text(encoding="utf-8").startswith("HSE2 quickstart"))
+            encrypt_config = HSE2EncryptConfig.from_json_file(workspace.encrypt_config)
+            validate_config = HSE2ValidationConfig.from_json_file(workspace.validate_config)
+            decrypt_config = HSE2DecryptConfig.from_json_file(workspace.decrypt_config)
+
+            self.assertEqual(encrypt_config.input, str(workspace.sample_input))
+            self.assertEqual(encrypt_config.output, str(workspace.encrypted_output))
+            self.assertEqual(encrypt_config.wrapper, {"type": "keyfile", "path": str(workspace.keyfile)})
+            self.assertEqual(validate_config.wrapper, {"type": "keyfile", "path": str(workspace.keyfile)})
+            self.assertEqual(decrypt_config.input, str(workspace.encrypted_output))
+            self.assertEqual(decrypt_config.output, str(workspace.restored_output))
+            self.assertTrue(workspace.command_notes.is_file())
+
+    def test_quickstart_commands_include_expected_cli_steps_without_keyfile_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = create_hse2_quickstart_workspace(temp_dir)
+            commands = build_hse2_quickstart_commands(workspace)
+
+            self.assertIn("hse2-encrypt-config", commands)
+            self.assertIn("hse2-validate", commands)
+            self.assertIn("hse2-decrypt-config", commands)
+            self.assertIn("dpapi-protect", commands)
+            self.assertIn(str(workspace.keyfile), commands)
+            self.assertNotIn(workspace.keyfile.read_bytes().hex(), commands)
+
+    def test_create_quickstart_workspace_refuses_existing_outputs_without_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = create_hse2_quickstart_workspace(temp_dir)
+            original = json.loads(workspace.encrypt_config.read_text(encoding="utf-8"))
+
+            with self.assertRaises(FileExistsError):
+                create_hse2_quickstart_workspace(temp_dir)
+
+            self.assertEqual(json.loads(workspace.encrypt_config.read_text(encoding="utf-8")), original)
+
+    def test_create_quickstart_workspace_allows_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = create_hse2_quickstart_workspace(temp_dir, keyfile_size=24)
+            first_key = workspace.keyfile.read_bytes()
+            overwritten = create_hse2_quickstart_workspace(temp_dir, keyfile_size=24, overwrite=True)
+
+            self.assertEqual(overwritten.keyfile.stat().st_size, 24)
+            self.assertNotEqual(first_key, overwritten.keyfile.read_bytes())
+
+    def test_build_paths_does_not_touch_filesystem(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "missing"
+            workspace = build_hse2_quickstart_paths(root)
+
+            self.assertEqual(workspace.base_dir, root)
+            self.assertFalse(root.exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
