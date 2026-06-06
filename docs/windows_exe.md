@@ -52,11 +52,11 @@ The zip contains:
 - `README.md`
 - this Windows executable note
 
-For version `0.5.0`, the intended release tag is `v0.5.0` and the expected asset
+For version `0.5.2`, the intended release tag is `v0.5.2` and the expected asset
 name is:
 
 ```text
-high-security-encryptor-v0.5.0-windows-x64.zip
+high-security-encryptor-v0.5.2-windows-x64.zip
 ```
 
 ## Release Verification
