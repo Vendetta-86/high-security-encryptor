@@ -12,7 +12,7 @@ Create a portable keyfile-backed archive:
 high-security-encryptor-hse2-create \
   --root <ROOT_PATH> \
   --output <ARCHIVE_PATH> \
-  --keyfile <KEYFILE_PATH>
+  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
 
 Open it later with the matching keyfile:
@@ -21,7 +21,7 @@ Open it later with the matching keyfile:
 high-security-encryptor-hse2-open \
   --input <ARCHIVE_PATH> \
   --output-dir <RESTORE_DIR> \
-  --keyfile <KEYFILE_PATH>
+  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
 
 For passphrase-file backed workflows, pass a UTF-8 file containing the passphrase. One trailing newline is stripped by the CLI:
@@ -30,12 +30,12 @@ For passphrase-file backed workflows, pass a UTF-8 file containing the passphras
 high-security-encryptor-hse2-create \
   --root <ROOT_PATH> \
   --output <ARCHIVE_PATH> \
-  --password-file <PASSPHRASE_FILE_PATH>
+  --password-file <PASSPHRASE_FILE_PATH>  # pragma: allowlist secret
 
 high-security-encryptor-hse2-open \
   --input <ARCHIVE_PATH> \
   --output-dir <RESTORE_DIR> \
-  --password-file <PASSPHRASE_FILE_PATH>
+  --password-file <PASSPHRASE_FILE_PATH>  # pragma: allowlist secret
 ```
 
 Password+keyfile wrappers are also supported by supplying both `--password-file` and `--keyfile` to create/open.
