@@ -8,6 +8,8 @@ from tkinter import messagebox, scrolledtext, ttk
 
 from .gui import invoke_cli_command
 from .hse2_gui_tab import build_hse2_experimental_tab
+from .hse2_quickstart_gui_tab import build_hse2_quickstart_tab
+from .hse2_quickstart_wizard import HSE2QuickstartWorkspace
 
 
 class HSE2ExperimentalApp(ttk.Frame):
@@ -27,6 +29,7 @@ class HSE2ExperimentalApp(ttk.Frame):
 
         notebook = ttk.Notebook(self)
         notebook.grid(row=0, column=0, sticky="nsew")
+        build_hse2_quickstart_tab(notebook, self._handle_quickstart_created)
         build_hse2_experimental_tab(notebook, self._run_hse2_command)
 
         log_frame = ttk.LabelFrame(self, text="执行日志", padding=8)
@@ -35,6 +38,10 @@ class HSE2ExperimentalApp(ttk.Frame):
         log_frame.rowconfigure(0, weight=1)
         self.log = scrolledtext.ScrolledText(log_frame, height=10, wrap=tk.WORD)
         self.log.grid(row=0, column=0, sticky="nsew")
+
+    def _handle_quickstart_created(self, workspace: HSE2QuickstartWorkspace, message: str) -> None:
+        self._append_log(f"{message}\n")
+        self._append_log(f"下一步：打开命令清单并按顺序执行：{workspace.command_notes}\n\n")
 
     def _run_hse2_command(self, argv: list[str]) -> None:
         if self._is_busy:
