@@ -18,7 +18,7 @@ class MainGuiHSE2EntryTests(unittest.TestCase):
         self.assertEqual(HSE2_GUI_BUTTON_TEXT, "打开 HSE2 实验工具")
         build_log_source = inspect.getsource(HighSecurityEncryptorWithHSE2App._build_log)
         open_handler_source = inspect.getsource(HighSecurityEncryptorWithHSE2App._open_hse2_experimental_gui)
-        self.assertIn(HSE2_GUI_BUTTON_TEXT, build_log_source)
+        self.assertIn("HSE2_GUI_BUTTON_TEXT", build_log_source)
         self.assertIn("_open_hse2_experimental_gui", build_log_source)
         self.assertIn("open_hse2_experimental_window", open_handler_source)
 
