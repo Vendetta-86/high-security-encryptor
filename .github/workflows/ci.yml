@@ -42,7 +42,17 @@ jobs:
         run: python -m unittest tests.test_hse2_create_cli -v
 
       - name: Run HSE2 open CLI restore test
+        env:
+          HSE2_OPEN_DEBUG_JSON: hse2-open-restore-debug-${{ matrix.python-version }}.json
         run: python -m unittest tests.test_hse2_open_cli.HSE2OpenCliTests.test_open_cli_restores_keyfile_only_archive -v
+
+      - name: Upload HSE2 open restore diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hse2-open-restore-debug-${{ matrix.python-version }}
+          path: hse2-open-restore-debug-${{ matrix.python-version }}.json
+          if-no-files-found: ignore
 
       - name: Run HSE2 open CLI wrong-keyfile test
         run: python -m unittest tests.test_hse2_open_cli.HSE2OpenCliTests.test_open_cli_rejects_wrong_keyfile -v
