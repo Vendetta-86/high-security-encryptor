@@ -69,27 +69,27 @@ Create and open a keyfile-backed archive:
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./archive.hse2 \
-  --keyfile ./archive.key
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
+  --keyfile <KEYFILE_PATH>
 
 high-security-encryptor-hse2-open \
-  --input ./archive.hse2 \
-  --output-dir ./restored \
-  --keyfile ./archive.key
+  --input <ARCHIVE_PATH> \
+  --output-dir <RESTORE_DIR> \
+  --keyfile <KEYFILE_PATH>
 ```
 
 Create and open a current-user Windows DPAPI-backed archive:
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./archive.hse2 \
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
   --dpapi
 
 high-security-encryptor-hse2-open \
-  --input ./archive.hse2 \
-  --output-dir ./restored \
+  --input <ARCHIVE_PATH> \
+  --output-dir <RESTORE_DIR> \
   --dpapi
 ```
 
@@ -97,13 +97,13 @@ Export and restore a header backup:
 
 ```bash
 high-security-encryptor-hse2-header-backup export \
-  --input ./archive.hse2 \
-  --output ./archive.hse2.header
+  --input <ARCHIVE_PATH> \
+  --output <HEADER_BACKUP_PATH>
 
 high-security-encryptor-hse2-header-backup restore \
-  --input ./damaged.hse2 \
-  --backup ./archive.hse2.header \
-  --output ./restored-header.hse2
+  --input <DAMAGED_ARCHIVE_PATH> \
+  --backup <HEADER_BACKUP_PATH> \
+  --output <RESTORED_ARCHIVE_PATH>
 ```
 
 See [HSE2 CLI Workflows](docs/hse2_cli_workflows.md) for detailed usage, recovery metadata, body-offset restore behavior, and safety boundaries.
