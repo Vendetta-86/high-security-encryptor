@@ -40,7 +40,7 @@ pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
 ```
 
-The test suite currently contains 189 tests, including installation smoke tests for the console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
+The test suite includes focused HSE1/HSE2 unit and CLI workflow coverage, plus installation smoke tests for console and GUI scripts. The install smoke tests are skipped when the package has not been installed. The dev checks also run committed-secret scanning and Python dependency auditing.
 
 ## CLI
 
@@ -60,6 +60,53 @@ high-security-encryptor validate-config --kind encrypt --config examples/compati
 high-security-encryptor-gui --smoke-test
 high-security-encryptor-hse2-gui
 ```
+
+## HSE2 CLI Workflows
+
+HSE2 remains experimental, but focused CLI entry points now cover create/open, header backup/restore, metadata-assisted body-offset recovery, and explicit Windows DPAPI create/open workflows.
+
+Create and open a keyfile-backed archive:
+
+```bash
+high-security-encryptor-hse2-create \
+  --root ./plain-root \
+  --output ./archive.hse2 \
+  --keyfile ./archive.key
+
+high-security-encryptor-hse2-open \
+  --input ./archive.hse2 \
+  --output-dir ./restored \
+  --keyfile ./archive.key
+```
+
+Create and open a current-user Windows DPAPI-backed archive:
+
+```bash
+high-security-encryptor-hse2-create \
+  --root ./plain-root \
+  --output ./archive.hse2 \
+  --dpapi
+
+high-security-encryptor-hse2-open \
+  --input ./archive.hse2 \
+  --output-dir ./restored \
+  --dpapi
+```
+
+Export and restore a header backup:
+
+```bash
+high-security-encryptor-hse2-header-backup export \
+  --input ./archive.hse2 \
+  --output ./archive.hse2.header
+
+high-security-encryptor-hse2-header-backup restore \
+  --input ./damaged.hse2 \
+  --backup ./archive.hse2.header \
+  --output ./restored-header.hse2
+```
+
+See [HSE2 CLI Workflows](docs/hse2_cli_workflows.md) for detailed usage, recovery metadata, body-offset restore behavior, and safety boundaries.
 
 ## Password Sources
 
@@ -118,6 +165,7 @@ This is a local online-attack throttle. It does not make a copied encrypted file
 - [Operational Guidance](docs/operations.md): recommended modes, backup handling, password handling, rotation, and failure response.
 - [KDF Profiles](docs/kdf_profiles.md): Argon2id profile compatibility, hardened/paranoid roadmap, and HSE2 direction.
 - [HSE2 Wrapper Providers](docs/hse2_wrapper_providers.md): wrapper provider matrix for literal, env, file, keyfile, DPAPI, command, and prompt workflows.
+- [HSE2 CLI Workflows](docs/hse2_cli_workflows.md): create/open, header backup/restore, body-offset recovery, and DPAPI CLI usage.
 - [HSE2 GUI Integration](docs/hse2_gui_integration.md): command-builder boundary, reusable tab component, and standalone HSE2 GUI launcher.
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 - [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.
@@ -185,4 +233,7 @@ high-security-encryptor --debug validate-config --kind encrypt --config config.j
 - GUI file encryption/decryption tabs include easy multi-file setup, bundled multi-file encryption, and per-file or per-folder-inner passwords.
 - Windows removable-storage encryption is available for version `0.4.0` through a dedicated BitLocker To Go GUI tab.
 - Windows DPAPI wrapper provider and standalone HSE2 experimental GUI are available for version `0.5.0`.
+- HSE2 create/open CLI archive workflows are available.
+- HSE2 header backup export/restore with metadata-assisted body-offset recovery is available.
+- HSE2 create/open supports explicit Windows DPAPI mode from the CLI.
 - Windows executable release automation now includes CLI, main GUI, and standalone HSE2 GUI executables.
