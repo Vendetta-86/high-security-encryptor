@@ -196,7 +196,7 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertEqual(stdout.getvalue(), "")
             self.assertFalse(output.exists())
             self.assertIn("hse2-create:", stderr.getvalue())
-            self.assertIn("requires --password-file, --keyfile, or both", stderr.getvalue())
+            self.assertIn("requires --password-file, --keyfile, --dpapi", stderr.getvalue())
 
     def test_create_cli_rejects_invalid_chunk_size_on_stderr(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
