@@ -46,44 +46,44 @@ high-security-encryptor-hse2-open --help
 high-security-encryptor-hse2-header-backup --help
 ```
 
-Run at least one portable keyfile archive round trip before release:
+Run at least one portable keyfile archive round trip before release. Replace angle-bracketed values with local validation paths:
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./archive.hse2 \
-  --keyfile ./archive.key
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
+  --keyfile <KEYFILE_PATH>
 
 high-security-encryptor-hse2-open \
-  --input ./archive.hse2 \
-  --output-dir ./restored \
-  --keyfile ./archive.key
+  --input <ARCHIVE_PATH> \
+  --output-dir <RESTORE_DIR> \
+  --keyfile <KEYFILE_PATH>
 ```
 
 Run at least one header backup export/restore check:
 
 ```bash
 high-security-encryptor-hse2-header-backup export \
-  --input ./archive.hse2 \
-  --output ./archive.hse2.header
+  --input <ARCHIVE_PATH> \
+  --output <HEADER_BACKUP_PATH>
 
 high-security-encryptor-hse2-header-backup restore \
-  --input ./archive.hse2 \
-  --backup ./archive.hse2.header \
-  --output ./restored-header.hse2
+  --input <ARCHIVE_PATH> \
+  --backup <HEADER_BACKUP_PATH> \
+  --output <RESTORED_ARCHIVE_PATH>
 ```
 
 On Windows release validation machines, also run one explicit DPAPI create/open round trip:
 
 ```bash
 high-security-encryptor-hse2-create \
-  --root ./plain-root \
-  --output ./dpapi-archive.hse2 \
+  --root <ROOT_PATH> \
+  --output <DPAPI_ARCHIVE_PATH> \
   --dpapi
 
 high-security-encryptor-hse2-open \
-  --input ./dpapi-archive.hse2 \
-  --output-dir ./dpapi-restored \
+  --input <DPAPI_ARCHIVE_PATH> \
+  --output-dir <DPAPI_RESTORE_DIR> \
   --dpapi
 ```
 
@@ -113,7 +113,7 @@ For releases that include a Windows executable:
 - Confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip.
 - Confirm HSE2 CLI entry points are available from the extracted package or bundled console executable strategy.
 - Run at least one config validation with the executable.
-- Confirm the executable zip contains no user config files, passwords, keys, DPAPI blobs, or local build caches.
+- Confirm the executable zip contains no user credential files, wrapper material, DPAPI blobs, or local build caches.
 
 ## Compatibility
 
