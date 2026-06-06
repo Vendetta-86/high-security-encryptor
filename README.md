@@ -166,6 +166,7 @@ This is a local online-attack throttle. It does not make a copied encrypted file
 - [KDF Profiles](docs/kdf_profiles.md): Argon2id profile compatibility, hardened/paranoid roadmap, and HSE2 direction.
 - [HSE2 Wrapper Providers](docs/hse2_wrapper_providers.md): wrapper provider matrix for literal, env, file, keyfile, DPAPI, command, and prompt workflows.
 - [HSE2 CLI Workflows](docs/hse2_cli_workflows.md): create/open, header backup/restore, body-offset recovery, and DPAPI CLI usage.
+- [HSE2 Threat Model](docs/hse2_threat_model.md): HSE2 assets, boundaries, wrapper material handling, header backup risks, DPAPI limits, and quickstart guidance.
 - [HSE2 GUI Integration](docs/hse2_gui_integration.md): command-builder boundary, reusable tab component, and standalone HSE2 GUI launcher.
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
 - [Phase 4 Completion](docs/phase4_completion.md): release readiness scope and verification baseline.

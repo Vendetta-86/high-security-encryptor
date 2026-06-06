@@ -36,6 +36,16 @@ python -m high_security_encryptor validate-config --kind decrypt --config exampl
 
 Compatible-mode examples may emit warning issues because they intentionally generate or consume top-level password tables. Warnings are acceptable for those examples unless `--warnings-as-errors` is part of the release gate.
 
+## HSE2 Documentation Review
+
+Before release, review `docs/hse2_threat_model.md` against the shipped HSE2 behavior. Confirm it still matches:
+
+- wrapper factors and portability boundaries;
+- Windows DPAPI behavior;
+- header backup and body-offset recovery metadata;
+- quickstart workspace generation and one-click execution;
+- release artifact exclusions for user-generated files.
+
 ## HSE2 CLI Verification
 
 Run help checks for the focused HSE2 CLI entry points:

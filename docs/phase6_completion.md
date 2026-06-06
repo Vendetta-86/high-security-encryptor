@@ -44,6 +44,15 @@ Added smoke-tested HSE2 encrypt examples for wrapper providers.
 - Added a main-GUI-facing helper for opening the standalone HSE2 window as a child window.
 - Documented the future low-risk main-GUI button wiring point.
 
+### Post-Phase HSE2 Follow-ups
+
+After Phase 6, additional follow-up PRs added:
+
+- a visible main-GUI button that opens the standalone HSE2 experimental window;
+- a quickstart wizard that generates a local HSE2 sample workspace;
+- one-click and single-step quickstart execution through the existing CLI boundary;
+- a focused HSE2 threat-model document.
+
 ### Windows EXE Packaging
 
 - Added a PyInstaller entry point for the standalone HSE2 GUI launcher.
@@ -83,16 +92,13 @@ HSE2 cryptographic logic in the GUI layer.
 Not included in this phase:
 
 - embedding the HSE2 tab directly into the main GUI notebook;
-- a full HSE2 one-click wizard;
 - automatic deletion of unprotected keyfiles after DPAPI protection;
 - DPAPI optional entropy support;
-- cross-machine portability for DPAPI blobs.
+- cross-machine portability for DPAPI blobs;
+- hidden volumes, duress workflows, or decoy unlock behavior.
 
-## Follow-up Work
+## Remaining Follow-up Work
 
-Recommended next steps:
+Recommended next step:
 
-1. Add a visible main-GUI button that opens the standalone HSE2 experimental window.
-2. Add an HSE2 wizard for keyfile generation, DPAPI protection, and example config creation.
-3. Add a focused HSE2 threat-model document.
-4. Perform a tagged Windows EXE release and verify the zip contains all three executables.
+1. Perform a tagged Windows EXE release and verify the zip contains all three executables.
