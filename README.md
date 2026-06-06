@@ -71,12 +71,12 @@ Create and open a keyfile-backed archive:
 high-security-encryptor-hse2-create \
   --root <ROOT_PATH> \
   --output <ARCHIVE_PATH> \
-  --keyfile <KEYFILE_PATH>
+  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 
 high-security-encryptor-hse2-open \
   --input <ARCHIVE_PATH> \
   --output-dir <RESTORE_DIR> \
-  --keyfile <KEYFILE_PATH>
+  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
 
 Create and open a current-user Windows DPAPI-backed archive:
