@@ -6,6 +6,7 @@ import unittest
 
 from high_security_encryptor import hse2_gui_launcher
 from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _quote_argv, main
+from high_security_encryptor.hse2_quickstart_gui_tab import HSE2QuickstartTab, build_hse2_quickstart_tab
 
 
 class HSE2GuiLauncherTests(unittest.TestCase):
@@ -13,6 +14,8 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIsNotNone(hse2_gui_launcher)
         self.assertTrue(callable(main))
         self.assertTrue(callable(HSE2ExperimentalApp))
+        self.assertTrue(callable(HSE2QuickstartTab))
+        self.assertTrue(callable(build_hse2_quickstart_tab))
 
     def test_quote_argv_handles_spaces(self) -> None:
         self.assertEqual(
