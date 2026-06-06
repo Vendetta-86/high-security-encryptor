@@ -5,7 +5,7 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- Confirm README status and test count match the current test suite.
+- Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
 ## Local Verification
@@ -20,6 +20,7 @@ pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
 high-security-encryptor --help
 high-security-encryptor-gui --smoke-test
+high-security-encryptor-hse2-gui --help
 ```
 
 Validate example configs:
@@ -35,6 +36,57 @@ python -m high_security_encryptor validate-config --kind decrypt --config exampl
 
 Compatible-mode examples may emit warning issues because they intentionally generate or consume top-level password tables. Warnings are acceptable for those examples unless `--warnings-as-errors` is part of the release gate.
 
+## HSE2 CLI Verification
+
+Run help checks for the focused HSE2 CLI entry points:
+
+```bash
+high-security-encryptor-hse2-create --help
+high-security-encryptor-hse2-open --help
+high-security-encryptor-hse2-header-backup --help
+```
+
+Run at least one portable keyfile archive round trip before release:
+
+```bash
+high-security-encryptor-hse2-create \
+  --root ./plain-root \
+  --output ./archive.hse2 \
+  --keyfile ./archive.key
+
+high-security-encryptor-hse2-open \
+  --input ./archive.hse2 \
+  --output-dir ./restored \
+  --keyfile ./archive.key
+```
+
+Run at least one header backup export/restore check:
+
+```bash
+high-security-encryptor-hse2-header-backup export \
+  --input ./archive.hse2 \
+  --output ./archive.hse2.header
+
+high-security-encryptor-hse2-header-backup restore \
+  --input ./archive.hse2 \
+  --backup ./archive.hse2.header \
+  --output ./restored-header.hse2
+```
+
+On Windows release validation machines, also run one explicit DPAPI create/open round trip:
+
+```bash
+high-security-encryptor-hse2-create \
+  --root ./plain-root \
+  --output ./dpapi-archive.hse2 \
+  --dpapi
+
+high-security-encryptor-hse2-open \
+  --input ./dpapi-archive.hse2 \
+  --output-dir ./dpapi-restored \
+  --dpapi
+```
+
 ## CI
 
 CI must pass on Windows for Python 3.11, 3.12, and 3.13.
@@ -45,6 +97,7 @@ The CI gate includes:
 - committed-secret scan
 - dependency vulnerability audit
 - syntax check with `compileall`
+- focused HSE2 create/open CLI tests
 - full unittest suite
 - console script smoke test
 
@@ -58,8 +111,9 @@ For releases that include a Windows executable:
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
 - Confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip.
+- Confirm HSE2 CLI entry points are available from the extracted package or bundled console executable strategy.
 - Run at least one config validation with the executable.
-- Confirm the executable zip contains no user config files, passwords, keys, or local build caches.
+- Confirm the executable zip contains no user config files, passwords, keys, DPAPI blobs, or local build caches.
 
 ## Compatibility
 
