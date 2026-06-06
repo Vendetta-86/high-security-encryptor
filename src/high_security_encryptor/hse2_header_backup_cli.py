@@ -29,6 +29,17 @@ def build_parser() -> argparse.ArgumentParser:
     restore_parser.add_argument("--input", required=True, help="Source .hse2 container whose body should be preserved.")
     restore_parser.add_argument("--backup", required=True, help="Source .hse2.header backup path.")
     restore_parser.add_argument("--output", required=True, help="Target restored .hse2 container path.")
+    restore_parser.add_argument(
+        "--body-offset",
+        type=int,
+        default=None,
+        help="Manual byte offset where the encrypted container body begins. Overrides backup metadata.",
+    )
+    restore_parser.add_argument(
+        "--no-verify-body-digest",
+        action="store_true",
+        help="Do not verify the encrypted body digest stored in backup metadata.",
+    )
     restore_parser.add_argument("--overwrite", action="store_true", help="Allow replacing an existing restored container.")
     restore_parser.add_argument("--compact", action="store_true", help="Emit compact single-line JSON to stdout.")
 
@@ -56,7 +67,7 @@ def _run_export(args: argparse.Namespace) -> dict[str, Any]:
     output_path = Path(args.output)
     _validate_container_path(input_path, field_name="input")
     _validate_header_backup_path(output_path, field_name="output")
-    header = export_header_backup_from_container(
+    header, metadata = export_header_backup_from_container(
         container_path=input_path,
         backup_path=output_path,
         overwrite=bool(args.overwrite),
@@ -69,6 +80,11 @@ def _run_export(args: argparse.Namespace) -> dict[str, Any]:
         "output_path": str(output_path),
         "wrapper_count": len(header.wrappers),
         "payload_chunk_count": header.payload_layout.chunk_count,
+        "body_offset": metadata.body_offset,
+        "body_size": metadata.body_size,
+        "body_sha256": metadata.body_sha256,
+        "container_size": metadata.container_size,
+        "metadata_written": True,
     }
 
 
@@ -79,13 +95,17 @@ def _run_restore(args: argparse.Namespace) -> dict[str, Any]:
     _validate_container_path(input_path, field_name="input")
     _validate_header_backup_path(backup_path, field_name="backup")
     _validate_container_path(output_path, field_name="output")
-    header = restore_container_header_from_backup(
+    if args.body_offset is not None and args.body_offset < 0:
+        raise ValueError("body-offset must be non-negative")
+    header, metadata = restore_container_header_from_backup(
         container_path=input_path,
         backup_path=backup_path,
         output_path=output_path,
         overwrite=bool(args.overwrite),
+        body_offset=args.body_offset,
+        verify_body_digest=not bool(args.no_verify_body_digest),
     )
-    return {
+    summary = {
         "command": "hse2-header-backup restore",
         "experimental": True,
         "container_written": True,
@@ -94,7 +114,21 @@ def _run_restore(args: argparse.Namespace) -> dict[str, Any]:
         "output_path": str(output_path),
         "wrapper_count": len(header.wrappers),
         "payload_chunk_count": header.payload_layout.chunk_count,
+        "body_digest_verified": bool(metadata is not None and not args.no_verify_body_digest),
+        "metadata_used": metadata is not None,
     }
+    if metadata is not None:
+        summary.update(
+            {
+                "body_offset": metadata.body_offset,
+                "body_size": metadata.body_size,
+                "body_sha256": metadata.body_sha256,
+                "container_size": metadata.container_size,
+            }
+        )
+    if args.body_offset is not None:
+        summary["manual_body_offset"] = args.body_offset
+    return summary
 
 
 def _validate_container_path(path: Path, *, field_name: str) -> None:
