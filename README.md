@@ -61,6 +61,22 @@ high-security-encryptor-gui --smoke-test
 high-security-encryptor-hse2-gui
 ```
 
+## Password Sources
+
+Password fields can be written as direct strings or provider objects:
+
+```json
+"metadata_password": "direct-password"
+"metadata_password": {"type": "literal", "value": "direct-password"}
+"metadata_password": {"type": "env", "name": "HSE_METADATA_PASSWORD"}
+"metadata_password": {"type": "prompt", "prompt": "Metadata password: "}
+"metadata_password": {"type": "file", "path": "C:/protected/metadata.txt"}
+"metadata_password": {"type": "command", "argv": ["python", "-c", "print('example-pass')"]}
+```
+
+The `command` provider accepts only an explicit `argv` array and does not invoke a shell.
+GUI-generated configs use `env` providers by default so typed passwords are not saved as JSON literals.
+
 ## HSE2 CLI Workflows
 
 HSE2 remains experimental, but focused CLI entry points now cover create/open, header backup/restore, metadata-assisted body-offset recovery, and explicit Windows DPAPI create/open workflows.
@@ -107,22 +123,6 @@ high-security-encryptor-hse2-header-backup restore \
 ```
 
 See [HSE2 CLI Workflows](docs/hse2_cli_workflows.md) for detailed usage, recovery metadata, body-offset restore behavior, and safety boundaries.
-
-## Password Sources
-
-Password fields can be written as direct strings or provider objects:
-
-```json
-"metadata_password": "direct-password"
-"metadata_password": {"type": "literal", "value": "direct-password"}
-"metadata_password": {"type": "env", "name": "HSE_METADATA_PASSWORD"}
-"metadata_password": {"type": "prompt", "prompt": "Metadata password: "}
-"metadata_password": {"type": "file", "path": "C:/protected/metadata.txt"}
-"metadata_password": {"type": "command", "argv": ["python", "-c", "print('example-pass')"]}
-```
-
-The `command` provider accepts only an explicit `argv` array and does not invoke a shell.
-GUI-generated configs use `env` providers by default so typed passwords are not saved as JSON literals.
 
 ## Security Modes
 
