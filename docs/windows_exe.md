@@ -1,6 +1,6 @@
 # Windows EXE Distribution
 
-The Windows executable is a PyInstaller build of the same CLI exposed by the Python package. Releases include the command-line executable, the main GUI executable, and the standalone experimental HSE2 GUI executable.
+The Windows executable is a PyInstaller build of the same CLI exposed by the Python package. Releases include the command-line executable, the main GUI executable, the standalone HSE2 GUI executable, and focused HSE2 helper CLI executables.
 
 ## Build Locally
 
@@ -23,19 +23,24 @@ The GitHub Actions workflow builds a zip asset named:
 high-security-encryptor-<tag>-windows-x64.zip
 ```
 
-For release tag `v0.6.0-alpha.1`, the expected asset name is:
+For release tag `v0.6.0-alpha.2`, the expected asset name is:
 
 ```text
-high-security-encryptor-v0.6.0-alpha.1-windows-x64.zip
+high-security-encryptor-v0.6.0-alpha.2-windows-x64.zip
 ```
 
-The Python package version for this release line is `0.6.0a1`.
+The Python package version for this release line is `0.6.0a2`.
 
 The zip should contain:
 
 - `high-security-encryptor.exe`
 - `high-security-encryptor-gui.exe`
 - `high-security-encryptor-hse2-gui.exe`
+- `high-security-encryptor-hse2-create.exe`
+- `high-security-encryptor-hse2-open.exe`
+- `high-security-encryptor-hse2-header-backup.exe`
+- `high-security-encryptor-hse2-wrapper.exe`
+- `high-security-encryptor-hse2-access.exe`
 - `README.md`
 - `windows_exe.md`
 
@@ -44,10 +49,10 @@ The zip should contain:
 Before publishing or announcing the Windows zip:
 
 - confirm the workflow ran against the intended tag;
-- confirm all three executables listed above are present;
+- confirm all executables listed above are present;
 - run `high-security-encryptor.exe --help`;
 - run `high-security-encryptor-gui.exe --smoke-test`;
-- confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip;
+- run each HSE2 helper executable with `--help`;
 - confirm the extracted zip only contains intended release files and bundled examples.
 
 ## Distribution Notes
