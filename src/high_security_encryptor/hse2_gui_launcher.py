@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from contextlib import redirect_stderr, redirect_stdout
 import io
+import json
 import shlex
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, ttk
-from typing import Callable
+from typing import Any, Callable
 
 from .gui import GuiCommandResult, invoke_cli_command
 from .hse2_access_cli import main as hse2_access_main
@@ -100,6 +101,9 @@ class HSE2ExperimentalApp(ttk.Frame):
             result = _invoke_hse2_gui_command(argv)
             if result.stdout:
                 self._append_log(result.stdout)
+                summary = _build_hse2_result_summary(result.stdout)
+                if summary:
+                    self._append_log(summary)
             if result.stderr:
                 self._append_log(result.stderr)
             self._append_log(f"\n退出码：{result.exit_code}\n")
@@ -134,6 +138,108 @@ def _invoke_standalone_helper(main_func: StandaloneCliMain, argv: list[str]) -> 
         stdout=stdout_buffer.getvalue(),
         stderr=stderr_buffer.getvalue(),
     )
+
+
+def _build_hse2_result_summary(stdout: str) -> str:
+    """Build a readable GUI summary for supported HSE2 JSON stdout payloads."""
+
+    payload = _parse_json_stdout(stdout)
+    if not isinstance(payload, dict):
+        return ""
+    command = payload.get("command")
+    if command == "hse2-wrapper list":
+        return _summarize_wrapper_list(payload)
+    if command == "hse2-wrapper remove":
+        return _summarize_wrapper_remove(payload)
+    if command == "hse2-access destroy":
+        return _summarize_access_destroy(payload)
+    return ""
+
+
+def _parse_json_stdout(stdout: str) -> Any:
+    text = stdout.strip()
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+def _summarize_wrapper_list(payload: dict[str, Any]) -> str:
+    wrappers = payload.get("wrappers")
+    if not isinstance(wrappers, list):
+        wrappers = []
+    lines = [
+        "\n结果摘要：\n",
+        f"- 命令：{payload.get('command', 'hse2-wrapper list')}\n",
+        f"- 容器：{payload.get('input_path', '')}\n",
+        f"- access_destroyed：{_format_bool(payload.get('access_destroyed'))}\n",
+        f"- wrapper_count：{payload.get('wrapper_count', len(wrappers))}\n",
+    ]
+    if not wrappers:
+        lines.append("- wrapper 列表：空\n")
+        return "".join(lines)
+    lines.extend([
+        "\nWrapper 列表：\n",
+        "ID | Type | Label | KDF | Created UTC\n",
+        "--- | --- | --- | --- | ---\n",
+    ])
+    for wrapper in wrappers:
+        if not isinstance(wrapper, dict):
+            continue
+        lines.append(
+            " | ".join(
+                [
+                    str(wrapper.get("id", "")),
+                    str(wrapper.get("type", "")),
+                    str(wrapper.get("label") or ""),
+                    str(wrapper.get("kdf_profile") or ("yes" if wrapper.get("has_kdf") else "")),
+                    str(wrapper.get("created_utc", "")),
+                ]
+            )
+            + "\n"
+        )
+    return "".join(lines)
+
+
+def _summarize_wrapper_remove(payload: dict[str, Any]) -> str:
+    return "".join(
+        [
+            "\n结果摘要：\n",
+            f"- 命令：{payload.get('command', 'hse2-wrapper remove')}\n",
+            f"- 输入容器：{payload.get('input_path', '')}\n",
+            f"- 输出容器：{payload.get('output_path', '')}\n",
+            f"- 已移除 wrapper：{payload.get('removed_wrapper_id', '')}\n",
+            f"- 解锁 wrapper 类型：{payload.get('unlocked_wrapper_type', '')}\n",
+            f"- 原 wrapper 数：{payload.get('original_wrapper_count', '')}\n",
+            f"- 剩余 wrapper 数：{payload.get('remaining_wrapper_count', '')}\n",
+            f"- 已写出容器：{_format_bool(payload.get('container_written'))}\n",
+        ]
+    )
+
+
+def _summarize_access_destroy(payload: dict[str, Any]) -> str:
+    return "".join(
+        [
+            "\n结果摘要：\n",
+            f"- 命令：{payload.get('command', 'hse2-access destroy')}\n",
+            f"- 输入容器：{payload.get('input_path', '')}\n",
+            f"- 输出容器：{payload.get('output_path', '')}\n",
+            f"- 已移除 wrapper 数：{payload.get('removed_wrapper_count', '')}\n",
+            f"- access_destroyed：{_format_bool(payload.get('access_destroyed'))}\n",
+            f"- 已写出容器：{_format_bool(payload.get('container_written'))}\n",
+            "- 警告：该输出容器已移除所有解锁 wrapper，数据不可再恢复。\n",
+        ]
+    )
+
+
+def _format_bool(value: Any) -> str:
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    return str(value)
 
 
 def _quote_argv(argv: list[str]) -> str:
