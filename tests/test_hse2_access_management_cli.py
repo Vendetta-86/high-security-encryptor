@@ -20,6 +20,7 @@ from high_security_encryptor.hse2_open_cli import main as open_main
 from high_security_encryptor.hse2_wrapper_cli import main as wrapper_main
 
 DESTROY_CONFIRMATION = "I UNDERSTAND THIS WILL MAKE THE DATA PERMANENTLY UNRECOVERABLE"
+TEST_WRAPPER_PASSWORD = "extra-password"  # pragma: allowlist secret
 
 
 class HSE2AccessManagementCliTests(unittest.TestCase):
@@ -167,7 +168,7 @@ def _append_password_wrapper(container_path: Path, keyfile_path: Path) -> None:
     extra_wrapper = build_password_wrapper(
         wrapper_id="password-2",
         created_utc=container.header.created_utc,
-        password="extra-password",
+        password=TEST_WRAPPER_PASSWORD,
         profile_name="compatible",
         dek=keys.dek,
         mek=keys.mek,
