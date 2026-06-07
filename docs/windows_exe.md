@@ -1,13 +1,10 @@
 # Windows EXE Distribution
 
-The Windows executable is a PyInstaller build of the same CLI exposed by the
-Python package. Releases include the command-line executable, the main GUI
-executable, and the standalone experimental HSE2 GUI executable.
+The Windows executable is a PyInstaller build of the same CLI exposed by the Python package. Releases include the command-line executable, the main GUI executable, and the standalone experimental HSE2 GUI executable.
 
 ## Build Locally
 
-Use a supported Python version, preferably the same Python version used by the
-release workflow.
+Use a supported Python version, preferably the same Python version used by the release workflow.
 
 ```powershell
 python -m pip install -e ".[build]"
@@ -18,24 +15,6 @@ dist\hse-windows-x64\high-security-encryptor.exe --help
 dist\hse-windows-x64\high-security-encryptor-gui.exe --smoke-test
 ```
 
-Double-clicking `high-security-encryptor.exe` shows the CLI help screen. On
-Windows interactive consoles, the program waits for Enter before closing so the
-help text remains visible.
-
-Double-clicking `high-security-encryptor-gui.exe` opens the Chinese GUI. The GUI
-wraps the existing CLI commands for config validation, batch encryption, batch
-decryption, removable-storage BitLocker management, example config generation,
-and a launcher button for the standalone HSE2 experimental tool. Prompt password
-providers are blocked in GUI batch workflows because they can wait on console
-input; use literal, env, file, or command providers instead.
-
-Double-clicking `high-security-encryptor-hse2-gui.exe` opens the standalone
-experimental HSE2 GUI. It wraps existing HSE2 CLI workflows for config-based
-HSE2 encryption, decryption, validation, keyfile rotation, keyfile generation,
-quickstart workspace generation, one-click quickstart execution, and Windows
-DPAPI protection. It does not reimplement HSE2 cryptographic logic in the GUI
-layer.
-
 ## Release Asset
 
 The GitHub Actions workflow builds a zip asset named:
@@ -44,20 +23,21 @@ The GitHub Actions workflow builds a zip asset named:
 high-security-encryptor-<tag>-windows-x64.zip
 ```
 
-The zip contains:
+For release tag `v0.6.0-alpha.1`, the expected asset name is:
+
+```text
+high-security-encryptor-v0.6.0-alpha.1-windows-x64.zip
+```
+
+The Python package version for this release line is `0.6.0a1`.
+
+The zip should contain:
 
 - `high-security-encryptor.exe`
 - `high-security-encryptor-gui.exe`
 - `high-security-encryptor-hse2-gui.exe`
 - `README.md`
-- this Windows executable note
-
-For version `0.5.2`, the intended release tag is `v0.5.2` and the expected asset
-name is:
-
-```text
-high-security-encryptor-v0.5.2-windows-x64.zip
-```
+- `windows_exe.md`
 
 ## Release Verification
 
@@ -68,15 +48,8 @@ Before publishing or announcing the Windows zip:
 - run `high-security-encryptor.exe --help`;
 - run `high-security-encryptor-gui.exe --smoke-test`;
 - confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip;
-- confirm no user-generated quickstart workspace, wrapper material, DPAPI blob,
-  local build cache, or private config file is included.
+- confirm the extracted zip only contains intended release files and bundled examples.
 
-## Security Notes
+## Distribution Notes
 
-The executable does not embed passwords, keys, default secrets, or user config
-files. It only packages the Python runtime, project code, and runtime
-dependencies needed by the CLI and GUI launchers.
-
-Unsigned Windows executables may trigger browser, SmartScreen, or antivirus
-warnings. Code signing can be added later if the project needs broad public
-distribution.
+Unsigned Windows executables may trigger browser, SmartScreen, or antivirus warnings. Code signing can be added later if the project needs broad public distribution.
