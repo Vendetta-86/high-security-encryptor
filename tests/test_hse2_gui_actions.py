@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 
+from high_security_encryptor.hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
 from high_security_encryptor.hse2_gui_actions import build_hse2_gui_command
 
 
@@ -68,6 +69,73 @@ class HSE2GuiActionTests(unittest.TestCase):
             ),
         )
 
+    def test_wrapper_list_action(self) -> None:
+        plan = build_hse2_gui_command(action="wrapper-list", input_path="archive.hse2")
+        self.assertEqual(plan.argv, ("hse2-wrapper", "list", "--input", "archive.hse2"))
+
+    def test_wrapper_remove_action_with_unlock_options(self) -> None:
+        plan = build_hse2_gui_command(
+            action="wrapper-remove",
+            input_path="archive.hse2",
+            output_path="removed.hse2",
+            wrapper_id="password-2",
+            password_file="password.txt",
+            keyfile_path="archive.key",
+            allow_dpapi=True,
+            force=True,
+        )
+        self.assertEqual(
+            plan.argv,
+            (
+                "hse2-wrapper",
+                "remove",
+                "--input",
+                "archive.hse2",
+                "--output",
+                "removed.hse2",
+                "--wrapper-id",
+                "password-2",
+                "--password-file",
+                "password.txt",
+                "--keyfile",
+                "archive.key",
+                "--dpapi",
+                "--overwrite",
+            ),
+        )
+
+    def test_access_destroy_action_requires_exact_phrase(self) -> None:
+        with self.assertRaises(ValueError):
+            build_hse2_gui_command(
+                action="access-destroy",
+                input_path="archive.hse2",
+                output_path="disabled.hse2",
+                access_confirmation_phrase="wrong phrase",
+            )
+
+    def test_access_destroy_action(self) -> None:
+        plan = build_hse2_gui_command(
+            action="access-destroy",
+            input_path="archive.hse2",
+            output_path="disabled.hse2",
+            access_confirmation_phrase=DESTROY_ACCESS_CONFIRMATION_PHRASE,
+            force=True,
+        )
+        self.assertEqual(
+            plan.argv,
+            (
+                "hse2-access",
+                "destroy",
+                "--input",
+                "archive.hse2",
+                "--output",
+                "disabled.hse2",
+                "--confirm",
+                DESTROY_ACCESS_CONFIRMATION_PHRASE,
+                "--overwrite",
+            ),
+        )
+
     def test_missing_required_config_path_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             build_hse2_gui_command(action="encrypt-config", config_path="")
@@ -87,6 +155,15 @@ class HSE2GuiActionTests(unittest.TestCase):
                 input_path="wrapper.key",
                 output_path="wrapper.dpapi",
                 scope="bad-scope",
+            )
+
+    def test_wrapper_remove_requires_wrapper_id(self) -> None:
+        with self.assertRaises(ValueError):
+            build_hse2_gui_command(
+                action="wrapper-remove",
+                input_path="archive.hse2",
+                output_path="removed.hse2",
+                wrapper_id="",
             )
 
 

@@ -17,6 +17,9 @@ Supported actions:
 - `rotate-keyfile` -> `hse2-rotate-keyfile --config ...`
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
 - `dpapi-protect` -> `dpapi-protect --input ... --output ... --scope ... [--force]`
+- `wrapper-list` -> `hse2-wrapper list --input ...`
+- `wrapper-remove` -> `hse2-wrapper remove --input ... --output ... --wrapper-id ... [--password-file ...] [--keyfile ...] [--dpapi] [--overwrite]`
+- `access-destroy` -> `hse2-access destroy --input ... --output ... --confirm ... [--overwrite]`
 
 ## Reusable Experimental Tab Component
 
@@ -24,6 +27,20 @@ Supported actions:
 component and `build_hse2_experimental_tab(...)` helper. The component collects
 paths and options, calls the HSE2 command builders, and delegates execution to an
 injected runner callback.
+
+The tab exposes fields for wrapper/access workflows:
+
+- `.hse2` input container path;
+- output container path;
+- wrapper id;
+- password-file path;
+- keyfile path;
+- DPAPI unlock allowance;
+- exact access-destroy confirmation phrase.
+
+`wrapper-remove` and `access-destroy` display explicit confirmation dialogs before
+execution. `access-destroy` also requires the exact irreversible-access-disable
+confirmation phrase enforced by the access-management CLI.
 
 ## Standalone Launcher
 
@@ -34,9 +51,14 @@ high-security-encryptor-hse2-gui
 ```
 
 It opens a compact `HSE2 实验工具` window with the reusable HSE2 experimental tab
-and a log panel. The launcher delegates execution through the same CLI path used
-by the rest of the GUI, displays stdout/stderr/exit code, and prevents concurrent
-HSE2 command execution.
+and a log panel. The launcher delegates regular HSE2 actions through the same CLI
+path used by the rest of the GUI, displays stdout/stderr/exit code, and prevents
+concurrent HSE2 command execution.
+
+The wrapper/access helper commands are standalone CLI entrypoints, so the launcher
+routes `hse2-wrapper ...` and `hse2-access ...` argv lists directly to the
+corresponding in-process helper CLI main functions. This keeps the GUI boundary
+explicit while still avoiding shelling out to sibling EXE files.
 
 Use this launcher for experimental HSE2 operations without changing the main GUI
 window:
@@ -46,7 +68,10 @@ window:
 - HSE2 validation config;
 - HSE2 keyfile rotation config;
 - keyfile generation;
-- Windows DPAPI protection.
+- Windows DPAPI protection;
+- wrapper list;
+- wrapper remove;
+- explicit access-disable workflow.
 
 ## Main GUI Entry Helper
 
