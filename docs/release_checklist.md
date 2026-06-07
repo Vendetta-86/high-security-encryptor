@@ -5,7 +5,7 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- For release tag `v0.6.0-alpha.1`, confirm Python package version `0.6.0a1`.
+- For release tag `v0.6.0-alpha.2`, confirm Python package version `0.6.0a2`.
 - Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
@@ -15,7 +15,7 @@ Run:
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m compileall -q src tests
+python -m compileall -q src tests build_tools
 python -m unittest discover -s tests
 pre-commit run --all-files
 python -m pip_audit . --progress-spinner off
@@ -137,12 +137,16 @@ The CI gate includes:
 For releases that include a Windows executable:
 
 - Confirm the `Windows EXE` workflow passes for the release tag.
-- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.1-windows-x64.zip`.
+- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.2-windows-x64.zip`.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
 - Confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip.
-- Confirm HSE2 CLI entry points are available from the extracted package or bundled console executable strategy.
+- Confirm `high-security-encryptor-hse2-create.exe` exists and supports `--help`.
+- Confirm `high-security-encryptor-hse2-open.exe` exists and supports `--help`.
+- Confirm `high-security-encryptor-hse2-header-backup.exe` exists and supports `--help`.
+- Confirm `high-security-encryptor-hse2-wrapper.exe` exists and supports `--help`.
+- Confirm `high-security-encryptor-hse2-access.exe` exists and supports `--help`.
 - Run at least one config validation with the executable.
 - Confirm the executable zip contains only intended release files, docs, and bundled examples.
 
