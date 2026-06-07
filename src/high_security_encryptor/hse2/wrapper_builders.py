@@ -36,6 +36,7 @@ class UnwrappedContentKeys:
 
     dek: HSE2KeyMaterial
     mek: HSE2KeyMaterial
+    wrapper: WrapperRecord | None = None
 
 
 def _wrapper_aad(wrapper_type: str) -> bytes:
@@ -165,6 +166,7 @@ def unwrap_wrapper_with_kek(record: WrapperRecord, *, kek: HSE2KeyMaterial) -> U
     return UnwrappedContentKeys(
         dek=HSE2KeyMaterial(purpose="DEK", value=plaintext[:HSE2_KEY_SIZE]),
         mek=HSE2KeyMaterial(purpose="MEK", value=plaintext[HSE2_KEY_SIZE:]),
+        wrapper=record,
     )
 
 
