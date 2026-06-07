@@ -232,6 +232,7 @@ class HSE2Header:
     format_version: int = 2
     header_auth_algorithm: str = "HMAC-SHA256"
     header_auth_tag: str | None = None
+    access_destroyed: bool = False
 
     def __post_init__(self) -> None:
         if self.format != "HSE2":
@@ -242,12 +243,14 @@ class HSE2Header:
             raise HSE2ModelError("created_utc must not be empty")
         if self.header_auth_algorithm != "HMAC-SHA256":
             raise HSE2ModelError(f"unsupported header auth algorithm: {self.header_auth_algorithm}")
+        if not isinstance(self.access_destroyed, bool):
+            raise HSE2ModelError("access_destroyed must be boolean")
 
     def to_dict(self, *, include_auth_tag: bool = True) -> dict[str, Any]:
         header_auth: dict[str, Any] = {"algorithm": self.header_auth_algorithm}
         if include_auth_tag and self.header_auth_tag is not None:
             header_auth["tag"] = self.header_auth_tag
-        return {
+        data = {
             "format": self.format,
             "format_version": self.format_version,
             "created_utc": self.created_utc,
@@ -257,6 +260,9 @@ class HSE2Header:
             "wrappers": [wrapper.to_dict() for wrapper in self.wrappers],
             "header_auth": header_auth,
         }
+        if self.access_destroyed:
+            data["access_destroyed"] = True
+        return data
 
     def canonical_bytes(self, *, include_auth_tag: bool = True) -> bytes:
         """Return deterministic bytes for header authentication or storage."""
