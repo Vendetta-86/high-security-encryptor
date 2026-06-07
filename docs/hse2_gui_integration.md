@@ -60,6 +60,18 @@ routes `hse2-wrapper ...` and `hse2-access ...` argv lists directly to the
 corresponding in-process helper CLI main functions. This keeps the GUI boundary
 explicit while still avoiding shelling out to sibling EXE files.
 
+## Result Summaries
+
+The launcher keeps raw JSON stdout in the log and, for supported wrapper/access
+payloads, appends a readable summary:
+
+- `hse2-wrapper list`: container path, access flag, wrapper count, and a wrapper
+  table with id, type, label, KDF, and creation time;
+- `hse2-wrapper remove`: input/output paths, removed wrapper id, unlock wrapper
+  type, original count, remaining count, and write status;
+- `hse2-access destroy`: input/output paths, removed wrapper count, access flag,
+  write status, and a high-risk operation warning.
+
 Use this launcher for experimental HSE2 operations without changing the main GUI
 window:
 
