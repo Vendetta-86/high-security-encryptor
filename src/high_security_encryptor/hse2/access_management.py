@@ -9,8 +9,9 @@ from typing import Any
 
 from .file_io import read_hse2_container, write_hse2_container
 from .header_auth import attach_header_auth_tag, require_valid_header_auth_tag
-from .models import HSE2Header, HSE2ModelError, WrapperRecord
-from .unlock import HSE2UnlockFactors, unlock_first_matching_wrapper
+from .models import HSE2ModelError, WrapperRecord
+from .unlock import HSE2UnlockFactors, unlock_wrapper
+from .wrapper_builders import UnwrappedContentKeys
 
 DESTROY_ACCESS_CONFIRMATION_PHRASE = "I UNDERSTAND THIS WILL MAKE THE DATA PERMANENTLY UNRECOVERABLE"
 
@@ -104,6 +105,12 @@ class HSE2AccessDestroyResult:
         }
 
 
+@dataclass(frozen=True)
+class _SelectedUnlock:
+    wrapper: WrapperRecord
+    keys: UnwrappedContentKeys
+
+
 def list_hse2_wrappers(input_path: str | os.PathLike[str]) -> HSE2WrapperListResult:
     """Return safe metadata for all wrappers in an HSE2 container."""
 
@@ -141,8 +148,8 @@ def remove_hse2_wrapper(
         raise HSE2ModelError("cannot remove wrappers from an access-destroyed HSE2 container")
 
     factors = HSE2UnlockFactors(password=password, keyfile_bytes=keyfile_bytes, allow_dpapi=allow_dpapi)
-    unlocked = unlock_first_matching_wrapper(header.wrappers, factors=factors)
-    require_valid_header_auth_tag(header, mek=unlocked.mek)
+    selected = _unlock_first_matching_wrapper_with_record(header.wrappers, factors=factors)
+    require_valid_header_auth_tag(header, mek=selected.keys.mek)
 
     original_count = len(header.wrappers)
     remaining_wrappers = tuple(wrapper for wrapper in header.wrappers if wrapper.id != wrapper_id)
@@ -152,7 +159,7 @@ def remove_hse2_wrapper(
         raise HSE2ModelError("cannot remove the last wrapper; use hse2-access destroy for explicit access destruction")
 
     new_header = replace(header, wrappers=remaining_wrappers, access_destroyed=False, header_auth_tag=None)
-    new_header = attach_header_auth_tag(new_header, mek=unlocked.mek)
+    new_header = attach_header_auth_tag(new_header, mek=selected.keys.mek)
     write_hse2_container(
         output_target,
         header=new_header,
@@ -164,7 +171,7 @@ def remove_hse2_wrapper(
         input_path=str(input_target),
         output_path=str(output_target),
         removed_wrapper_id=wrapper_id,
-        unlocked_wrapper_type=unlocked.wrapper.type,
+        unlocked_wrapper_type=selected.wrapper.type,
         original_wrapper_count=original_count,
         remaining_wrapper_count=len(remaining_wrappers),
     )
@@ -205,6 +212,36 @@ def destroy_hse2_access(
         removed_wrapper_count=removed_count,
         access_destroyed=True,
     )
+
+
+def _unlock_first_matching_wrapper_with_record(
+    records: tuple[WrapperRecord, ...],
+    *,
+    factors: HSE2UnlockFactors,
+) -> _SelectedUnlock:
+    errors: list[str] = []
+    for record in records:
+        if not _factors_can_attempt(record, factors):
+            continue
+        try:
+            return _SelectedUnlock(wrapper=record, keys=unlock_wrapper(record, factors=factors))
+        except HSE2ModelError as exc:
+            errors.append(str(exc))
+    if errors:
+        raise HSE2ModelError("no wrapper could be unlocked with supplied factors")
+    raise HSE2ModelError("no wrapper is compatible with supplied factors")
+
+
+def _factors_can_attempt(record: WrapperRecord, factors: HSE2UnlockFactors) -> bool:
+    if record.type == "password":
+        return factors.password is not None
+    if record.type == "keyfile":
+        return factors.keyfile_bytes is not None
+    if record.type == "password_keyfile":
+        return factors.password is not None and factors.keyfile_bytes is not None
+    if record.type == "dpapi":
+        return factors.allow_dpapi
+    return False
 
 
 def _summarize_wrapper(wrapper: WrapperRecord) -> HSE2WrapperSummary:
