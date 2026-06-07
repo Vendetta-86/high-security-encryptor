@@ -62,6 +62,40 @@ high-security-encryptor-hse2-open \
 
 DPAPI mode is intentionally explicit. The conservative CLI workflow creates one wrapper at a time, so `--dpapi` is not combined with password or keyfile wrapper material by these commands.
 
+## Wrapper List and Remove
+
+List safe wrapper metadata without decrypting manifest or payload content:
+
+```bash
+high-security-encryptor-hse2-wrapper list \
+  --input <ARCHIVE_PATH>
+```
+
+Remove one wrapper after authenticating the current header with another valid unlock factor:
+
+```bash
+high-security-encryptor-hse2-wrapper remove \
+  --input <ARCHIVE_PATH> \
+  --output <ARCHIVE_WITHOUT_WRAPPER_PATH> \
+  --wrapper-id <WRAPPER_ID> \
+  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
+```
+
+`wrapper remove` refuses to remove the last wrapper. Use `hse2-access destroy` only for explicit access destruction.
+
+## Destroy Access
+
+Write a copy of a container with all unlock wrappers removed:
+
+```bash
+high-security-encryptor-hse2-access destroy \
+  --input <ARCHIVE_PATH> \
+  --output <DESTROYED_ARCHIVE_PATH> \
+  --confirm "I UNDERSTAND THIS WILL MAKE THE DATA PERMANENTLY UNRECOVERABLE"
+```
+
+This does not delete or overwrite the encrypted payload. It removes the wrapper metadata needed to recover DEK/MEK and writes an `access_destroyed` marker in the header. Without an external header backup or another valid copy of the original header, the destroyed output is intentionally unrecoverable.
+
 ## Header Backup Export and Restore
 
 Export a header backup from a complete `.hse2` container:
@@ -118,10 +152,9 @@ These CLI workflows intentionally do not add:
 - hidden volumes;
 - duress or decoy unlock behavior;
 - automatic deletion of user keyfiles;
-- multi-wrapper policy management beyond one explicit create mode per archive;
 - in-place mutation of user archives.
 
-Use `--overwrite` only when replacing an output file is intentional.
+Output-writing commands create a new container path by default. Use `--overwrite` only when replacing an output file is intentional.
 
 ## Verification
 
