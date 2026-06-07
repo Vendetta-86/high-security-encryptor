@@ -113,6 +113,9 @@ def hse2_header_from_dict(data: dict[str, Any]) -> HSE2Header:
     header_auth = data.get("header_auth")
     if not isinstance(header_auth, dict):
         raise HSE2ModelError("HSE2 header_auth must be a dictionary")
+    access_destroyed = data.get("access_destroyed", False)
+    if not isinstance(access_destroyed, bool):
+        raise HSE2ModelError("HSE2 access_destroyed must be boolean")
 
     return HSE2Header(
         created_utc=_required_str(data, "created_utc"),
@@ -124,6 +127,7 @@ def hse2_header_from_dict(data: dict[str, Any]) -> HSE2Header:
         format_version=_required_int(data, "format_version"),
         header_auth_algorithm=_required_str(header_auth, "algorithm"),
         header_auth_tag=header_auth.get("tag") if isinstance(header_auth.get("tag"), str) else None,
+        access_destroyed=access_destroyed,
     )
 
 
