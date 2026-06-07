@@ -2,14 +2,27 @@
 
 from __future__ import annotations
 
+from contextlib import redirect_stderr, redirect_stdout
+import io
 import shlex
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, ttk
+from typing import Callable
 
-from .gui import invoke_cli_command
+from .gui import GuiCommandResult, invoke_cli_command
+from .hse2_access_cli import main as hse2_access_main
 from .hse2_gui_tab import build_hse2_experimental_tab
 from .hse2_quickstart_gui_tab import build_hse2_quickstart_tab
 from .hse2_quickstart_wizard import HSE2QuickstartCommandStep, HSE2QuickstartWorkspace
+from .hse2_wrapper_cli import main as hse2_wrapper_main
+
+
+StandaloneCliMain = Callable[[list[str] | None], int]
+
+HSE2_STANDALONE_HELPER_COMMANDS: dict[str, StandaloneCliMain] = {
+    "hse2-wrapper": hse2_wrapper_main,
+    "hse2-access": hse2_access_main,
+}
 
 
 class HSE2ExperimentalApp(ttk.Frame):
@@ -84,7 +97,7 @@ class HSE2ExperimentalApp(ttk.Frame):
 
     def _execute(self, argv: list[str]) -> None:
         try:
-            result = invoke_cli_command(argv)
+            result = _invoke_hse2_gui_command(argv)
             if result.stdout:
                 self._append_log(result.stdout)
             if result.stderr:
@@ -101,6 +114,26 @@ class HSE2ExperimentalApp(ttk.Frame):
     def _append_log(self, text: str) -> None:
         self.log.insert(tk.END, text)
         self.log.see(tk.END)
+
+
+def _invoke_hse2_gui_command(argv: list[str]) -> GuiCommandResult:
+    """Dispatch GUI-built HSE2 commands to the correct in-process CLI entrypoint."""
+
+    if argv and argv[0] in HSE2_STANDALONE_HELPER_COMMANDS:
+        return _invoke_standalone_helper(HSE2_STANDALONE_HELPER_COMMANDS[argv[0]], argv[1:])
+    return invoke_cli_command(argv)
+
+
+def _invoke_standalone_helper(main_func: StandaloneCliMain, argv: list[str]) -> GuiCommandResult:
+    stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
+    with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
+        exit_code = main_func(argv)
+    return GuiCommandResult(
+        exit_code=exit_code,
+        stdout=stdout_buffer.getvalue(),
+        stderr=stderr_buffer.getvalue(),
+    )
 
 
 def _quote_argv(argv: list[str]) -> str:
