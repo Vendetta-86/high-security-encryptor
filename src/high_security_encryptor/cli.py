@@ -413,6 +413,7 @@ def _handle_hse2_inspect(args: argparse.Namespace) -> dict[str, Any]:
         "cipher_suite": header.cipher_suite.to_dict(),
         "manifest_policy": header.manifest_policy.to_dict(),
         "payload_layout": header.payload_layout.to_dict(),
+        "access_destroyed": header.access_destroyed,
         "wrapper_count": len(header.wrappers),
         "wrapper_types": [wrapper.type for wrapper in header.wrappers],
         "header_auth_algorithm": header.header_auth_algorithm,
@@ -509,22 +510,21 @@ def _handle_validate_config(args: argparse.Namespace) -> dict[str, Any]:
         summary["summary_only"] = bool(args.summary_only)
         summary["included_codes"] = sorted(include_codes) if include_codes is not None else None
         summary["excluded_codes"] = sorted(exclude_codes) if exclude_codes is not None else None
-        if args.format == "text":
-            summary["__raw_stdout__"] = render_validation_report_summary_text(summary) if args.summary_only else render_validation_report_text(summary)
-        maybe_write_validation_report(args=args, summary=summary)
         if args.summary_only:
-            summary["__summary_payload__"] = build_validation_report_summary_payload(summary)
+            summary_payload = build_validation_report_summary_payload(summary)
+            maybe_write_validation_report(args.output, render_validation_report_text(summary) if args.format == "text" else summary)
+            return {
+                "__summary_payload__": summary_payload,
+                **summary,
+            }
+        maybe_write_validation_report(args.output, render_validation_report_text(summary) if args.format == "text" else summary)
+        if args.format == "text":
+            return {
+                "__raw_stdout__": render_validation_report_text(summary),
+                **summary,
+            }
         return summary
-    if args.kind == "encrypt":
-        config = _load_config_file(config_path, BatchEncryptionConfig.from_json_file, "encryption")
-        if args.strict:
-            raise_for_issues(collect_encryption_config_strict_issues(config))
-    else:
-        config = _load_config_file(config_path, BatchDecryptionConfig.from_json_file, "decryption")
-        if args.strict:
-            raise_for_issues(collect_decryption_config_strict_issues(config))
-    return {"command": "validate-config", "kind": args.kind, "config_path": str(config_path), "security_mode": config.security_mode, "strict": bool(args.strict), "report": False, "format": "json", "exit_code_on_issues": False, "warnings_as_errors": False, "output_path": None, "summary_only": False, "included_codes": None, "excluded_codes": None, "valid": True}
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+    config = BatchEncryptionConfig.from_json_file(config_path) if args.kind == "encrypt" else BatchDecryptionConfig.from_json_file(config_path)
+    issues = collect_encryption_config_strict_issues(config) if args.kind == "encrypt" else collect_decryption_config_strict_issues(config)
+    raise_for_issues(issues, warnings_as_errors=bool(args.warnings_as_errors))
+    return {"command": "validate-config", "kind": args.kind, "valid": True, "strict": bool(args.strict)}
