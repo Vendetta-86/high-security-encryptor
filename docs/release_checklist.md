@@ -45,6 +45,7 @@ Before release, review `docs/hse2_threat_model.md` against the shipped HSE2 beha
 - Windows DPAPI behavior;
 - header backup and body-offset recovery metadata;
 - quickstart workspace generation and one-click execution;
+- wrapper metadata and access-marker CLI behavior;
 - release artifact exclusions for user-generated files.
 
 ## HSE2 CLI Verification
@@ -55,6 +56,8 @@ Run help checks for the focused HSE2 CLI entry points:
 high-security-encryptor-hse2-create --help
 high-security-encryptor-hse2-open --help
 high-security-encryptor-hse2-header-backup --help
+high-security-encryptor-hse2-wrapper --help
+high-security-encryptor-hse2-access --help
 ```
 
 Run at least one portable keyfile archive round trip before release. Replace angle-bracketed values with local validation paths:
@@ -82,6 +85,23 @@ high-security-encryptor-hse2-header-backup restore \
   --input <ARCHIVE_PATH> \
   --backup <HEADER_BACKUP_PATH> \
   --output <RESTORED_ARCHIVE_PATH>
+```
+
+Run at least one wrapper metadata check:
+
+```bash
+high-security-encryptor-hse2-wrapper list \
+  --input <ARCHIVE_PATH>
+```
+
+For wrapper removal checks, use a disposable multi-wrapper fixture and write to a new output path:
+
+```bash
+high-security-encryptor-hse2-wrapper remove \
+  --input <MULTI_WRAPPER_ARCHIVE_PATH> \
+  --output <UPDATED_ARCHIVE_PATH> \
+  --wrapper-id <WRAPPER_ID> \
+  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
 
 On Windows release validation machines, also run one explicit DPAPI create/open round trip:
