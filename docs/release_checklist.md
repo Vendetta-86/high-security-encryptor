@@ -5,7 +5,7 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- For release tag `v0.6.0-alpha.2`, confirm Python package version `0.6.0a2`.
+- For release tag `v0.6.0-alpha.3`, confirm Python package version `0.6.0a3`.
 - Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
@@ -39,13 +39,15 @@ Compatible-mode examples may emit warning issues because they intentionally gene
 
 ## HSE2 Documentation Review
 
-Before release, review `docs/hse2_threat_model.md` against the shipped HSE2 behavior. Confirm it still matches:
+Before release, review `docs/hse2_threat_model.md`, `docs/hse2_cli_workflows.md`, and `docs/hse2_gui_integration.md` against the shipped HSE2 behavior. Confirm they still match:
 
 - wrapper factors and portability boundaries;
 - Windows DPAPI behavior;
 - header backup and body-offset recovery metadata;
 - quickstart workspace generation and one-click execution;
 - wrapper metadata and access-marker CLI behavior;
+- HSE2 GUI wrapper/access management;
+- HSE2 GUI raw JSON plus readable result summaries;
 - release artifact exclusions for user-generated files.
 
 ## HSE2 CLI Verification
@@ -104,6 +106,15 @@ high-security-encryptor-hse2-wrapper remove \
   --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
 
+For access destruction checks, use a disposable archive and write to a new output path:
+
+```bash
+high-security-encryptor-hse2-access destroy \
+  --input <ARCHIVE_PATH> \
+  --output <DESTROYED_ARCHIVE_PATH> \
+  --confirm "I UNDERSTAND THIS WILL MAKE THE DATA PERMANENTLY UNRECOVERABLE"
+```
+
 On Windows release validation machines, also run one explicit DPAPI create/open round trip:
 
 ```bash
@@ -117,6 +128,23 @@ high-security-encryptor-hse2-open \
   --output-dir <DPAPI_RESTORE_DIR> \
   --dpapi
 ```
+
+## HSE2 GUI Verification
+
+Run the standalone HSE2 GUI:
+
+```bash
+high-security-encryptor-hse2-gui
+```
+
+Confirm:
+
+- wrapper list runs against a disposable `.hse2` archive;
+- wrapper remove shows a destructive confirmation before execution;
+- access destroy shows a destructive confirmation before execution;
+- access destroy refuses an incorrect confirmation phrase;
+- raw JSON output remains visible in the log;
+- wrapper/access readable summaries appear below supported JSON payloads.
 
 ## CI
 
@@ -137,7 +165,7 @@ The CI gate includes:
 For releases that include a Windows executable:
 
 - Confirm the `Windows EXE` workflow passes for the release tag.
-- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.2-windows-x64.zip`.
+- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.3-windows-x64.zip`.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
