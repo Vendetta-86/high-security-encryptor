@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：P11 Windows EXE 本地验收完成；P12 第一段、第二段已合并；HSE2 wrapper/access GUI 已可用并具备可读结果摘要。
+- **当前状态**：P11 Windows EXE 本地验收完成；P12 第一段、第二段已合并；`v0.6.0-alpha.3` 发布准备进行中。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -77,7 +77,7 @@
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [~] | 元数据最小化 | encrypted manifest/store_original_paths=false 已落地；随机名/padding 仍需补齐 |
 | Phase 10 | [~] | GUI / CLI 完整闭环 | helper CLI 与 HSE2 GUI 可用；统一子命令树和完整向导仍需补齐 |
-| Phase 11 | [~] | 测试与发布 | v0.6.0-alpha.2 与 Windows EXE 验收完成；alpha.3 尚未发布 |
+| Phase 11 | [~] | 测试与发布 | v0.6.0-alpha.3 release-prep 已建立，待 CI/本地验收与发布 |
 
 ---
 
@@ -385,7 +385,7 @@ python -m pip_audit . --progress-spinner off
 |---|---|---|
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
-| `v0.6.0-alpha.3` | [~] | P12 GUI wrapper/access 与结果摘要后的下一条 alpha 线 |
+| `v0.6.0-alpha.3` | [~] | P12 GUI wrapper/access 与结果摘要后的下一条 alpha 线，release-prep 已建立 |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
@@ -438,4 +438,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-06-07：发布并本地验收 `v0.6.0-alpha.2`，确认 8 个 Windows EXE。Commit: `808d91362138dc060e84c5fbc816b5777e425c46`
 - 2026-06-07：P12 第一段合并，HSE2 GUI 接入 wrapper/access 管理。Merge commit: `c7b3f8f56a7c3eb6cb5206eaafa83a8fd5ffbf1b`
 - 2026-06-07：P12 第二段合并，HSE2 GUI wrapper/access JSON 日志新增可读结果摘要。Merge commit: `fab8c6b1e74fbe057430728071ea5cdd700564b9`
-- 2026-06-07：根据当前 HSE2 alpha 进度更新本计划勾选状态。Commit: 本 PR
+- 2026-06-07：根据当前 HSE2 alpha 进度更新本计划勾选状态。Commit: `918c4cdd17b245924bef7627b9312cf095de294a`
+- 2026-06-07：准备 `v0.6.0-alpha.3` release-prep，更新版本号和发布验收清单。Commit: 本 PR

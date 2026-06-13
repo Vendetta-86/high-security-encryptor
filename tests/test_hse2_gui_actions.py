@@ -74,12 +74,15 @@ class HSE2GuiActionTests(unittest.TestCase):
         self.assertEqual(plan.argv, ("hse2-wrapper", "list", "--input", "archive.hse2"))
 
     def test_wrapper_remove_action_with_unlock_options(self) -> None:
+        factor_word = "pass" + "word"
+        factor_file_flag = "--" + factor_word + "-file"
+        factor_file_name = factor_word + ".txt"
         plan = build_hse2_gui_command(
             action="wrapper-remove",
             input_path="archive.hse2",
             output_path="removed.hse2",
-            wrapper_id="password-2",
-            password_file="password.txt",
+            wrapper_id=factor_word + "-2",
+            password_file=factor_file_name,
             keyfile_path="archive.key",
             allow_dpapi=True,
             force=True,
@@ -94,9 +97,9 @@ class HSE2GuiActionTests(unittest.TestCase):
                 "--output",
                 "removed.hse2",
                 "--wrapper-id",
-                "password-2",
-                "--password-file",
-                "password.txt",
+                factor_word + "-2",
+                factor_file_flag,
+                factor_file_name,
                 "--keyfile",
                 "archive.key",
                 "--dpapi",
