@@ -5,7 +5,7 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- For release tag `v0.6.0-alpha.3`, confirm Python package version `0.6.0a3`.
+- For release tag `v0.6.0-alpha.4`, confirm Python package version `0.6.0a4`.
 - Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
@@ -39,11 +39,12 @@ Compatible-mode examples may emit warning issues because they intentionally gene
 
 ## HSE2 Documentation Review
 
-Before release, review `docs/hse2_threat_model.md`, `docs/hse2_cli_workflows.md`, and `docs/hse2_gui_integration.md` against the shipped HSE2 behavior. Confirm they still match:
+Before release, review `docs/hse2_threat_model.md`, `docs/hse2_cli_workflows.md`, `docs/hse2_gui_integration.md`, `docs/hse2_format.md`, and `docs/hse2_framing_reference.md` against the shipped HSE2 behavior. Confirm they still match:
 
 - wrapper factors and portability boundaries;
 - Windows DPAPI behavior;
 - header backup and body-offset recovery metadata;
+- inspect metadata output boundaries;
 - quickstart workspace generation and one-click execution;
 - wrapper metadata and access-marker CLI behavior;
 - HSE2 GUI wrapper/access management;
@@ -58,6 +59,7 @@ Run help checks for the focused HSE2 CLI entry points:
 high-security-encryptor-hse2-create --help
 high-security-encryptor-hse2-open --help
 high-security-encryptor-hse2-header-backup --help
+high-security-encryptor-hse2-inspect --help
 high-security-encryptor-hse2-wrapper --help
 high-security-encryptor-hse2-access --help
 ```
@@ -75,6 +77,15 @@ high-security-encryptor-hse2-open \
   --output-dir <RESTORE_DIR> \
   --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
+
+Run at least one inspect check against the created archive:
+
+```bash
+high-security-encryptor-hse2-inspect \
+  --input <ARCHIVE_PATH>
+```
+
+Confirm inspect output includes non-secret metadata only, such as format version, wrapper count/types, manifest policy, and payload chunk count.
 
 Run at least one header backup export/restore check:
 
@@ -106,13 +117,13 @@ high-security-encryptor-hse2-wrapper remove \
   --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
 
-For access destruction checks, use a disposable archive and write to a new output path:
+For access-marker checks, use a disposable archive and write to a new output path:
 
 ```bash
 high-security-encryptor-hse2-access destroy \
   --input <ARCHIVE_PATH> \
-  --output <DESTROYED_ARCHIVE_PATH> \
-  --confirm "I UNDERSTAND THIS WILL MAKE THE DATA PERMANENTLY UNRECOVERABLE"
+  --output <UPDATED_ARCHIVE_PATH> \
+  --confirm <CONFIRMATION_PHRASE>
 ```
 
 On Windows release validation machines, also run one explicit DPAPI create/open round trip:
@@ -156,7 +167,7 @@ The CI gate includes:
 - committed-secret scan
 - dependency vulnerability audit
 - syntax check with `compileall`
-- focused HSE2 create/open CLI tests
+- focused HSE2 create/open/inspect CLI tests
 - full unittest suite
 - console script smoke test
 
@@ -165,7 +176,7 @@ The CI gate includes:
 For releases that include a Windows executable:
 
 - Confirm the `Windows EXE` workflow passes for the release tag.
-- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.3-windows-x64.zip`.
+- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.4-windows-x64.zip`.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
@@ -173,6 +184,7 @@ For releases that include a Windows executable:
 - Confirm `high-security-encryptor-hse2-create.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-open.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-header-backup.exe` exists and supports `--help`.
+- Confirm `high-security-encryptor-hse2-inspect.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-wrapper.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-access.exe` exists and supports `--help`.
 - Run at least one config validation with the executable.
