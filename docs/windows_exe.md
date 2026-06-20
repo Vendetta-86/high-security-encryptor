@@ -11,8 +11,10 @@ python -m pip install -e ".[build]"
 python -m PyInstaller --clean --noconfirm --onefile --console --name high-security-encryptor --paths src --distpath dist\hse-windows-x64 --workpath build\hse-pyinstaller --specpath build\hse-spec build_tools\pyinstaller_entry.py
 python -m PyInstaller --clean --noconfirm --onefile --windowed --name high-security-encryptor-gui --paths src --distpath dist\hse-windows-x64 --workpath build\hse-gui-pyinstaller --specpath build\hse-gui-spec build_tools\pyinstaller_gui_entry.py
 python -m PyInstaller --clean --noconfirm --onefile --windowed --name high-security-encryptor-hse2-gui --paths src --distpath dist\hse-windows-x64 --workpath build\hse2-gui-pyinstaller --specpath build\hse2-gui-spec build_tools\pyinstaller_hse2_gui_entry.py
+python -m PyInstaller --clean --noconfirm --onefile --console --name high-security-encryptor-hse2-inspect --paths src --distpath dist\hse-windows-x64 --workpath build\hse2-inspect-pyinstaller --specpath build\hse2-inspect-spec build_tools\pyinstaller_hse2_inspect_entry.py
 dist\hse-windows-x64\high-security-encryptor.exe --help
 dist\hse-windows-x64\high-security-encryptor-gui.exe --smoke-test
+dist\hse-windows-x64\high-security-encryptor-hse2-inspect.exe --help
 ```
 
 ## Release Asset
@@ -23,13 +25,13 @@ The GitHub Actions workflow builds a zip asset named:
 high-security-encryptor-<tag>-windows-x64.zip
 ```
 
-For release tag `v0.6.0-alpha.2`, the expected asset name is:
+For release tag `v0.6.0-alpha.4`, the expected asset name is:
 
 ```text
-high-security-encryptor-v0.6.0-alpha.2-windows-x64.zip
+high-security-encryptor-v0.6.0-alpha.4-windows-x64.zip
 ```
 
-The Python package version for this release line is `0.6.0a2`.
+The Python package version for this release line is `0.6.0a4`.
 
 The zip should contain:
 
@@ -39,6 +41,7 @@ The zip should contain:
 - `high-security-encryptor-hse2-create.exe`
 - `high-security-encryptor-hse2-open.exe`
 - `high-security-encryptor-hse2-header-backup.exe`
+- `high-security-encryptor-hse2-inspect.exe`
 - `high-security-encryptor-hse2-wrapper.exe`
 - `high-security-encryptor-hse2-access.exe`
 - `README.md`
@@ -53,6 +56,7 @@ Before publishing or announcing the Windows zip:
 - run `high-security-encryptor.exe --help`;
 - run `high-security-encryptor-gui.exe --smoke-test`;
 - run each HSE2 helper executable with `--help`;
+- run `high-security-encryptor-hse2-inspect.exe --help`;
 - confirm the extracted zip only contains intended release files and bundled examples.
 
 ## Distribution Notes
