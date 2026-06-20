@@ -48,6 +48,7 @@ high-security-encryptor-hse2-create = "high_security_encryptor.hse2_create_cli:m
 high-security-encryptor-hse2-open = "high_security_encryptor.hse2_open_cli:main"
 high-security-encryptor-hse2-header-backup = "high_security_encryptor.hse2_header_backup_cli:main"
 high-security-encryptor-hse2-plan-archive = "high_security_encryptor.hse2_archive_plan_cli:main"
+high-security-encryptor-hse2-inspect = "high_security_encryptor.hse2_inspect_cli:main"
 high-security-encryptor-hse2-wrapper = "high_security_encryptor.hse2_wrapper_cli:main"
 high-security-encryptor-hse2-access = "high_security_encryptor.hse2_access_cli:main"
 
