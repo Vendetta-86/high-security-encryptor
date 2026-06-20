@@ -56,6 +56,7 @@ jobs:
           high-security-encryptor-hse2-create --help
           high-security-encryptor-hse2-open --help
           high-security-encryptor-hse2-header-backup --help
+          high-security-encryptor-hse2-inspect --help
           high-security-encryptor-hse2-wrapper --help
           high-security-encryptor-hse2-access --help
 
@@ -108,6 +109,7 @@ jobs:
             @{ Name = "high-security-encryptor-hse2-create"; Entry = "build_tools\pyinstaller_hse2_create_entry.py"; Work = "build\hse2-create-pyinstaller"; Spec = "build\hse2-create-spec" },
             @{ Name = "high-security-encryptor-hse2-open"; Entry = "build_tools\pyinstaller_hse2_open_entry.py"; Work = "build\hse2-open-pyinstaller"; Spec = "build\hse2-open-spec" },
             @{ Name = "high-security-encryptor-hse2-header-backup"; Entry = "build_tools\pyinstaller_hse2_header_backup_entry.py"; Work = "build\hse2-header-backup-pyinstaller"; Spec = "build\hse2-header-backup-spec" },
+            @{ Name = "high-security-encryptor-hse2-inspect"; Entry = "build_tools\pyinstaller_hse2_inspect_entry.py"; Work = "build\hse2-inspect-pyinstaller"; Spec = "build\hse2-inspect-spec" },
             @{ Name = "high-security-encryptor-hse2-wrapper"; Entry = "build_tools\pyinstaller_hse2_wrapper_entry.py"; Work = "build\hse2-wrapper-pyinstaller"; Spec = "build\hse2-wrapper-spec" },
             @{ Name = "high-security-encryptor-hse2-access"; Entry = "build_tools\pyinstaller_hse2_access_entry.py"; Work = "build\hse2-access-pyinstaller"; Spec = "build\hse2-access-spec" }
           )
@@ -136,6 +138,7 @@ jobs:
             "high-security-encryptor-hse2-create.exe",
             "high-security-encryptor-hse2-open.exe",
             "high-security-encryptor-hse2-header-backup.exe",
+            "high-security-encryptor-hse2-inspect.exe",
             "high-security-encryptor-hse2-wrapper.exe",
             "high-security-encryptor-hse2-access.exe"
           )
@@ -147,6 +150,7 @@ jobs:
           dist\hse-windows-x64\high-security-encryptor-hse2-create.exe --help
           dist\hse-windows-x64\high-security-encryptor-hse2-open.exe --help
           dist\hse-windows-x64\high-security-encryptor-hse2-header-backup.exe --help
+          dist\hse-windows-x64\high-security-encryptor-hse2-inspect.exe --help
           dist\hse-windows-x64\high-security-encryptor-hse2-wrapper.exe --help
           dist\hse-windows-x64\high-security-encryptor-hse2-access.exe --help
 
@@ -164,6 +168,7 @@ jobs:
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-hse2-create.exe" "$staging\high-security-encryptor-hse2-create.exe"
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-hse2-open.exe" "$staging\high-security-encryptor-hse2-open.exe"
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-hse2-header-backup.exe" "$staging\high-security-encryptor-hse2-header-backup.exe"
+          Copy-Item "dist\hse-windows-x64\high-security-encryptor-hse2-inspect.exe" "$staging\high-security-encryptor-hse2-inspect.exe"
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-hse2-wrapper.exe" "$staging\high-security-encryptor-hse2-wrapper.exe"
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-hse2-access.exe" "$staging\high-security-encryptor-hse2-access.exe"
           Copy-Item "README.md" "$staging\README.md"
