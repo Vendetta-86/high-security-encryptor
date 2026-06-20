@@ -62,6 +62,29 @@ high-security-encryptor-hse2-open \
 
 DPAPI mode is intentionally explicit. The conservative CLI workflow creates one wrapper at a time, so `--dpapi` is not combined with password or keyfile wrapper material by these commands.
 
+## Inspect Container Metadata
+
+Inspect safe container metadata without unlocking the archive or decrypting manifest/payload content:
+
+```bash
+high-security-encryptor-hse2-inspect \
+  --input <ARCHIVE_PATH>
+```
+
+The inspect output includes non-secret metadata such as:
+
+- HSE2 format version;
+- preamble header length;
+- creation timestamp;
+- header auth algorithm and tag presence;
+- access status marker;
+- cipher suite names;
+- manifest policy;
+- payload chunk count;
+- wrapper count and wrapper types.
+
+It intentionally does not print ciphertext, nonces, auth tags, wrapped key blobs, raw key material, passwords, or keyfile bytes.
+
 ## Wrapper Metadata and Removal
 
 List safe wrapper metadata without decrypting manifest or payload content:
