@@ -16,6 +16,7 @@ HSE2_GUI_ACTIONS = (
     "encrypt-config",
     "decrypt-config",
     "validate",
+    "inspect",
     "rotate-keyfile",
     "generate-keyfile",
     "dpapi-protect",
@@ -28,6 +29,7 @@ HSE2_GUI_ACTION_LABELS = {
     "encrypt-config": "HSE2 加密配置",
     "decrypt-config": "HSE2 解密配置",
     "validate": "HSE2 只读校验",
+    "inspect": "检查 HSE2 元数据",
     "rotate-keyfile": "HSE2 keyfile 轮换",
     "generate-keyfile": "生成 keyfile",
     "dpapi-protect": "Windows DPAPI 保护 keyfile",
@@ -81,6 +83,12 @@ def build_hse2_gui_command(
         if validation_exit_code_on_failure:
             args.append("--exit-code-on-failure")
         argv = tuple(args)
+    elif normalized_action == "inspect":
+        argv = (
+            "hse2-inspect",
+            "--input",
+            _require_text(input_path, "请选择要检查元数据的 .hse2 容器。"),
+        )
     elif normalized_action == "rotate-keyfile":
         argv = ("hse2-rotate-keyfile", "--config", _require_text(config_path, "请选择 HSE2 keyfile 轮换配置文件。"))
     elif normalized_action == "generate-keyfile":
