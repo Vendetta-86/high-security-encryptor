@@ -26,6 +26,31 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("invoke_cli_command", runner_source)
         self.assertIn("result.exit_code != 0", runner_source)
 
+    def test_inspect_summary_reports_safe_metadata(self) -> None:
+        summary = _build_hse2_result_summary(
+            json.dumps(
+                {
+                    "command": "hse2-inspect",
+                    "input_path": "archive.hse2",
+                    "format_version": 2,
+                    "container_size": 4096,
+                    "wrapper_count": 1,
+                    "wrapper_types": ["keyfile"],
+                    "payload_chunk_count": 3,
+                    "manifest_encrypted": True,
+                    "access_destroyed": False,
+                }
+            )
+        )
+
+        self.assertIn("hse2-inspect", summary)
+        self.assertIn("format_version：2", summary)
+        self.assertIn("wrapper_count：1", summary)
+        self.assertIn("wrapper_types：keyfile", summary)
+        self.assertIn("payload_chunk_count：3", summary)
+        self.assertIn("manifest_encrypted：true", summary)
+        self.assertIn("access_destroyed：false", summary)
+
     def test_wrapper_list_summary_formats_table(self) -> None:
         summary = _build_hse2_result_summary(
             json.dumps(

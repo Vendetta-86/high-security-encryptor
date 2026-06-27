@@ -39,6 +39,10 @@ class HSE2GuiActionTests(unittest.TestCase):
             ),
         )
 
+    def test_inspect_action(self) -> None:
+        plan = build_hse2_gui_command(action="inspect", input_path="archive.hse2")
+        self.assertEqual(plan.argv, ("hse2-inspect", "--input", "archive.hse2"))
+
     def test_rotate_keyfile_action(self) -> None:
         plan = build_hse2_gui_command(action="rotate-keyfile", config_path="rotate.json")
         self.assertEqual(plan.argv, ("hse2-rotate-keyfile", "--config", "rotate.json"))
@@ -142,6 +146,10 @@ class HSE2GuiActionTests(unittest.TestCase):
     def test_missing_required_config_path_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             build_hse2_gui_command(action="encrypt-config", config_path="")
+
+    def test_missing_required_inspect_input_path_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            build_hse2_gui_command(action="inspect", input_path="")
 
     def test_invalid_action_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

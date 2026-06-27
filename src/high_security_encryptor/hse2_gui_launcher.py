@@ -13,6 +13,7 @@ from typing import Any, Callable
 from .gui import GuiCommandResult, invoke_cli_command
 from .hse2_access_cli import main as hse2_access_main
 from .hse2_gui_tab import build_hse2_experimental_tab
+from .hse2_inspect_cli import main as hse2_inspect_main
 from .hse2_quickstart_gui_tab import build_hse2_quickstart_tab
 from .hse2_quickstart_wizard import HSE2QuickstartCommandStep, HSE2QuickstartWorkspace
 from .hse2_wrapper_cli import main as hse2_wrapper_main
@@ -23,6 +24,7 @@ StandaloneCliMain = Callable[[list[str] | None], int]
 HSE2_STANDALONE_HELPER_COMMANDS: dict[str, StandaloneCliMain] = {
     "hse2-wrapper": hse2_wrapper_main,
     "hse2-access": hse2_access_main,
+    "hse2-inspect": hse2_inspect_main,
 }
 
 
@@ -147,6 +149,8 @@ def _build_hse2_result_summary(stdout: str) -> str:
     if not isinstance(payload, dict):
         return ""
     command = payload.get("command")
+    if command == "hse2-inspect":
+        return _summarize_inspect(payload)
     if command == "hse2-wrapper list":
         return _summarize_wrapper_list(payload)
     if command == "hse2-wrapper remove":
@@ -164,6 +168,28 @@ def _parse_json_stdout(stdout: str) -> Any:
         return json.loads(text)
     except json.JSONDecodeError:
         return None
+
+
+def _summarize_inspect(payload: dict[str, Any]) -> str:
+    wrapper_types = payload.get("wrapper_types")
+    if isinstance(wrapper_types, list):
+        wrapper_types_text = ", ".join(str(item) for item in wrapper_types) or "none"
+    else:
+        wrapper_types_text = str(wrapper_types or "none")
+    return "".join(
+        [
+            "\n结果摘要：\n",
+            f"- 命令：{payload.get('command', 'hse2-inspect')}\n",
+            f"- 容器：{payload.get('input_path', '')}\n",
+            f"- format_version：{payload.get('format_version', '')}\n",
+            f"- container_size：{payload.get('container_size', '')}\n",
+            f"- wrapper_count：{payload.get('wrapper_count', '')}\n",
+            f"- wrapper_types：{wrapper_types_text}\n",
+            f"- payload_chunk_count：{payload.get('payload_chunk_count', '')}\n",
+            f"- manifest_encrypted：{_format_bool(payload.get('manifest_encrypted'))}\n",
+            f"- access_destroyed：{_format_bool(payload.get('access_destroyed'))}\n",
+        ]
+    )
 
 
 def _summarize_wrapper_list(payload: dict[str, Any]) -> str:
