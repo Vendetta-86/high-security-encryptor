@@ -5,7 +5,7 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- For release tag `v0.6.0-alpha.4`, confirm Python package version `0.6.0a4`.
+- For release tag `v0.6.0-alpha.5`, confirm Python package version `0.6.0a5`.
 - Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
@@ -150,12 +150,14 @@ high-security-encryptor-hse2-gui
 
 Confirm:
 
+- inspect runs against a disposable `.hse2` archive;
+- inspect shows raw JSON plus a metadata-only readable summary;
 - wrapper list runs against a disposable `.hse2` archive;
 - wrapper remove shows a destructive confirmation before execution;
 - access destroy shows a destructive confirmation before execution;
 - access destroy refuses an incorrect confirmation phrase;
 - raw JSON output remains visible in the log;
-- wrapper/access readable summaries appear below supported JSON payloads.
+- wrapper/access/inspect readable summaries appear below supported JSON payloads.
 
 ## CI
 
@@ -176,7 +178,7 @@ The CI gate includes:
 For releases that include a Windows executable:
 
 - Confirm the `Windows EXE` workflow passes for the release tag.
-- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.4-windows-x64.zip`.
+- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.5-windows-x64.zip`.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
@@ -187,6 +189,7 @@ For releases that include a Windows executable:
 - Confirm `high-security-encryptor-hse2-inspect.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-wrapper.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-access.exe` exists and supports `--help`.
+- Run `high-security-encryptor-hse2-gui.exe` and confirm the `inspect` action logs raw JSON plus a metadata-only readable summary.
 - Run at least one config validation with the executable.
 - Confirm the executable zip contains only intended release files, docs, and bundled examples.
 
