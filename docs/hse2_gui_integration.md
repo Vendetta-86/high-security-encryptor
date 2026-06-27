@@ -14,6 +14,7 @@ Supported actions:
 - `encrypt-config` -> `hse2-encrypt-config --config ...`
 - `decrypt-config` -> `hse2-decrypt-config --config ...`
 - `validate` -> `hse2-validate --config ... [--output ...] [--summary-only] [--exit-code-on-failure]`
+- `inspect` -> `hse2-inspect --input ...`
 - `rotate-keyfile` -> `hse2-rotate-keyfile --config ...`
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
 - `dpapi-protect` -> `dpapi-protect --input ... --output ... --scope ... [--force]`
@@ -28,7 +29,7 @@ component and `build_hse2_experimental_tab(...)` helper. The component collects
 paths and options, calls the HSE2 command builders, and delegates execution to an
 injected runner callback.
 
-The tab exposes fields for wrapper/access workflows:
+The tab exposes fields for inspect and wrapper/access workflows:
 
 - `.hse2` input container path;
 - output container path;
@@ -37,6 +38,10 @@ The tab exposes fields for wrapper/access workflows:
 - keyfile path;
 - DPAPI unlock allowance;
 - exact access-destroy confirmation phrase.
+
+`inspect` only requires the `.hse2` input container path. It returns safe
+container metadata and does not unlock the archive, decrypt the manifest, decrypt
+payload chunks, or print raw wrapper material.
 
 `wrapper-remove` and `access-destroy` display explicit confirmation dialogs before
 execution. `access-destroy` also requires the exact irreversible-access-disable
@@ -55,10 +60,11 @@ and a log panel. The launcher delegates regular HSE2 actions through the same CL
 path used by the rest of the GUI, displays stdout/stderr/exit code, and prevents
 concurrent HSE2 command execution.
 
-The wrapper/access helper commands are standalone CLI entrypoints, so the launcher
-routes `hse2-wrapper ...` and `hse2-access ...` argv lists directly to the
-corresponding in-process helper CLI main functions. This keeps the GUI boundary
-explicit while still avoiding shelling out to sibling EXE files.
+The wrapper/access/inspect helper commands are standalone CLI entrypoints, so the
+launcher routes `hse2-wrapper ...`, `hse2-access ...`, and `hse2-inspect ...` argv
+lists directly to the corresponding in-process helper CLI main functions. This
+keeps the GUI boundary explicit while still avoiding shelling out to sibling EXE
+files.
 
 Use this launcher for experimental HSE2 operations without changing the main GUI
 window:
@@ -66,12 +72,32 @@ window:
 - HSE2 encrypt config;
 - HSE2 decrypt config;
 - HSE2 validation config;
+- HSE2 metadata inspect;
 - HSE2 keyfile rotation config;
 - keyfile generation;
 - Windows DPAPI protection;
 - wrapper list;
 - wrapper remove;
 - explicit access-disable workflow.
+
+## Result Summaries
+
+The launcher keeps raw JSON stdout in the log for copy/paste debugging and also
+adds a readable summary for selected HSE2 helper results.
+
+`inspect` summaries include:
+
+- input container path;
+- format version;
+- container size;
+- wrapper count;
+- wrapper types;
+- payload chunk count;
+- manifest encrypted status;
+- access-destroyed status.
+
+The summary is intentionally metadata-only and must not include ciphertext,
+nonces, auth tags, wrapped-key blobs, or local key material.
 
 ## Main GUI Entry Helper
 
