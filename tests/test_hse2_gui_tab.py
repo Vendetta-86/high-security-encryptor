@@ -37,6 +37,10 @@ class HSE2GuiTabTests(unittest.TestCase):
             ],
         )
 
+    def test_build_inspect_command_from_tab_state(self) -> None:
+        argv = build_hse2_command_from_tab_state(HSE2GuiTabState(action="inspect", input_path="archive.hse2"))
+        self.assertEqual(argv, ["hse2-inspect", "--input", "archive.hse2"])
+
     def test_build_generate_keyfile_command_from_tab_state(self) -> None:
         argv = build_hse2_command_from_tab_state(
             HSE2GuiTabState(action="generate-keyfile", output_path="wrapper.key", size=64, force=True)
