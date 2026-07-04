@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import unittest
 
-from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state
+from high_security_encryptor.hse2_gui_tab import (
+    HSE2GuiTabState,
+    build_hse2_command_from_tab_state,
+    visible_hse2_gui_field_keys,
+)
 
 
 class HSE2GuiTabTests(unittest.TestCase):
     def test_build_encrypt_command_from_tab_state(self) -> None:
-        argv = build_hse2_command_from_tab_state(
-            HSE2GuiTabState(action="encrypt-config", config_path="encrypt.json")
-        )
+        argv = build_hse2_command_from_tab_state(HSE2GuiTabState(action="encrypt-config", config_path="encrypt.json"))
         self.assertEqual(argv, ["hse2-encrypt-config", "--config", "encrypt.json"])
 
     def test_build_validate_command_from_tab_state(self) -> None:
@@ -70,6 +72,54 @@ class HSE2GuiTabTests(unittest.TestCase):
                 "--force",
             ],
         )
+
+    def test_visible_fields_for_config_actions(self) -> None:
+        self.assertEqual(visible_hse2_gui_field_keys("encrypt-config"), frozenset({"config_path"}))
+        self.assertEqual(visible_hse2_gui_field_keys("decrypt-config"), frozenset({"config_path"}))
+        self.assertEqual(visible_hse2_gui_field_keys("rotate-keyfile"), frozenset({"config_path"}))
+
+    def test_visible_fields_for_validate_action(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("validate"),
+            frozenset(
+                {
+                    "config_path",
+                    "validation_report_output",
+                    "validation_summary_only",
+                    "validation_exit_code_on_failure",
+                }
+            ),
+        )
+
+    def test_visible_fields_for_inspect_action(self) -> None:
+        self.assertEqual(visible_hse2_gui_field_keys("inspect"), frozenset({"input_path"}))
+
+    def test_visible_fields_for_keyfile_generation(self) -> None:
+        self.assertEqual(visible_hse2_gui_field_keys("generate-keyfile"), frozenset({"output_path", "size", "force"}))
+
+    def test_visible_fields_for_dpapi_protect(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("dpapi-protect"),
+            frozenset({"input_path", "output_path", "scope", "force"}),
+        )
+
+    def test_visible_fields_for_wrapper_remove(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("wrapper-remove"),
+            frozenset(
+                {"input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "allow_dpapi", "force"}
+            ),
+        )
+
+    def test_visible_fields_for_access_destroy(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("access-destroy"),
+            frozenset({"input_path", "output_path", "access_confirmation_phrase", "danger_text", "force"}),
+        )
+
+    def test_unknown_action_visibility_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            visible_hse2_gui_field_keys("unknown")
 
     def test_missing_required_field_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
