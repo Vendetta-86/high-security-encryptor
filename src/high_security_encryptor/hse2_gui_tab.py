@@ -17,6 +17,39 @@ from .hse2_gui_actions import HSE2_GUI_ACTION_LABELS, build_hse2_gui_command
 
 
 RunCommand = Callable[[list[str]], None]
+FieldWidgets = tuple[tk.Widget, ...]
+
+
+HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
+    "encrypt-config": frozenset({"config_path"}),
+    "decrypt-config": frozenset({"config_path"}),
+    "validate": frozenset(
+        {
+            "config_path",
+            "validation_report_output",
+            "validation_summary_only",
+            "validation_exit_code_on_failure",
+        }
+    ),
+    "inspect": frozenset({"input_path"}),
+    "rotate-keyfile": frozenset({"config_path"}),
+    "generate-keyfile": frozenset({"output_path", "size", "force"}),
+    "dpapi-protect": frozenset({"input_path", "output_path", "scope", "force"}),
+    "wrapper-list": frozenset({"input_path"}),
+    "wrapper-remove": frozenset(
+        {"input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "allow_dpapi", "force"}
+    ),
+    "access-destroy": frozenset(
+        {"input_path", "output_path", "access_confirmation_phrase", "danger_text", "force"}
+    ),
+}
+
+_OPTION_FIELD_ORDER = (
+    "force",
+    "validation_summary_only",
+    "validation_exit_code_on_failure",
+    "allow_dpapi",
+)
 
 
 @dataclass(frozen=True)
@@ -38,6 +71,15 @@ class HSE2GuiTabState:
     keyfile_path: str = ""
     allow_dpapi: bool = False
     access_confirmation_phrase: str = ""
+
+
+def visible_hse2_gui_field_keys(action: str) -> frozenset[str]:
+    """Return the GUI field keys that should be visible for one HSE2 action."""
+
+    normalized_action = action.strip()
+    if normalized_action not in HSE2_GUI_FIELD_VISIBILITY:
+        raise ValueError("请选择有效的 HSE2 实验操作。")
+    return HSE2_GUI_FIELD_VISIBILITY[normalized_action]
 
 
 def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
@@ -87,7 +129,13 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.allow_dpapi = tk.BooleanVar(value=False)
         self.access_confirmation_phrase = tk.StringVar()
 
+        self._field_widgets: dict[str, FieldWidgets] = {}
+        self._option_widgets: dict[str, ttk.Checkbutton] = {}
+        self._options_frame: ttk.Frame | None = None
+
         self._build_widgets()
+        self.action.trace_add("write", self._on_action_changed)
+        self._apply_action_visibility()
 
     def state(self) -> HSE2GuiTabState:
         """Return current widget state as a serializable object."""
@@ -134,45 +182,71 @@ class HSE2ExperimentalTab(ttk.Frame):
         ).grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         _add_choice_row(self, 1, "操作", self.action, tuple(HSE2_GUI_ACTION_LABELS.keys()))
-        _add_path_row(self, 2, "配置文件", self.config_path, self._browse_config)
-        _add_path_row(self, 3, "输入文件 / .hse2 容器", self.input_path, self._browse_input)
-        _add_path_row(self, 4, "输出文件", self.output_path, self._browse_output, save=True)
-        _add_path_row(self, 5, "校验报告保存到", self.validation_report_output, self._browse_validation_report, save=True)
-
-        ttk.Label(self, text="keyfile 大小").grid(row=6, column=0, sticky="w", pady=4)
-        ttk.Spinbox(self, from_=16, to=1048576, textvariable=self.size, width=12).grid(
-            row=6,
-            column=1,
-            sticky="w",
-            padx=(8, 8),
-            pady=4,
+        self._field_widgets["config_path"] = _add_path_row(self, 2, "配置文件", self.config_path, self._browse_config)
+        self._field_widgets["input_path"] = _add_path_row(
+            self,
+            3,
+            "输入文件 / .hse2 容器",
+            self.input_path,
+            self._browse_input,
         )
-        _add_choice_row(self, 7, "DPAPI scope", self.scope, ("current_user", "local_machine"))
-        _add_text_row(self, 8, "wrapper id", self.wrapper_id)
-        _add_path_row(self, 9, "密码文件", self.password_file, self._browse_password_file)
-        _add_path_row(self, 10, "keyfile", self.keyfile_path, self._browse_keyfile)
-        _add_text_row(self, 11, "永久禁用访问确认短语", self.access_confirmation_phrase)
+        self._field_widgets["output_path"] = _add_path_row(
+            self,
+            4,
+            "输出文件",
+            self.output_path,
+            self._browse_output,
+            save=True,
+        )
+        self._field_widgets["validation_report_output"] = _add_path_row(
+            self,
+            5,
+            "校验报告保存到",
+            self.validation_report_output,
+            self._browse_validation_report,
+            save=True,
+        )
+        self._field_widgets["size"] = _add_spin_row(self, 6, "keyfile 大小", self.size)
+        self._field_widgets["scope"] = _add_choice_row(self, 7, "DPAPI scope", self.scope, ("current_user", "local_machine"))
+        self._field_widgets["wrapper_id"] = _add_text_row(self, 8, "wrapper id", self.wrapper_id)
+        self._field_widgets["password_file"] = _add_path_row(self, 9, "密码文件", self.password_file, self._browse_password_file)
+        self._field_widgets["keyfile_path"] = _add_path_row(self, 10, "keyfile", self.keyfile_path, self._browse_keyfile)
+        self._field_widgets["access_confirmation_phrase"] = _add_text_row(
+            self,
+            11,
+            "永久禁用访问确认短语",
+            self.access_confirmation_phrase,
+        )
 
-        ttk.Label(
+        danger_label = ttk.Label(
             self,
             text=f"危险操作确认短语：{DESTROY_ACCESS_CONFIRMATION_PHRASE}",
             wraplength=780,
             justify=tk.LEFT,
-        ).grid(row=12, column=0, columnspan=3, sticky="ew", pady=(6, 0))
-
-        options = ttk.Frame(self)
-        options.grid(row=13, column=0, columnspan=3, sticky="w", pady=(8, 0))
-        ttk.Checkbutton(options, text="允许覆盖输出文件", variable=self.force).pack(side=tk.LEFT, padx=(0, 12))
-        ttk.Checkbutton(options, text="HSE2 校验只输出摘要", variable=self.validation_summary_only).pack(
-            side=tk.LEFT,
-            padx=(0, 12),
         )
-        ttk.Checkbutton(
-            options,
-            text="HSE2 校验失败时返回失败状态",
-            variable=self.validation_exit_code_on_failure,
-        ).pack(side=tk.LEFT, padx=(0, 12))
-        ttk.Checkbutton(options, text="允许 DPAPI 解锁 wrapper", variable=self.allow_dpapi).pack(side=tk.LEFT)
+        danger_label.grid(row=12, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        self._field_widgets["danger_text"] = (danger_label,)
+
+        self._options_frame = ttk.Frame(self)
+        self._options_frame.grid(row=13, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        self._option_widgets = {
+            "force": ttk.Checkbutton(self._options_frame, text="允许覆盖输出文件", variable=self.force),
+            "validation_summary_only": ttk.Checkbutton(
+                self._options_frame,
+                text="HSE2 校验只输出摘要",
+                variable=self.validation_summary_only,
+            ),
+            "validation_exit_code_on_failure": ttk.Checkbutton(
+                self._options_frame,
+                text="HSE2 校验失败时返回失败状态",
+                variable=self.validation_exit_code_on_failure,
+            ),
+            "allow_dpapi": ttk.Checkbutton(
+                self._options_frame,
+                text="允许 DPAPI 解锁 wrapper",
+                variable=self.allow_dpapi,
+            ),
+        }
 
         ttk.Button(self, text="运行 HSE2 实验操作", command=self.run_selected_action).grid(
             row=14,
@@ -180,6 +254,32 @@ class HSE2ExperimentalTab(ttk.Frame):
             sticky="w",
             pady=(14, 0),
         )
+
+    def _on_action_changed(self, *_args: object) -> None:
+        self._apply_action_visibility()
+
+    def _apply_action_visibility(self) -> None:
+        visible_fields = visible_hse2_gui_field_keys(self.action.get())
+        for field_key, widgets in self._field_widgets.items():
+            for widget in widgets:
+                if field_key in visible_fields:
+                    widget.grid()
+                else:
+                    widget.grid_remove()
+
+        if self._options_frame is None:
+            return
+        any_visible_option = False
+        for field_key in _OPTION_FIELD_ORDER:
+            widget = self._option_widgets[field_key]
+            widget.pack_forget()
+            if field_key in visible_fields:
+                any_visible_option = True
+                widget.pack(side=tk.LEFT, padx=(0, 12))
+        if any_visible_option:
+            self._options_frame.grid()
+        else:
+            self._options_frame.grid_remove()
 
     def _confirm_destructive_action(self) -> bool:
         action = self.action.get()
@@ -222,20 +322,40 @@ def build_hse2_experimental_tab(notebook: ttk.Notebook, run_command: RunCommand)
     return tab
 
 
-def _add_choice_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVar, values: tuple[str, ...]) -> None:
-    ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=4)
-    ttk.Combobox(parent, textvariable=variable, values=values, state="readonly").grid(
+def _add_choice_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVar, values: tuple[str, ...]) -> FieldWidgets:
+    label_widget = ttk.Label(parent, text=label)
+    label_widget.grid(row=row, column=0, sticky="w", pady=4)
+    choice_widget = ttk.Combobox(parent, textvariable=variable, values=values, state="readonly")
+    choice_widget.grid(
         row=row,
         column=1,
         sticky="ew",
         padx=(8, 8),
         pady=4,
     )
+    return (label_widget, choice_widget)
 
 
-def _add_text_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVar) -> None:
-    ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=4)
-    ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=4)
+def _add_spin_row(parent: ttk.Frame, row: int, label: str, variable: tk.IntVar) -> FieldWidgets:
+    label_widget = ttk.Label(parent, text=label)
+    label_widget.grid(row=row, column=0, sticky="w", pady=4)
+    spin_widget = ttk.Spinbox(parent, from_=16, to=1048576, textvariable=variable, width=12)
+    spin_widget.grid(
+        row=row,
+        column=1,
+        sticky="w",
+        padx=(8, 8),
+        pady=4,
+    )
+    return (label_widget, spin_widget)
+
+
+def _add_text_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVar) -> FieldWidgets:
+    label_widget = ttk.Label(parent, text=label)
+    label_widget.grid(row=row, column=0, sticky="w", pady=4)
+    entry_widget = ttk.Entry(parent, textvariable=variable)
+    entry_widget.grid(row=row, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=4)
+    return (label_widget, entry_widget)
 
 
 def _add_path_row(
@@ -246,10 +366,14 @@ def _add_path_row(
     browse_command: Callable[[], None],
     *,
     save: bool = False,
-) -> None:
-    ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", pady=4)
-    ttk.Entry(parent, textvariable=variable).grid(row=row, column=1, sticky="ew", padx=(8, 8), pady=4)
-    ttk.Button(parent, text="保存到" if save else "选择", command=browse_command).grid(row=row, column=2, pady=4)
+) -> FieldWidgets:
+    label_widget = ttk.Label(parent, text=label)
+    label_widget.grid(row=row, column=0, sticky="w", pady=4)
+    entry_widget = ttk.Entry(parent, textvariable=variable)
+    entry_widget.grid(row=row, column=1, sticky="ew", padx=(8, 8), pady=4)
+    button_widget = ttk.Button(parent, text="保存到" if save else "选择", command=browse_command)
+    button_widget.grid(row=row, column=2, pady=4)
+    return (label_widget, entry_widget, button_widget)
 
 
 def _browse_open(variable: tk.StringVar, filetypes: list[tuple[str, str]]) -> None:

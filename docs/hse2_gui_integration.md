@@ -29,7 +29,19 @@ component and `build_hse2_experimental_tab(...)` helper. The component collects
 paths and options, calls the HSE2 command builders, and delegates execution to an
 injected runner callback.
 
-The tab exposes fields for inspect and wrapper/access workflows:
+The tab dynamically hides fields that are not relevant to the selected action.
+This keeps each operation focused on the values the underlying CLI actually
+consumes. For example:
+
+- config actions show only the config path;
+- `validate` shows the config path plus validation report/summary options;
+- `inspect` shows only the `.hse2` input container path;
+- `generate-keyfile` shows output path, size, and overwrite;
+- `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;
+- `wrapper-remove` shows wrapper id plus optional password/keyfile/DPAPI fields;
+- `access-destroy` shows input/output paths, overwrite, the exact confirmation field, and the warning phrase.
+
+The wrapper/access/inspect workflows use these fields:
 
 - `.hse2` input container path;
 - output container path;
