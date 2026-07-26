@@ -6,7 +6,7 @@ on:
       tag:
         description: Release tag to build and upload.
         required: true
-        default: v0.6.0-alpha.5
+        default: v0.6.0-alpha.6
   push:
     tags:
       - "v*"
