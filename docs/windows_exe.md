@@ -25,13 +25,13 @@ The GitHub Actions workflow builds a zip asset named:
 high-security-encryptor-<tag>-windows-x64.zip
 ```
 
-For release tag `v0.6.0-alpha.6`, the expected asset name is:
+For release tag `v0.6.0-alpha.7`, the expected asset name is:
 
 ```text
-high-security-encryptor-v0.6.0-alpha.6-windows-x64.zip
+high-security-encryptor-v0.6.0-alpha.7-windows-x64.zip
 ```
 
-The Python package version for this release line is `0.6.0a6`.
+The Python package version for this release line is `0.6.0a7`.
 
 The zip should contain:
 
@@ -57,8 +57,8 @@ Before publishing or announcing the Windows zip:
 - run `high-security-encryptor-gui.exe --smoke-test`;
 - run each HSE2 helper executable with `--help`;
 - run `high-security-encryptor-hse2-inspect.exe --help`;
-- run `high-security-encryptor-hse2-gui.exe` and confirm the `inspect` action prints raw JSON plus a metadata-only result summary;
-- in `high-security-encryptor-hse2-gui.exe`, switch through the HSE2 action dropdown and confirm fields hide/show according to the selected action;
+- run `high-security-encryptor-hse2-gui.exe` and confirm the localized `检查 HSE2 元数据` action prints raw JSON plus a metadata-only result summary;
+- in `high-security-encryptor-hse2-gui.exe`, switch through the localized HSE2 action dropdown and confirm fields hide/show according to the selected action;
 - confirm the extracted zip only contains intended release files and bundled examples.
 
 ## Distribution Notes

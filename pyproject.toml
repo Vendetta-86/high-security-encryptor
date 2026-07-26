@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "high-security-encryptor"
-version = "0.6.0a6"
+version = "0.6.0a7"
 description = "Hardened local encryption tool for batch file workflows"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -5,7 +5,7 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- For release tag `v0.6.0-alpha.6`, confirm Python package version `0.6.0a6`.
+- For release tag `v0.6.0-alpha.7`, confirm Python package version `0.6.0a7`.
 - Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
@@ -50,6 +50,7 @@ Before release, review `docs/hse2_threat_model.md`, `docs/hse2_cli_workflows.md`
 - HSE2 GUI wrapper/access management;
 - HSE2 GUI raw JSON plus readable result summaries;
 - HSE2 GUI dynamic field visibility for action-specific inputs;
+- HSE2 GUI localized action labels for the Windows standalone executable;
 - release artifact exclusions for user-generated files.
 
 ## HSE2 CLI Verification
@@ -151,6 +152,8 @@ high-security-encryptor-hse2-gui
 
 Confirm:
 
+- the action dropdown shows localized labels rather than internal action keys;
+- the localized `检查 HSE2 元数据` action is present;
 - inspect runs against a disposable `.hse2` archive;
 - inspect shows raw JSON plus a metadata-only readable summary;
 - inspect only shows the `.hse2` input field in the action-specific form;
@@ -182,7 +185,7 @@ The CI gate includes:
 For releases that include a Windows executable:
 
 - Confirm the `Windows EXE` workflow passes for the release tag.
-- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.6-windows-x64.zip`.
+- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.7-windows-x64.zip`.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
@@ -193,8 +196,8 @@ For releases that include a Windows executable:
 - Confirm `high-security-encryptor-hse2-inspect.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-wrapper.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-access.exe` exists and supports `--help`.
-- Run `high-security-encryptor-hse2-gui.exe` and confirm the `inspect` action logs raw JSON plus a metadata-only readable summary.
-- In `high-security-encryptor-hse2-gui.exe`, switch through the HSE2 action dropdown and confirm fields hide/show according to the selected action.
+- Run `high-security-encryptor-hse2-gui.exe` and confirm the localized `检查 HSE2 元数据` action logs raw JSON plus a metadata-only readable summary.
+- In `high-security-encryptor-hse2-gui.exe`, switch through the localized HSE2 action dropdown and confirm fields hide/show according to the selected action.
 - Run at least one config validation with the executable.
 - Confirm the executable zip contains only intended release files, docs, and bundled examples.
 
