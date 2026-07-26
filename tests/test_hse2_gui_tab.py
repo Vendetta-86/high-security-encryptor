@@ -7,6 +7,9 @@ import unittest
 from high_security_encryptor.hse2_gui_tab import (
     HSE2GuiTabState,
     build_hse2_command_from_tab_state,
+    hse2_gui_action_display_label,
+    hse2_gui_action_display_values,
+    hse2_gui_action_key_from_display,
     visible_hse2_gui_field_keys,
 )
 
@@ -43,6 +46,10 @@ class HSE2GuiTabTests(unittest.TestCase):
         argv = build_hse2_command_from_tab_state(HSE2GuiTabState(action="inspect", input_path="archive.hse2"))
         self.assertEqual(argv, ["hse2-inspect", "--input", "archive.hse2"])
 
+    def test_build_inspect_command_from_localized_tab_state(self) -> None:
+        argv = build_hse2_command_from_tab_state(HSE2GuiTabState(action="检查 HSE2 元数据", input_path="archive.hse2"))
+        self.assertEqual(argv, ["hse2-inspect", "--input", "archive.hse2"])
+
     def test_build_generate_keyfile_command_from_tab_state(self) -> None:
         argv = build_hse2_command_from_tab_state(
             HSE2GuiTabState(action="generate-keyfile", output_path="wrapper.key", size=64, force=True)
@@ -73,6 +80,22 @@ class HSE2GuiTabTests(unittest.TestCase):
             ],
         )
 
+    def test_action_display_values_are_localized(self) -> None:
+        values = hse2_gui_action_display_values()
+        self.assertIn("检查 HSE2 元数据", values)
+        self.assertIn("HSE2 加密配置", values)
+        self.assertNotIn("inspect", values)
+        self.assertNotIn("encrypt-config", values)
+
+    def test_action_display_label_maps_internal_action(self) -> None:
+        self.assertEqual(hse2_gui_action_display_label("inspect"), "检查 HSE2 元数据")
+
+    def test_action_key_from_display_accepts_localized_label(self) -> None:
+        self.assertEqual(hse2_gui_action_key_from_display("检查 HSE2 元数据"), "inspect")
+
+    def test_action_key_from_display_keeps_internal_action_for_compatibility(self) -> None:
+        self.assertEqual(hse2_gui_action_key_from_display("inspect"), "inspect")
+
     def test_visible_fields_for_config_actions(self) -> None:
         self.assertEqual(visible_hse2_gui_field_keys("encrypt-config"), frozenset({"config_path"}))
         self.assertEqual(visible_hse2_gui_field_keys("decrypt-config"), frozenset({"config_path"}))
@@ -93,6 +116,9 @@ class HSE2GuiTabTests(unittest.TestCase):
 
     def test_visible_fields_for_inspect_action(self) -> None:
         self.assertEqual(visible_hse2_gui_field_keys("inspect"), frozenset({"input_path"}))
+
+    def test_visible_fields_accepts_localized_inspect_label(self) -> None:
+        self.assertEqual(visible_hse2_gui_field_keys("检查 HSE2 元数据"), frozenset({"input_path"}))
 
     def test_visible_fields_for_keyfile_generation(self) -> None:
         self.assertEqual(visible_hse2_gui_field_keys("generate-keyfile"), frozenset({"output_path", "size", "force"}))
@@ -120,6 +146,10 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_unknown_action_visibility_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             visible_hse2_gui_field_keys("unknown")
+
+    def test_unknown_action_display_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            hse2_gui_action_key_from_display("unknown")
 
     def test_missing_required_field_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
