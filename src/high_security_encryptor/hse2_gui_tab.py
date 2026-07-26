@@ -73,12 +73,34 @@ class HSE2GuiTabState:
     access_confirmation_phrase: str = ""
 
 
+def hse2_gui_action_display_values() -> tuple[str, ...]:
+    """Return localized action labels for the HSE2 action combobox."""
+
+    return tuple(HSE2_GUI_ACTION_LABELS[action] for action in HSE2_GUI_FIELD_VISIBILITY)
+
+
+def hse2_gui_action_key_from_display(value: str) -> str:
+    """Resolve a localized action label or stable action key to the stable action key."""
+
+    normalized = value.strip()
+    if normalized in HSE2_GUI_FIELD_VISIBILITY:
+        return normalized
+    for action, label in HSE2_GUI_ACTION_LABELS.items():
+        if normalized == label:
+            return action
+    raise ValueError("请选择有效的 HSE2 实验操作。")
+
+
+def hse2_gui_action_display_label(action: str) -> str:
+    """Return the localized combobox label for an HSE2 action key or label."""
+
+    return HSE2_GUI_ACTION_LABELS[hse2_gui_action_key_from_display(action)]
+
+
 def visible_hse2_gui_field_keys(action: str) -> frozenset[str]:
     """Return the GUI field keys that should be visible for one HSE2 action."""
 
-    normalized_action = action.strip()
-    if normalized_action not in HSE2_GUI_FIELD_VISIBILITY:
-        raise ValueError("请选择有效的 HSE2 实验操作。")
+    normalized_action = hse2_gui_action_key_from_display(action)
     return HSE2_GUI_FIELD_VISIBILITY[normalized_action]
 
 
@@ -86,7 +108,7 @@ def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
     """Convert HSE2 tab state into a CLI argument list."""
 
     plan = build_hse2_gui_command(
-        action=state.action,
+        action=hse2_gui_action_key_from_display(state.action),
         config_path=state.config_path,
         input_path=state.input_path,
         output_path=state.output_path,
@@ -114,6 +136,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.columnconfigure(1, weight=1)
 
         self.action = tk.StringVar(value="encrypt-config")
+        self.action_label = tk.StringVar(value=hse2_gui_action_display_label(self.action.get()))
         self.config_path = tk.StringVar()
         self.input_path = tk.StringVar()
         self.output_path = tk.StringVar()
@@ -134,6 +157,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         self._options_frame: ttk.Frame | None = None
 
         self._build_widgets()
+        self.action_label.trace_add("write", self._on_action_label_changed)
         self.action.trace_add("write", self._on_action_changed)
         self._apply_action_visibility()
 
@@ -181,7 +205,7 @@ class HSE2ExperimentalTab(ttk.Frame):
             justify=tk.LEFT,
         ).grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
-        _add_choice_row(self, 1, "操作", self.action, tuple(HSE2_GUI_ACTION_LABELS.keys()))
+        _add_choice_row(self, 1, "操作", self.action_label, hse2_gui_action_display_values())
         self._field_widgets["config_path"] = _add_path_row(self, 2, "配置文件", self.config_path, self._browse_config)
         self._field_widgets["input_path"] = _add_path_row(
             self,
@@ -255,7 +279,15 @@ class HSE2ExperimentalTab(ttk.Frame):
             pady=(14, 0),
         )
 
+    def _on_action_label_changed(self, *_args: object) -> None:
+        normalized_action = hse2_gui_action_key_from_display(self.action_label.get())
+        if self.action.get() != normalized_action:
+            self.action.set(normalized_action)
+
     def _on_action_changed(self, *_args: object) -> None:
+        display_label = hse2_gui_action_display_label(self.action.get())
+        if self.action_label.get() != display_label:
+            self.action_label.set(display_label)
         self._apply_action_visibility()
 
     def _apply_action_visibility(self) -> None:
