@@ -15,8 +15,8 @@ FIXTURE_DIR = Path(__file__).parent / "fixtures" / "hse2"
 FIXTURE_KEY = b"HSE2-FIXTURE-KEY-MATERIAL-000000"
 FIXTURE_PAYLOAD = b"Codex HSE2 compatibility fixture v1\n"
 FIXTURE_SHA256 = {
-    "archive-v2.hse2": "44be3d3405f3b0bd4b0df01bd0493181440575505dc010ea91e13dbe1875f9b2",
-    "archive-v3.hse2": "8676572a59a12cfc513dc4dd9a7a9c63fe867d4241dfc8ba3ff4fdc1a0b4c163",
+    "archive-v2.hse2": "44be3d3405f3b0bd4b0df01bd0493181440575505dc010ea91e13dbe1875f9b2",  # pragma: allowlist secret
+    "archive-v3.hse2": "8676572a59a12cfc513dc4dd9a7a9c63fe867d4241dfc8ba3ff4fdc1a0b4c163",  # pragma: allowlist secret
 }
 
 

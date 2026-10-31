@@ -37,7 +37,7 @@ class HSE2ParanoidWrapperPolicyTests(unittest.TestCase):
             with self.assertRaisesRegex(HSE2ModelError, "require --keyfile"):
                 create_hse2_archive(
                     roots=(Path(temp) / "missing-source",), output_path=target,
-                    password="password", profile_name="paranoid",
+                    password="password", profile_name="paranoid",  # pragma: allowlist secret
                 )
             self.assertFalse(target.exists())
 

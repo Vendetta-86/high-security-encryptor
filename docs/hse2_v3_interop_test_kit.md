@@ -44,7 +44,7 @@ $env:PYTHONPATH = 'src'
 if ($LASTEXITCODE -ne 0) { throw "HSE2 open failed with exit code $LASTEXITCODE" }
 
 $restoredFile = Join-Path $outputDir 'fixture-payload.txt'
-$expectedSha256 = '9721a2f0536d250e525e9e7e097e90da36a1f40435c04ca396c93ebe2c913adb'
+$expectedSha256 = '9721a2f0536d250e525e9e7e097e90da36a1f40435c04ca396c93ebe2c913adb' # pragma: allowlist secret
 if ((Get-Item $restoredFile).Length -ne 36) { throw 'Unexpected restored file length' }
 $actualSha256 = (Get-FileHash $restoredFile -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actualSha256 -ne $expectedSha256) { throw "Unexpected payload SHA-256: $actualSha256" }

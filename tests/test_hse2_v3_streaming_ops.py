@@ -106,7 +106,7 @@ class HSE2V3StreamingOperationsTests(unittest.TestCase):
                     archive,
                     added,
                     wrapper_id="password-2",
-                    new_password="second secret",
+                    new_password="second secret",  # pragma: allowlist secret
                     unlock_keyfile_bytes=keyfile_bytes,
                     created_utc="2026-10-28T00:01:00Z",
                 )
@@ -116,7 +116,7 @@ class HSE2V3StreamingOperationsTests(unittest.TestCase):
             self.assertEqual(len(list_hse2_wrappers(added).wrappers), 2)
             self._authenticate(added, keyfile_bytes)
             restored = base / "restored-with-new-password"
-            open_hse2_archive(input_path=added, output_dir=restored, password="second secret")
+            open_hse2_archive(input_path=added, output_dir=restored, password="second secret")  # pragma: allowlist secret
             self.assertEqual((restored / "source" / "payload.bin").read_bytes(), b"payload bytes" * 1000)
 
             with patch.object(Path, "read_bytes", reject_whole_archive_read):
@@ -171,7 +171,7 @@ class HSE2V3StreamingOperationsTests(unittest.TestCase):
                 rotated,
                 replaced_wrapper_id=old_wrapper_id,
                 new_wrapper_id=old_wrapper_id,
-                new_password="replacement password",
+                new_password="replacement password",  # pragma: allowlist secret
                 unlock_keyfile_bytes=old_keyfile.read_bytes(),
             )
 
@@ -182,7 +182,7 @@ class HSE2V3StreamingOperationsTests(unittest.TestCase):
             with self.assertRaises(HSE2ModelError):
                 open_hse2_archive(input_path=rotated, output_dir=base / "old-key-fails", keyfile_bytes=old_keyfile.read_bytes())
             restored = base / "new-password-opens"
-            open_hse2_archive(input_path=rotated, output_dir=restored, password="replacement password")
+            open_hse2_archive(input_path=rotated, output_dir=restored, password="replacement password")  # pragma: allowlist secret
             self.assertEqual((restored / "source" / "payload.bin").read_bytes(), b"payload bytes" * 1000)
 
     def test_failed_rewrap_preserves_existing_target_and_cleans_temp_file(self) -> None:
@@ -202,7 +202,7 @@ class HSE2V3StreamingOperationsTests(unittest.TestCase):
                 with self.assertRaisesRegex(HSE2ModelError, "injected rewrap write failure"):
                     rewrap_hse2_wrapper(
                         archive, target, replaced_wrapper_id=wrapper_id, new_wrapper_id="password-2",
-                        new_password="replacement password", unlock_keyfile_bytes=keyfile.read_bytes(), overwrite=True,
+                        new_password="replacement password", unlock_keyfile_bytes=keyfile.read_bytes(), overwrite=True,  # pragma: allowlist secret
                     )
 
             self.assertEqual(target.read_bytes(), b"old target")
@@ -224,7 +224,7 @@ class HSE2V3StreamingOperationsTests(unittest.TestCase):
                         archive,
                         target,
                         wrapper_id="password-2",
-                        new_password="second secret",
+                        new_password="second secret",  # pragma: allowlist secret
                         unlock_keyfile_bytes=keyfile.read_bytes(),
                         overwrite=True,
                     )
