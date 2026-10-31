@@ -303,7 +303,7 @@
 
 ### 完成标准
 
-- [~] 所有已发布 helper 命令有 `--help`（v0.6.0-alpha.2 Windows EXE 已本地验收）
+- [x] 发布用 HSE2 helper EXE 均包含 `--help` smoke；本轮 archive-validate helper 已完成本机 PyInstaller onefile 构建及 `--help` 验收
 - [x] 错误 exit code 稳定为非零并有 stderr 前缀
 - [x] 密码可通过 password-file 进入，不要求进 shell history
 - [x] 默认不打印敏感路径以外的密钥材料，不打印 keyfile/DPAPI/wrapper bytes
@@ -473,4 +473,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 创建后直接密码打开/校验：归档创建、解密恢复和完整校验均支持掩码密码输入并直接传入原 CLI helper；创建必须确认两次，打开/校验单次输入。端到端 GUI dispatcher 创建后直接以输入密码恢复并完整认证，argv/stdout/stderr 均不含密码；Tk 检查确认三个动作字段均掩码且确认框只在创建时出现。定向 88 项通过；全量 658 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `ba4e25a`
 - 2026-10-31：Phase 12 Windows 流式内存基准：运行 `build_tools/benchmark_hse2_v3_memory.py --small-mib 8 --large-mib 128 --max-growth-mib 32`。create Python heap 7.67→7.67 MiB、working set 41.66→41.49 MiB；open heap 7.67→7.67 MiB、working set 41.59→41.46 MiB；增长预算通过。该结论仅适用于本机和本次 8/128 MiB 样本。Commit: 待提交
 - 2026-10-31：Phase 12 检查目录归档未落地明文中间归档：create 根据 manifest 分块读取源文件并立即加密，v3 将加密 payload 流直接交给容器 writer；现有 v2/v3 create/open 与 GUI dispatcher 往返集成覆盖此路径。`workflows.py` 未创建明文 staging archive。Commit: 待提交
+- 2026-10-31：Windows 发布补齐 archive-validate helper：新增 PyInstaller entry script；workflow build、文件存在检查、`--help` smoke 和 release ZIP copy 均加入 helper；Windows EXE 文档及 workflow contract test 同步。隔离 venv 安装 `.[build]` 后实际构建 onefile EXE 并运行 `--help` 成功；契约测试通过，全量 659 项通过（6 项跳过），compileall 和 `git diff --check` 通过。Commit: 待提交
 

@@ -1,6 +1,6 @@
 # Windows EXE Distribution
 
-The Windows executable is a PyInstaller build of the same CLI exposed by the Python package. Releases include the command-line executable, the main GUI executable, the standalone HSE2 GUI executable, and focused HSE2 helper CLI executables.
+The Windows executable is a PyInstaller build of the same CLI exposed by the Python package. Releases include the command-line executable, the main GUI executable, the standalone HSE2 GUI executable, and focused HSE2 helper CLI executables, including full archive validation.
 
 ## Build Locally
 
@@ -12,9 +12,11 @@ python -m PyInstaller --clean --noconfirm --onefile --console --name high-securi
 python -m PyInstaller --clean --noconfirm --onefile --windowed --name high-security-encryptor-gui --paths src --distpath dist\hse-windows-x64 --workpath build\hse-gui-pyinstaller --specpath build\hse-gui-spec build_tools\pyinstaller_gui_entry.py
 python -m PyInstaller --clean --noconfirm --onefile --windowed --name high-security-encryptor-hse2-gui --paths src --distpath dist\hse-windows-x64 --workpath build\hse2-gui-pyinstaller --specpath build\hse2-gui-spec build_tools\pyinstaller_hse2_gui_entry.py
 python -m PyInstaller --clean --noconfirm --onefile --console --name high-security-encryptor-hse2-inspect --paths src --distpath dist\hse-windows-x64 --workpath build\hse2-inspect-pyinstaller --specpath build\hse2-inspect-spec build_tools\pyinstaller_hse2_inspect_entry.py
+python -m PyInstaller --clean --noconfirm --onefile --console --name high-security-encryptor-hse2-archive-validate --paths src --distpath dist\hse-windows-x64 --workpath build\hse2-archive-validate-pyinstaller --specpath build\hse2-archive-validate-spec build_tools\pyinstaller_hse2_archive_validate_entry.py
 dist\hse-windows-x64\high-security-encryptor.exe --help
 dist\hse-windows-x64\high-security-encryptor-gui.exe --smoke-test
 dist\hse-windows-x64\high-security-encryptor-hse2-inspect.exe --help
+dist\hse-windows-x64\high-security-encryptor-hse2-archive-validate.exe --help
 ```
 
 ## Release Asset
@@ -42,6 +44,7 @@ The zip should contain:
 - `high-security-encryptor-hse2-open.exe`
 - `high-security-encryptor-hse2-header-backup.exe`
 - `high-security-encryptor-hse2-inspect.exe`
+- `high-security-encryptor-hse2-archive-validate.exe`
 - `high-security-encryptor-hse2-wrapper.exe`
 - `high-security-encryptor-hse2-access.exe`
 - `README.md`
@@ -57,6 +60,7 @@ Before publishing or announcing the Windows zip:
 - run `high-security-encryptor-gui.exe --smoke-test`;
 - run each HSE2 helper executable with `--help`;
 - run `high-security-encryptor-hse2-inspect.exe --help`;
+- run `high-security-encryptor-hse2-archive-validate.exe --help`;
 - run `high-security-encryptor-hse2-gui.exe` and confirm the localized `检查 HSE2 元数据` action prints raw JSON plus a metadata-only result summary;
 - in `high-security-encryptor-hse2-gui.exe`, switch through the localized HSE2 action dropdown and confirm fields hide/show according to the selected action;
 - confirm the extracted zip only contains intended release files and bundled examples.
