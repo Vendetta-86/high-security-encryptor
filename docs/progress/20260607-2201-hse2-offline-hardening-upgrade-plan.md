@@ -495,4 +495,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：路线图版本表校准：v0.6.3 DPAPI/GUI 向导及 v0.6.4 manifest 加密/元数据最小化均已在当前源码实现并由测试覆盖，但这些版本尚未单独打包、打 tag 或发布；状态由“未开始”改为“实现已具备、发布未完成”。未创建 release artifact 或 tag。Commit: 待提交
 - 2026-10-31：M1.7 互操作门槛文档校准：test-only 参考实现已在提交 `fc27860` 覆盖 keyfile、password、password+keyfile 三类 wrapper 双向对照，定向 5 项测试通过；更新测试包和 M1 进度记录，将“本地独立代码路径通过”与“第三方互操作/格式审查待完成”分开表述。文档单测、pre-commit 与 `git diff --check` 通过。Commit: 待提交
 - 2026-10-31：Phase 12 restore-path hardening：HSE2 manifest 创建及恢复现在拒绝会被 POSIX 路径解析静默归一化的非规范路径；Windows 恢复预检以路径前缀树拒绝大小写归一化后的同目标及文件/子路径冲突，避免条目顺序决定覆盖结果，同时令额外索引随路径段数线性增长。新增 manifest 与 v3 open 回归；定向 26 项、最终全量 677 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。格式 framing 文档已同步。Commit: 本提交（SHA 见 Git 历史）
+- 2026-10-31：刷新 restore-path hardening 后的 Windows 候选构建：PyInstaller 6.22.3 从提交 `4c3bb09` 构建 10 个 EXE；8 个 CLI `--help`、主 GUI smoke、打包 v3 create/validate/open、字节哈希还原及两类恶意路径拒绝均通过。独立刷新 ZIP 为 16 项，10 个 EXE 内容哈希与构建输出一致；记录在 `docs/progress/20261031-alpha8-prep-status.md`。CI run `41196270229` 三版本全通过。产物留在本地隔离目录，未覆盖旧候选或发布 tag。Commit: 本提交（SHA 见 Git 历史）
 
