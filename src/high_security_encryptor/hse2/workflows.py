@@ -92,6 +92,35 @@ class HSE2ArchiveOpenResult:
         }
 
 
+@dataclass(frozen=True)
+class HSE2ArchiveValidationResult:
+    """Authenticated archive validation summary that contains no plaintext."""
+
+    input_path: str
+    format_version: int
+    wrapper_type: str
+    entry_count: int
+    file_count: int
+    payload_chunk_count: int
+    plaintext_size: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ok": True,
+            "input_path": self.input_path,
+            "format_version": self.format_version,
+            "wrapper_type": self.wrapper_type,
+            "entry_count": self.entry_count,
+            "file_count": self.file_count,
+            "payload_chunk_count": self.payload_chunk_count,
+            "plaintext_size": self.plaintext_size,
+            "header_authenticated": True,
+            "manifest_authenticated": True,
+            "payload_authenticated": True,
+            "plaintext_written": False,
+        }
+
+
 def create_hse2_archive(
     *,
     roots: tuple[str | os.PathLike[str], ...],
@@ -262,7 +291,7 @@ def open_hse2_archive(
         with open_v3_container(input_file, authenticate_header=authenticate_header) as reader:
             encrypted_manifest = reader.read_manifest()
             manifest = decrypt_manifest(encrypted_manifest, mek=unlocked_holder[0].mek)
-            _validate_v3_manifest_for_open(
+            _validate_archive_manifest_layout(
                 manifest,
                 chunk_count=reader.header.payload_layout.chunk_count,
                 chunk_size=reader.header.cipher_suite.chunk_size,
@@ -289,6 +318,76 @@ def open_hse2_archive(
         entry_count=len(manifest["entries"]),
         file_count=len(manifest["payload_ranges"]),
         payload_chunk_count=chunk_count,
+    )
+
+
+def validate_hse2_archive(
+    *,
+    input_path: str | os.PathLike[str],
+    password: str | None = None,
+    keyfile_bytes: bytes | None = None,
+    allow_dpapi: bool = False,
+) -> HSE2ArchiveValidationResult:
+    """Authenticate a v2/v3 archive and its payload without writing plaintext."""
+
+    if not password and keyfile_bytes is None and not allow_dpapi:
+        raise HSE2ModelError("hse2 archive validation requires a password, keyfile, or DPAPI unlock method")
+    if allow_dpapi and not is_dpapi_available():
+        raise HSE2ModelError("Windows DPAPI is only available on Windows")
+    path = Path(input_path)
+    factors = HSE2UnlockFactors(password=password, keyfile_bytes=keyfile_bytes, allow_dpapi=allow_dpapi)
+    version = _read_container_version(path)
+    if version == 2:
+        container = read_hse2_container(path)
+        unlocked = unlock_first_matching_wrapper(container.header.wrappers, factors=factors)
+        require_valid_header_auth_tag(container.header, mek=unlocked.mek)
+        manifest = decrypt_manifest(container.manifest, mek=unlocked.mek)
+        _validate_archive_manifest_layout(
+            manifest,
+            chunk_count=len(container.payload_chunks),
+            chunk_size=container.header.cipher_suite.chunk_size,
+        )
+        _validate_archive_payload(
+            manifest=manifest,
+            payload_chunks=container.payload_chunks,
+            content_keys=unlocked,
+            chunk_size=container.header.cipher_suite.chunk_size,
+            padding_mode=container.header.payload_layout.padding_mode,
+        )
+        header = container.header
+        chunk_count = len(container.payload_chunks)
+    else:
+        unlocked_holder: list[Any] = []
+
+        def authenticate_header(header: HSE2Header) -> None:
+            unlocked = unlock_first_matching_wrapper(header.wrappers, factors=factors)
+            require_valid_header_auth_tag(header, mek=unlocked.mek)
+            unlocked_holder.append(unlocked)
+
+        with open_v3_container(path, authenticate_header=authenticate_header) as reader:
+            encrypted_manifest = reader.read_manifest()
+            manifest = decrypt_manifest(encrypted_manifest, mek=unlocked_holder[0].mek)
+            chunk_count = reader.header.payload_layout.chunk_count
+            chunk_size = reader.header.cipher_suite.chunk_size
+            _validate_archive_manifest_layout(manifest, chunk_count=chunk_count, chunk_size=chunk_size)
+            _validate_archive_payload(
+                manifest=manifest,
+                payload_chunks=reader.iter_payload_chunks(),
+                content_keys=unlocked_holder[0],
+                chunk_size=chunk_size,
+                padding_mode=reader.header.payload_layout.padding_mode,
+            )
+            header = reader.header
+            unlocked = unlocked_holder[0]
+
+    return HSE2ArchiveValidationResult(
+        input_path=str(path),
+        format_version=header.format_version,
+        wrapper_type=_selected_wrapper_type(header.wrappers, factors),
+        entry_count=len(manifest["entries"]),
+        file_count=len(manifest["payload_ranges"]),
+        payload_chunk_count=chunk_count,
+        plaintext_size=sum(item["size"] for item in manifest["payload_ranges"]),
     )
 
 
@@ -534,7 +633,7 @@ def _read_container_version(path: Path) -> int:
     return version
 
 
-def _validate_v3_manifest_for_open(
+def _validate_archive_manifest_layout(
     manifest: dict[str, Any],
     *,
     chunk_count: int,
@@ -727,6 +826,59 @@ def _validate_payload_chunk_count(manifest: dict[str, Any], actual_count: int) -
         expected += count
     if expected != actual_count:
         raise HSE2ModelError("payload chunk count does not match manifest ranges")
+
+
+def _validate_archive_payload(
+    *,
+    manifest: dict[str, Any],
+    payload_chunks: Any,
+    content_keys: Any,
+    chunk_size: int,
+    padding_mode: str,
+) -> None:
+    ranges_by_path = {_manifest_path_key(item): item for item in manifest["payload_ranges"]}
+    files = [entry for entry in manifest["entries"] if entry.get("kind") == "file"]
+    if len(ranges_by_path) != len(manifest["payload_ranges"]) or set(ranges_by_path) != {
+        _manifest_path_key(entry) for entry in files
+    }:
+        raise HSE2ModelError("payload ranges do not match archive file entries")
+
+    ordered_ranges = sorted(ranges_by_path.values(), key=lambda item: item["start_chunk"])
+    expected_start = 0
+    chunks = iter(payload_chunks)
+    context = _payload_padding_aad_context(padding_mode)
+    for payload_range in ordered_ranges:
+        path_key = _manifest_path_key(payload_range)
+        _safe_manifest_path(path_key)
+        start = payload_range.get("start_chunk")
+        count = payload_range.get("chunk_count")
+        size = payload_range.get("size")
+        if type(start) is not int or start != expected_start:
+            raise HSE2ModelError("payload ranges must be contiguous and ordered")
+        if type(count) is not int or count < 0 or type(size) is not int or size < 0:
+            raise HSE2ModelError("payload range count or size is invalid")
+        if count != ((size + chunk_size - 1) // chunk_size if size else 0):
+            raise HSE2ModelError("payload range chunk count does not match its size")
+        remaining = size
+        for _ in range(count):
+            try:
+                chunk = next(chunks)
+            except StopIteration as exc:
+                raise HSE2ModelError("payload ended before manifest range was complete") from exc
+            plaintext = decrypt_payload_chunk(chunk, dek=content_keys.dek, context=context)
+            if padding_mode == PAYLOAD_PADDING_MODE_LAST_CHUNK:
+                if len(plaintext) != chunk_size or remaining <= 0:
+                    raise HSE2ModelError(f"padded payload chunk size mismatch: {path_key}")
+                remaining -= min(remaining, len(plaintext))
+            else:
+                expected_length = min(chunk_size, remaining)
+                if len(plaintext) != expected_length:
+                    raise HSE2ModelError(f"payload plaintext size does not match manifest range: {path_key}")
+                remaining -= len(plaintext)
+        if remaining:
+            raise HSE2ModelError(f"payload range ended before its declared size: {path_key}")
+        expected_start += count
+    _require_payload_eof(chunks)
 
 
 def _restore_manifest_entries(

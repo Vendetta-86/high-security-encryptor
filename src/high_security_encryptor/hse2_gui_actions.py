@@ -86,6 +86,7 @@ def build_hse2_gui_command(
     archive_format_version: int = 2,
     archive_chunk_size: int = 1024 * 1024,
     archive_pad_last_chunk: bool = False,
+    archive_validate_after_create: bool = False,
     access_confirmation_phrase: str = "",
 ) -> HSE2GuiCommandPlan:
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
@@ -125,6 +126,8 @@ def build_hse2_gui_command(
             args.append("--dpapi")
         if archive_pad_last_chunk:
             args.append("--pad-last-chunk")
+        if archive_validate_after_create:
+            args.append("--validate-after-create")
         if force:
             args.append("--overwrite")
         argv = tuple(args)

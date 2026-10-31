@@ -27,13 +27,14 @@ class HSE2GuiActionTests(unittest.TestCase):
             archive_format_version=3,
             archive_chunk_size=4096,
             archive_pad_last_chunk=True,
+            archive_validate_after_create=True,
         )
         self.assertEqual(
             plan.argv,
             (
                 "hse2-create", "--root", "source", "--output", "archive.hse2",
                 "--format-version", "3", "--chunk-size", "4096", "--keyfile", "recovery.key",
-                "--pad-last-chunk",
+                "--pad-last-chunk", "--validate-after-create",
             ),
         )
 

@@ -144,6 +144,7 @@ class HSE2GuiLauncherTests(unittest.TestCase):
                     archive_format_version="3",
                     archive_chunk_size=64,
                     archive_pad_last_chunk=True,
+                    archive_validate_after_create=True,
                 )
             )
 
@@ -152,6 +153,9 @@ class HSE2GuiLauncherTests(unittest.TestCase):
 
             self.assertEqual(create_result.exit_code, 0, create_result.stderr)
             self.assertTrue(container.exists())
+            create_payload = json.loads(create_result.stdout)
+            self.assertTrue(create_payload["post_create_validation"]["ok"])
+            self.assertFalse(create_payload["post_create_validation"]["plaintext_written"])
             self.assertEqual(inspect_result.exit_code, 0, inspect_result.stderr)
             inspect_payload = json.loads(inspect_result.stdout)
             self.assertEqual(inspect_payload["format_version"], 3)

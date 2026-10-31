@@ -15,6 +15,7 @@ from .hse2.workflows import (
     create_hse2_archive,
     read_keyfile_bytes,
     read_secret_text_file,
+    validate_hse2_archive,
     validate_hse2_wrapper_policy,
 )
 
@@ -46,6 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--pad-last-chunk",
         action="store_true",
         help="Pad each non-empty file's final encrypted chunk to --chunk-size with random bytes; hides its exact size within one chunk.",
+    )
+    parser.add_argument(
+        "--validate-after-create",
+        action="store_true",
+        help="Re-open and authenticate the completed archive without writing plaintext before reporting success.",
     )
     parser.add_argument(
         "--dry-run",
@@ -86,6 +92,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
+    if args.dry_run and args.validate_after_create:
+        print("hse2-create: --validate-after-create cannot be used with --dry-run", file=sys.stderr)
+        return 2
     try:
         output_path = Path(args.output)
         _validate_output_path(output_path)
@@ -111,6 +120,17 @@ def main(argv: list[str] | None = None) -> int:
                 pad_last_chunk=bool(args.pad_last_chunk),
             )
             summary = result.to_dict()
+            if args.validate_after_create:
+                try:
+                    validation = validate_hse2_archive(
+                        input_path=output_path,
+                        password=password,
+                        keyfile_bytes=keyfile_bytes,
+                        allow_dpapi=bool(args.dpapi),
+                    )
+                    summary["post_create_validation"] = validation.to_dict()
+                except (HSE2ModelError, OSError, ValueError) as exc:
+                    summary["post_create_validation"] = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
             backup_path = _recommended_header_backup_path(output_path)
             summary["header_backup_recommended"] = True
             summary["header_backup_path"] = str(backup_path)
@@ -136,6 +156,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"hse2-create: {exc}", file=sys.stderr)
         return 2
     print(_format_json(summary, compact=bool(args.compact)))
+    if not args.dry_run and args.validate_after_create and not summary.get("post_create_validation", {}).get("ok"):
+        print("hse2-create: archive was written, but post-create validation failed", file=sys.stderr)
+        return 3
     return 0
 
 

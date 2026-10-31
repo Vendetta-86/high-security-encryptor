@@ -28,6 +28,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "archive-create": frozenset({
         "root_path", "output_path", "password_file", "keyfile_path", "archive_profile", "archive_format_version",
         "archive_chunk_size", "new_wrapper_dpapi", "force", "archive_pad_last_chunk", "paranoid_warning", "dpapi_warning",
+        "archive_validate_after_create",
     }),
     "archive-open": frozenset({
         "input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force", "dpapi_warning",
@@ -72,6 +73,7 @@ _OPTION_FIELD_ORDER = (
     "allow_dpapi",
     "new_wrapper_dpapi",
     "archive_pad_last_chunk",
+    "archive_validate_after_create",
 )
 
 _HSE2_KDF_PROFILE_LABELS = {
@@ -146,6 +148,7 @@ class HSE2GuiTabState:
     archive_format_version: str = "2"
     archive_chunk_size: int = 1024 * 1024
     archive_pad_last_chunk: bool = False
+    archive_validate_after_create: bool = False
     access_confirmation_phrase: str = ""
 
 
@@ -209,6 +212,7 @@ def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
         archive_format_version=int(state.archive_format_version),
         archive_chunk_size=state.archive_chunk_size,
         archive_pad_last_chunk=state.archive_pad_last_chunk,
+        archive_validate_after_create=state.archive_validate_after_create,
         access_confirmation_phrase=state.access_confirmation_phrase,
     )
     return list(plan.argv)
@@ -248,6 +252,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.archive_format_version = tk.StringVar(value="2")
         self.archive_chunk_size = tk.IntVar(value=1024 * 1024)
         self.archive_pad_last_chunk = tk.BooleanVar(value=False)
+        self.archive_validate_after_create = tk.BooleanVar(value=True)
         self.access_confirmation_phrase = tk.StringVar()
 
         self._field_widgets: dict[str, FieldWidgets] = {}
@@ -432,6 +437,9 @@ class HSE2ExperimentalTab(ttk.Frame):
             ),
             "new_wrapper_dpapi": ttk.Checkbutton(self._options_frame, text="新 wrapper 使用 Windows DPAPI", variable=self.new_wrapper_dpapi),
             "archive_pad_last_chunk": ttk.Checkbutton(self._options_frame, text="隐藏文件精确大小（末块 padding）", variable=self.archive_pad_last_chunk),
+            "archive_validate_after_create": ttk.Checkbutton(
+                self._options_frame, text="创建后校验归档（不写出明文）", variable=self.archive_validate_after_create
+            ),
         }
 
         ttk.Button(self, text="运行 HSE2 实验操作", command=self.run_selected_action).grid(

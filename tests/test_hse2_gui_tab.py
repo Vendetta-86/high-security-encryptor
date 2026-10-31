@@ -57,6 +57,7 @@ class HSE2GuiTabTests(unittest.TestCase):
                 archive_format_version="3",
                 archive_chunk_size=4096,
                 archive_pad_last_chunk=True,
+                archive_validate_after_create=True,
             )
         )
         self.assertEqual(
@@ -64,7 +65,7 @@ class HSE2GuiTabTests(unittest.TestCase):
             [
                 "hse2-create", "--root", "source", "--output", "archive.hse2",
                 "--format-version", "3", "--chunk-size", "4096", "--keyfile", "recovery.key",
-                "--pad-last-chunk",
+                "--pad-last-chunk", "--validate-after-create",
             ],
         )
 
@@ -168,7 +169,7 @@ class HSE2GuiTabTests(unittest.TestCase):
             frozenset({
                 "root_path", "output_path", "password_file", "keyfile_path", "archive_profile",
                 "archive_format_version", "archive_chunk_size", "new_wrapper_dpapi", "force",
-                "archive_pad_last_chunk", "paranoid_warning", "dpapi_warning",
+                "archive_pad_last_chunk", "archive_validate_after_create", "paranoid_warning", "dpapi_warning",
             }),
         )
 
