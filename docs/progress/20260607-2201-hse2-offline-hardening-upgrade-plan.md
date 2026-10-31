@@ -240,7 +240,7 @@
 
 ### 状态
 
-`[!]` 已评估：暂不进入 `v0.7.0` 实现。当前格式与威胁模型没有定义可验证的 plausible-deniability 目标；双密码分别解锁真实/诱饵内容本身不足以隐藏诱饵区是否存在，也无法覆盖多次归档快照、文件大小变化、应用日志、备份和操作系统痕迹。进入实现前需另立格式提案，明确攻击者观察能力、外部可观察量、失败行为、兼容策略，并接受独立密码学审查。当前仅保留“绝不自动删除真实数据或 wrapper”的安全规则。
+`[!]` 已完成实现前设计审查，暂不进入 `v0.7.0` 实现。当前格式与威胁模型没有定义可验证的 plausible-deniability 目标；双密码分别解锁真实/诱饵内容本身不足以隐藏诱饵区是否存在，也无法覆盖多次归档快照、文件大小变化、应用日志、备份和操作系统痕迹。格式级可观察面、候选方案与实现门槛见 [`docs/hse2_decoy_design_review.md`](../hse2_decoy_design_review.md)。重新启动前需先完成独立格式提案、明确攻击者观察能力、外部可观察量、失败行为、兼容策略，并接受独立密码学审查。当前仅保留“绝不自动删除真实数据或 wrapper”的安全规则。
 
 ### 不做项
 
@@ -480,4 +480,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 创建到恢复连续向导：创建成功且校验通过时询问是否继续；确认后切到 archive-open、自动填入归档路径、清空恢复目录，并只在 DPAPI wrapper 时启用 DPAPI 解锁。用户仍需确认访问因子/恢复目标，随后通过只读预览确认才运行恢复。创建失败或创建后认证失败不会启动下一步。GUI 定向 86 项、全量 663 项通过（6 项跳过），pre-commit、compileall、`git diff --check` 均通过。Commit: 待提交
 - 2026-10-31：路线图盘点：将原定测试文件名更新为仓库现有的格式、keyfile、DPAPI 与 manifest/metadata 覆盖文件，并确认 HSE1→HSE2 迁移文档已落地；没有重复创建空壳测试文件。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：评估 Phase 8 是否进入 `v0.7.0`：延后实现。正式隐藏卷工具的安全文档也明确列出多快照变化、系统日志和日常使用不一致等可否定性风险，并声明风险清单不保证穷尽；HSE2 当前计划缺少对这些观察面的格式级处理和独立密码学审查，不能安全地把“双密码解锁诱饵”作为可否认性功能发布。后续需先完成独立格式提案、攻击者模型与审查，再决定是否实现。参考：[VeraCrypt 隐藏卷安全要求](https://veracrypt.io/en/Security%20Requirements%20for%20Hidden%20Volumes.html)、[VeraCrypt 隐藏卷说明](https://veracrypt.io/en/Hidden%20Volume.html)。Commit: 本提交（SHA 见 Git 历史）
+- 2026-10-31：完成 Phase 8 实现前设计审查，新增 [`docs/hse2_decoy_design_review.md`](../hse2_decoy_design_review.md)，盘点 header wrapper/布局/大小/备份/日志等可观察面，评估可见 wrapper、双视图固定大小流和应用层 alternate-content 三种路径，并定义八项实现前审查门槛。结论仍为 no-go：不修改当前 v2/v3 格式，也不宣称可否认性。Commit: 本提交（SHA 见 Git 历史）
 
