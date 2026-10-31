@@ -314,7 +314,7 @@
 
 ### 待完成清单
 
-- [~] 新增“高安全 HSE2 加密向导”（standalone HSE2 GUI 已有，完整向导仍需补齐）
+- [x] 新增“高安全 HSE2 加密向导”：创建成功可进入预填归档路径的恢复步骤，打开前元数据预览并显式确认
 - [x] 文件 / 文件夹选择
 - [x] 输出位置选择
 - [x] 安全等级选择：wrapper add/rewrap 和新建归档支持标准兼容 / 推荐高安全 / 极高安全；paranoid 密码 wrapper 强制要求 keyfile
@@ -330,7 +330,7 @@
 
 ### 完成标准
 
-- [~] 新手可通过 GUI 选择目录并创建 v2/v3 password-file 或直接输入密码归档；创建到预览、确认、恢复的统一引导仍可继续收敛
+- [x] 新手可通过 GUI 选择目录创建 v2/v3 归档，接着确认恢复目录和解锁方式、预览容器元数据并执行恢复
 - [x] GUI 可用 password-file/keyfile/DPAPI 打开并恢复 v2/v3 归档；可选的整包预校验失败时不创建输出目录
 - [x] GUI 不诱导用户只依赖 DPAPI：创建与 wrapper 管理均提示 DPAPI 本机绑定/可移植性风险及独立恢复方式
 - [x] GUI 对 destroy-access 有强确认和单独入口
@@ -476,4 +476,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Windows 发布补齐 archive-validate helper：新增 PyInstaller entry script；workflow build、文件存在检查、`--help` smoke 和 release ZIP copy 均加入 helper；Windows EXE 文档及 workflow contract test 同步。隔离 venv 安装 `.[build]` 后实际构建 onefile EXE 并运行 `--help` 成功；契约测试通过，全量 659 项通过（6 项跳过），compileall 和 `git diff --check` 通过。Commit: `15912da`
 - 2026-10-31：Phase 12 质量门：安装 `.[dev]` 后 `pre-commit run --all-files` 通过；为识别出的固定 HSE2 测试密码与 fixture hash 加精确 false-positive 注释。`pip-audit . --progress-spinner off` 报告未发现已知漏洞。Commit: `ac5810e`
 - 2026-10-31：Phase 11 创建后 GUI 导航摘要：创建成功后摘要展示容器格式、wrapper 类型、payload 计数、创建后认证状态和建议 header backup 路径，并指向导出备份及归档恢复入口；明确 header backup 不替代密码/keyfile。定向 GUI 83 项、全量 660 项通过（6 项跳过）。Commit: 待提交
+- 2026-10-31：Phase 11 创建到恢复连续向导：创建成功且校验通过时询问是否继续；确认后切到 archive-open、自动填入归档路径、清空恢复目录，并只在 DPAPI wrapper 时启用 DPAPI 解锁。用户仍需确认访问因子/恢复目标，随后通过只读预览确认才运行恢复。创建失败或创建后认证失败不会启动下一步。GUI 定向 86 项、全量 663 项通过（6 项跳过），pre-commit、compileall、`git diff --check` 均通过。Commit: 待提交
 

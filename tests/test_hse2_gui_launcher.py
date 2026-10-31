@@ -12,6 +12,7 @@ import unittest
 from unittest.mock import patch
 
 from high_security_encryptor import hse2_gui_launcher
+from high_security_encryptor.gui import GuiCommandResult
 from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_archive_open_confirmation, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
 from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state, build_hse2_plan_from_tab_state
@@ -131,6 +132,64 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("建议 header backup：archive.hse2.header", summary)
         self.assertIn("解密并打开 HSE2 归档", summary)
         self.assertIn("不替代密码或 keyfile", summary)
+
+    def test_archive_create_followup_prepares_restore_action_after_confirmation(self) -> None:
+        class TabProbe:
+            prepared: tuple[str, str] | None = None
+
+            def prepare_archive_open(self, input_path: str, wrapper_type: str) -> None:
+                self.prepared = input_path, wrapper_type
+
+        class AppProbe:
+            hse2_tab = TabProbe()
+            log: list[str] = []
+
+            def _append_log(self, value: str) -> None:
+                self.log.append(value)
+
+        probe = AppProbe()
+        plan = build_hse2_plan_from_tab_state(
+            HSE2GuiTabState(action="archive-create", root_path="source", output_path="archive.hse2", keyfile_path="k")
+        )
+        result = GuiCommandResult(
+            exit_code=0,
+            stdout=json.dumps({
+                "command": "hse2-create", "container_written": True,
+                "output_path": "archive.hse2", "wrapper_type": "keyfile",
+            }),
+            stderr="",
+        )
+        with patch("high_security_encryptor.hse2_gui_launcher.messagebox.askyesno", return_value=True), \
+                patch("high_security_encryptor.hse2_gui_launcher.messagebox.showinfo"):
+            HSE2ExperimentalApp._offer_archive_open_followup(probe, plan, result)
+        self.assertEqual(probe.hse2_tab.prepared, ("archive.hse2", "keyfile"))
+
+    def test_archive_create_followup_is_suppressed_on_failure_or_failed_validation(self) -> None:
+        class TabProbe:
+            prepared = False
+
+            def prepare_archive_open(self, input_path: str, wrapper_type: str) -> None:
+                self.prepared = True
+
+        class AppProbe:
+            hse2_tab = TabProbe()
+
+        probe = AppProbe()
+        plan = build_hse2_plan_from_tab_state(
+            HSE2GuiTabState(action="archive-create", root_path="source", output_path="archive.hse2", keyfile_path="k")
+        )
+        payload = json.dumps({
+            "container_written": True, "output_path": "archive.hse2", "wrapper_type": "keyfile",
+            "post_create_validation": {"ok": False},
+        })
+        failed = GuiCommandResult(exit_code=3, stdout=payload, stderr="failed")
+        with patch("high_security_encryptor.hse2_gui_launcher.messagebox.askyesno") as ask:
+            HSE2ExperimentalApp._offer_archive_open_followup(probe, plan, failed)
+            HSE2ExperimentalApp._offer_archive_open_followup(
+                probe, plan, GuiCommandResult(exit_code=0, stdout=payload, stderr="")
+            )
+        ask.assert_not_called()
+        self.assertFalse(probe.hse2_tab.prepared)
 
     def test_wrapper_list_summary_formats_table(self) -> None:
         summary = _build_hse2_result_summary(

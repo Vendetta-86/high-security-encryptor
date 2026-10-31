@@ -55,7 +55,7 @@ class HSE2ExperimentalApp(ttk.Frame):
         notebook = ttk.Notebook(self)
         notebook.grid(row=0, column=0, sticky="nsew")
         build_hse2_quickstart_tab(notebook, self._handle_quickstart_created, self._run_quickstart_steps)
-        build_hse2_experimental_tab(notebook, self._run_hse2_command)
+        self.hse2_tab = build_hse2_experimental_tab(notebook, self._run_hse2_command)
 
         log_frame = ttk.LabelFrame(self, text="执行日志", padding=8)
         log_frame.grid(row=1, column=0, sticky="nsew", pady=(10, 0))
@@ -123,11 +123,36 @@ class HSE2ExperimentalApp(ttk.Frame):
             self._append_log(f"\n退出码：{result.exit_code}\n")
             if result.exit_code != 0:
                 messagebox.showerror("执行失败", "HSE2 实验命令执行失败，请查看日志。")
+            else:
+                self._offer_archive_open_followup(plan, result)
         except Exception as exc:  # noqa: BLE001 - GUI boundary reports user-facing errors.
             self._append_log(f"异常：{exc}\n")
             messagebox.showerror("执行失败", str(exc))
         finally:
             self._is_busy = False
+
+    def _offer_archive_open_followup(self, plan: HSE2GuiCommandPlan, result: GuiCommandResult) -> None:
+        if plan.action != "archive-create" or result.exit_code != 0:
+            return
+        payload = _parse_json_stdout(result.stdout)
+        if not isinstance(payload, dict) or not payload.get("container_written"):
+            return
+        validation = payload.get("post_create_validation")
+        if isinstance(validation, dict) and validation.get("ok") is False:
+            return
+        archive_path = payload.get("output_path")
+        if not isinstance(archive_path, str) or not archive_path:
+            return
+        prompt = (
+            "归档已创建。是否继续到恢复步骤？\n\n"
+            f"归档：{archive_path}\n"
+            "下一步会要求选择恢复目录、确认解锁方式，并在恢复前预览容器元数据。"
+        )
+        if not messagebox.askyesno("继续 HSE2 恢复向导", prompt):
+            return
+        self.hse2_tab.prepare_archive_open(archive_path, str(payload.get("wrapper_type", "")))
+        self._append_log("\n已切换到归档恢复步骤；请确认解锁方式并选择恢复目录。\n")
+        messagebox.showinfo("HSE2 恢复向导", "归档路径已填入。请确认解锁方式、选择恢复目录，然后运行操作。")
 
     def _confirm_archive_open(self, plan: HSE2GuiCommandPlan) -> bool:
         argv = list(plan.argv)

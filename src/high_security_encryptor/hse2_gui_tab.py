@@ -336,6 +336,16 @@ class HSE2ExperimentalTab(ttk.Frame):
     def build_plan(self) -> HSE2GuiCommandPlan:
         return build_hse2_plan_from_tab_state(self.state())
 
+    def prepare_archive_open(self, input_path: str, wrapper_type: str) -> None:
+        """Carry a newly created archive into the explicit restore step."""
+
+        self.action.set("archive-open")
+        self.input_path.set(input_path)
+        self.output_path.set("")
+        self.allow_dpapi.set(wrapper_type == "dpapi")
+        self.archive_password.set("")
+        self.archive_password_confirmation.set("")
+
     def run_selected_action(self) -> None:
         """Build and run the selected HSE2 action through the injected GUI runner."""
 

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 
 from high_security_encryptor.hse2_gui_tab import (
     HEADER_BACKUP_RECOVERY_WARNING,
+    HSE2ExperimentalTab,
     HSE2GuiTabState,
     build_hse2_command_from_tab_state,
     dpapi_warning_for_state,
@@ -346,6 +348,30 @@ class HSE2GuiTabTests(unittest.TestCase):
         self.assertNotIn(secret, repr(HSE2GuiTabState(
             action="archive-create", archive_password=secret, archive_password_confirmation=secret,
         )))
+
+    def test_prepare_archive_open_carries_path_and_only_enables_dpapi_when_needed(self) -> None:
+        class Variable:
+            def __init__(self, value: str = "stale") -> None:
+                self.value = value
+
+            def set(self, value: str) -> None:
+                self.value = value
+
+        tab = SimpleNamespace(
+            action=Variable(), input_path=Variable(), output_path=Variable("old-output"),
+            allow_dpapi=Variable("old-dpapi"), archive_password=Variable("old-password"),
+            archive_password_confirmation=Variable("old-confirmation"),
+        )
+        HSE2ExperimentalTab.prepare_archive_open(tab, "new-archive.hse2", "dpapi")
+        self.assertEqual(tab.action.value, "archive-open")
+        self.assertEqual(tab.input_path.value, "new-archive.hse2")
+        self.assertEqual(tab.output_path.value, "")
+        self.assertTrue(tab.allow_dpapi.value)
+        self.assertEqual(tab.archive_password.value, "")
+        self.assertEqual(tab.archive_password_confirmation.value, "")
+
+        HSE2ExperimentalTab.prepare_archive_open(tab, "keyfile-archive.hse2", "keyfile")
+        self.assertFalse(tab.allow_dpapi.value)
 
 
 if __name__ == "__main__":

@@ -51,7 +51,10 @@ Creation enables post-create authenticated validation by default; it
 checks the header, encrypted manifest, and every payload authentication tag
 without writing plaintext. A validation failure is reported distinctly and
 the already-created archive remains on disk. A paranoid password wrapper
-requires a keyfile. The `archive-open`
+requires a keyfile. After successful creation, the GUI offers to continue to
+restore, switches to `archive-open`, fills the new archive path, clears the
+destination field, and carries forward DPAPI mode when that is the wrapper.
+The user still confirms the unlock method and restore destination. The `archive-open`
 action restores a selected container into a destination folder and accepts a
 masked password field, password file, keyfile, or explicit DPAPI allowance.
 Opening and standalone validation need one password entry; creation requires
