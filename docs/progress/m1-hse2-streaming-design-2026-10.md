@@ -6,7 +6,7 @@
 
 ## 当前状态（2026-10-31）
 
-本文件后续章节保留各 M1 切片的历史设计与验证记录；其中最初的“M1.1 规格收敛”状态已过时。当前仓库已完成 v3 有界 framing、流式 create/open、wrapper/header-backup 流式操作、CLI/GUI 接入、v2 基线 fixture、畸形 framing 回归、仓库内独立参考实现的双向互操作以及 Windows 8 MiB/128 MiB 内存基准。后续 alpha.8 本地验收进一步完成 Windows EXE v3 往返、打包 GUI 元数据检查和 669 项全量测试（6 项跳过）；HSE2 JSON 中整数字段现拒绝布尔值；见 [`20261031-alpha8-prep-status.md`](20261031-alpha8-prep-status.md)。
+本文件后续章节保留各 M1 切片的历史设计与验证记录；其中最初的“M1.1 规格收敛”状态已过时。当前仓库已完成 v3 有界 framing、流式 create/open、wrapper/header-backup 流式操作、CLI/GUI 接入、v2 基线 fixture、畸形 framing 回归、仓库内独立参考实现的双向互操作以及 Windows 8 MiB/128 MiB 内存基准。alpha.8 本地验收完成 Windows EXE v3 往返及打包 GUI 元数据检查；后续整数字段与 GCM 分块上限修复后，全量测试为 671 项通过、6 项跳过。当前 `1d7e9f3` 限制每个 DEK 最多加密 2^32 个 payload 分块，覆盖 v2/v3，依据 NIST SP 800-38D §8.3；重建的十个 Windows EXE 已通过 CLI/GUI smoke 和打包 v3 创建、校验、恢复哈希比对。详细发布验收状态见 [`20261031-alpha8-prep-status.md`](20261031-alpha8-prep-status.md)。
 
 剩余边界：仓库内独立参考实现不是第三方实现，因此不能据此承诺与外部 v3 实现兼容；单机内存基准也不构成任意 manifest 大小、内存压力和平台上的绝对上限证明。进入稳定格式冻结或作出对外兼容承诺前，需要外部 v3 实现的双向互操作证据及独立格式/密码学审查。Phase 8 decoy/duress 仍按主路线图维持 no-go。
 
