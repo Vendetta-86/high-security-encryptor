@@ -27,13 +27,13 @@ The GitHub Actions workflow builds a zip asset named:
 high-security-encryptor-<tag>-windows-x64.zip
 ```
 
-For release tag `v0.6.0-alpha.7`, the expected asset name is:
+For release tag `v0.6.0-alpha.8`, the expected asset name is:
 
 ```text
-high-security-encryptor-v0.6.0-alpha.7-windows-x64.zip
+high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip
 ```
 
-The Python package version for this release line is `0.6.0a7`.
+The Python package version for this release line is `0.6.0a8`.
 
 The zip should contain:
 

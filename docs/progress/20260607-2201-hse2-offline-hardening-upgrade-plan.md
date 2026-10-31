@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：P11 Windows EXE 本地验收完成；P12 第一段、第二段已合并；`v0.6.0-alpha.3` 发布准备进行中。
+- **当前状态**：Phase 11 GUI/CLI 闭环及 Phase 12 本地质量门已完成；alpha.8 Windows 包、端到端 EXE 往返和 GUI 元数据检查已通过。当前待本提交 CI 与发布前维护者审查；Phase 8 维持 no-go。尚未打 tag 或发布。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -76,8 +76,9 @@
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
-| Phase 10 | [~] | GUI / CLI 完整闭环 | 统一 inspect、validate、wrapper 管理与 access destroy 已接入；完整向导仍需补齐 |
-| Phase 11 | [~] | 测试与发布 | v0.6.0-alpha.3 release-prep 已建立，待 CI/本地验收与发布 |
+| Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
+| Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；本机 GUI 检查 alpha.8 打包版元数据预览成功 |
+| Phase 12 | [x] | 测试计划 | 全量自动化回归、Windows build/EXE 往返、依赖审计、本地流式基准已通过；alpha.8 当前提交 CI 与发布前维护者审查待完成 |
 
 ---
 
@@ -390,7 +391,7 @@ python -m pip_audit . --progress-spinner off
 |---|---|---|
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
-| `v0.6.0-alpha.3` | [~] | P12 GUI wrapper/access 与结果摘要后的下一条 alpha 线，release-prep 已建立 |
+| `v0.6.0-alpha.8` | [~] | 本机 release candidate 验证完成：666 tests (6 skipped)、质量门、10 个 Windows EXE、v3 EXE 往返与打包 GUI 元数据检查通过；待当前提交 CI 和维护者审查。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
@@ -481,4 +482,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：路线图盘点：将原定测试文件名更新为仓库现有的格式、keyfile、DPAPI 与 manifest/metadata 覆盖文件，并确认 HSE1→HSE2 迁移文档已落地；没有重复创建空壳测试文件。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：评估 Phase 8 是否进入 `v0.7.0`：延后实现。正式隐藏卷工具的安全文档也明确列出多快照变化、系统日志和日常使用不一致等可否定性风险，并声明风险清单不保证穷尽；HSE2 当前计划缺少对这些观察面的格式级处理和独立密码学审查，不能安全地把“双密码解锁诱饵”作为可否认性功能发布。后续需先完成独立格式提案、攻击者模型与审查，再决定是否实现。参考：[VeraCrypt 隐藏卷安全要求](https://veracrypt.io/en/Security%20Requirements%20for%20Hidden%20Volumes.html)、[VeraCrypt 隐藏卷说明](https://veracrypt.io/en/Hidden%20Volume.html)。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：完成 Phase 8 实现前设计审查，新增 [`docs/hse2_decoy_design_review.md`](../hse2_decoy_design_review.md)，盘点 header wrapper/布局/大小/备份/日志等可观察面，评估可见 wrapper、双视图固定大小流和应用层 alternate-content 三种路径，并定义八项实现前审查门槛。结论仍为 no-go：不修改当前 v2/v3 格式，也不宣称可否认性。Commit: 本提交（SHA 见 Git 历史）
+- 2026-10-31：alpha.8 本机候选验证：全量 unittest 666 通过、6 跳过；compileall、pre-commit、pip-audit 通过；Windows 11 x64/Python 3.13.15 上构建 10 个 EXE，CLI smoke 全过，打包 EXE 完成 v3 create/inspect/validate/open 且恢复内容逐字节一致；打包 GUI 对临时 v3 容器执行“检查 HSE2 元数据”并返回退出码 0。生成 16 项 ZIP（133,992,289 bytes）。当前提交 CI 和维护者审查仍待完成；没有创建 tag 或 GitHub Release。Commit: 本提交（SHA 见 Git 历史）
 

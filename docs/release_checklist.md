@@ -5,11 +5,13 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- For release tag `v0.6.0-alpha.7`, confirm Python package version `0.6.0a7`.
+- For release tag `v0.6.0-alpha.8`, confirm Python package version `0.6.0a8`.
 - Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
 ## Local Verification
+
+The alpha.8 local candidate has passed the full suite (666 passed, 6 skipped), compileall, pre-commit, dependency audit, ten-executable Windows build, packaged CLI smoke checks, a v3 executable round trip, and packaged GUI metadata inspection. See `docs/progress/20261031-alpha8-prep-status.md` for exact environment and artifact details. Current-commit CI and maintainer review remain release gates.
 
 Run:
 
@@ -185,7 +187,7 @@ The CI gate includes:
 For releases that include a Windows executable:
 
 - Confirm the `Windows EXE` workflow passes for the release tag.
-- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.7-windows-x64.zip`.
+- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.

@@ -1,0 +1,52 @@
+# v0.6.0-alpha.8 Release Prep Status
+
+Date: 2026-10-31
+
+## Scope
+
+This release-prep line follows the published `v0.6.0-alpha.7`. It packages the current HSE2 implementation for fresh CI and Windows executable validation. It does not create a Git tag or publish a GitHub Release.
+
+## Included scope
+
+- HSE2 v3 streaming container create/open with v2 compatibility.
+- Archive validation helper executable and authenticated validation workflows.
+- GUI create/open/validate flows, in-memory masked password entry, metadata preview, and create-to-restore navigation.
+- Configurable restore staging via `HSE2_RESTORE_TEMP_DIR`, constrained to an existing directory on the same filesystem as the restore destination.
+- Phase 8 decoy/duress remains deferred; this release makes no plausible-deniability claim.
+
+## Release identifiers
+
+- Git tag: `v0.6.0-alpha.8`
+- Python package version: `0.6.0a8`
+- Expected Windows asset: `high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`
+- Expected executable set: ten executables listed in `docs/windows_exe.md`.
+
+## Completed local validation
+
+- Full suite: 666 passed, 6 skipped.
+- `compileall`, `pre-commit run --all-files`, `pip_audit . --progress-spinner off`: passed.
+- Windows 11 x64 / Python 3.13.15 / PyInstaller 6.22.3: all 10 executables built; main CLI/GUI smoke, all helper `--help`, and config validation examples passed.
+- Packaged EXE v3 create → inspect → standalone validate → validate-before-open → restore: passed; restored bytes matched and temporary restore directory was empty.
+- Packaged HSE2 GUI: localized action labels and action-specific fields inspected; password entries masked; metadata inspection of a disposable v3 container exited 0 and showed the expected non-secret summary.
+- Local ZIP: `dist/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 133,992,289 bytes, 16 entries (10 EXEs plus documentation/examples); contents checked.
+
+These are local development-checkout results. The current committed revision still needs CI before tag/publication. The following commands are the reproducible release gate when validating a clean candidate:
+
+```powershell
+python -m compileall -q src tests build_tools
+python -m unittest discover -s tests
+pre-commit run --all-files
+python -m pip_audit . --progress-spinner off
+```
+
+The project venv used during prep is `work\hse2-test-venv`. Build and smoke each executable using the commands in `docs/windows_exe.md` and `.github/workflows/windows-exe.yml`; confirm archive create/inspect/validate/open round trip and byte-for-byte restored content.
+
+## Remaining release gates
+
+- Current-commit CI success.
+- Maintainer review of the release checklist, threat model, format and GUI/CLI behavior.
+- A clean-checkout rerun of the local release gate if the current commit differs from the tested candidate tree.
+
+## Status
+
+Local Windows candidate validation is complete; waiting for current-commit CI and maintainer review. No tag or release has been created.
