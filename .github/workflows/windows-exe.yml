@@ -233,6 +233,12 @@ jobs:
       - name: Upload release asset
         shell: bash
         run: |
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
-            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes "Windows executable build for $RELEASE_TAG."
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            release_notes="docs/releases/$RELEASE_TAG.md"
+            if [[ -f "$release_notes" ]]; then
+              gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes-file "$release_notes"
+            else
+              gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes "Windows executable build for $RELEASE_TAG."
+            fi
+          fi
           gh release upload "$RELEASE_TAG" "dist/$ASSET_NAME" --repo "$GITHUB_REPOSITORY" --clobber

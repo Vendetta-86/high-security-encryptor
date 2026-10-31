@@ -34,6 +34,8 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
         self.assertIn("contents: write", publish_job)
         self.assertIn('"$GITHUB_REF_TYPE" != "tag" || "$RELEASE_TAG" != "$GITHUB_REF_NAME"', publish_job)
         self.assertIn("actions/download-artifact@v4", publish_job)
+        self.assertIn('release_notes="docs/releases/$RELEASE_TAG.md"', publish_job)
+        self.assertIn('--notes-file "$release_notes"', publish_job)
 
 
 if __name__ == "__main__":

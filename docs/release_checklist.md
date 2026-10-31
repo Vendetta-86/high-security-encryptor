@@ -5,13 +5,13 @@ Use this checklist before tagging or publishing a release.
 ## Version
 
 - Confirm `pyproject.toml` has the intended version.
-- For release tag `v0.6.0-alpha.8`, confirm Python package version `0.6.0a8`.
+- Confirm Python package version matches the selected tag (for example, `v0.6.0-alpha.9` matches `0.6.0a9`).
 - Confirm README status and test coverage notes match the current test suite.
 - Confirm release notes or completion docs describe the completed scope.
 
 ## Local Verification
 
-The alpha.8 local candidate includes strict HSE2 JSON integer checks and the NIST-based 2^32 payload chunk cap per DEK for v2/v3. A clean clone of progress commit `5d038c1` passed `compileall`, pre-commit, dependency audit, and the full suite (671 passed, 4 skipped). The code commit `1d7e9f3` passed [GitHub Actions CI](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41187598235) on Windows Python 3.11, 3.12, and 3.13. Ten Windows executables were rebuilt and smoke-checked; packaged v3 create/inspect/validate/open, byte-identical restore, and GUI metadata inspection passed. The 16-entry local candidate ZIP was checked and each bundled executable hash matched its build output. Maintainer review remains a release gate. See `docs/progress/20261031-alpha8-prep-status.md` for exact evidence and current CI records.
+The current alpha.9 candidate adds visible handling for HSE2 GUI plan-validation errors. Local full-suite, dependency, syntax, and secret-scan checks passed; Windows Python 3.11/3.12/3.13 CI passed for commit `ecea734`. The older alpha.8 tag artifact predates this fix and must not be substituted for the new candidate. See `docs/releases/v0.6.0-alpha.9.md` and `docs/progress/20261031-alpha8-prep-status.md` for validation evidence and artifact history.
 
 Run:
 
@@ -187,7 +187,7 @@ The CI gate includes:
 
 For releases that include a Windows executable:
 
-- Confirm a build-only `Windows EXE` workflow run for the release tag succeeds and its workflow artifact contains `high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`.
+- Confirm a build-only `Windows EXE` workflow run for the release tag succeeds and its workflow artifact contains `high-security-encryptor-<TAG>-windows-x64.zip`.
 - Publish only after maintainer approval by dispatching `Windows EXE` from the exact release tag with `publish_release=true`; confirm the Release asset upload succeeds.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.

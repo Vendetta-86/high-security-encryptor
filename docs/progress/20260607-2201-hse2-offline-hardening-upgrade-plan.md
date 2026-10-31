@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：Phase 10–12 和 alpha.8 候选主体已完成；严格 JSON 整数字段校验已通过本机全量测试、Windows EXE 重建及提交 `258607f` 的 Windows Python 3.11/3.12/3.13 CI。v0.6.0-alpha.8 尚待维护者发布审查；Phase 8 维持 no-go。HSE2 稳定格式冻结仍需第三方 v3 双向互操作证据及独立格式/密码学审查。尚未打 tag 或发布。
+- **当前状态**：Phase 10–12 已完成。alpha.8 已有成功的 tag 构建工件，但其 GUI 错误短语处理缺陷已在 `ecea734` 修复，因此旧工件不应发布。alpha.9 候选正在准备：包版本、发布说明和按 tag 使用发布说明的 workflow 均已更新；新的固定源 CI 和精确 tag 构建仍需通过。Phase 8 维持 no-go；用户已同意第三方认证稍缓，HSE2 稳定格式冻结的第三方互操作/独立审查仍未满足。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -393,7 +393,8 @@ python -m pip_audit . --progress-spinner off
 |---|---|---|
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
-| `v0.6.0-alpha.8` | [~] | tag `5935f76` 的 Windows EXE 构建与 Actions 工件上传已通过；之后 GUI 错误短语路径发现问题并已在 `ecea734` 修复，故 alpha.8 工件未包含该修复，不应发布。应从含修复且通过 CI 的提交重切候选并重跑 release gate。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
+| `v0.6.0-alpha.8` | [!] | tag `5935f76` 的 Windows EXE 构建与 Actions 工件上传已通过；之后发现 GUI 错误短语路径缺少可见反馈，`ecea734` 已修复。旧工件不应发布，保留作为历史候选记录。 |
+| `v0.6.0-alpha.9` | [~] | 包版本与发布说明已更新，包含 GUI 错误反馈修复；固定源 CI 已通过，但 alpha.9 精确 tag 构建/工件检查仍待完成。候选记录见 `docs/releases/v0.6.0-alpha.9.md`。 |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
@@ -424,7 +425,7 @@ python -m pip_audit . --progress-spinner off
 17. [x] 补齐 GUI 向导
 18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
-20. [~] 打包 release（alpha.8 tag 构建已过；修复后的候选 tag/工件及公开 Release 仍待完成）
+20. [~] 打包 release（alpha.9 固定源 CI 已通过；精确 tag 工件检查和发布审批待完成）
 21. [x] 评估 decoy / duress 是否进入下一版本：暂不进入 `v0.7.0`；缺少可审查的威胁模型和格式设计，现有计划不能支持可否认性承诺
 
 ---
