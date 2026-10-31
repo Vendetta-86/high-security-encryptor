@@ -57,6 +57,17 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("manifest_encrypted：true", summary)
         self.assertIn("access_destroyed：false", summary)
 
+    def test_archive_validation_summary_reports_authentication_without_plaintext(self) -> None:
+        summary = _build_hse2_result_summary(
+            json.dumps({
+                "command": "hse2-archive-validate", "input_path": "archive.hse2", "format_version": 3,
+                "wrapper_type": "keyfile", "entry_count": 2, "payload_chunk_count": 4,
+                "payload_authenticated": True, "plaintext_written": False,
+            })
+        )
+        self.assertIn("payload_authenticated：true", summary)
+        self.assertIn("plaintext_written：false", summary)
+
     def test_wrapper_list_summary_formats_table(self) -> None:
         summary = _build_hse2_result_summary(
             json.dumps(
@@ -150,6 +161,9 @@ class HSE2GuiLauncherTests(unittest.TestCase):
 
             create_result = _invoke_hse2_gui_command(argv)
             inspect_result = _invoke_hse2_gui_command(["hse2-inspect", "--input", str(container)])
+            validate_result = _invoke_hse2_gui_command(
+                ["hse2-archive-validate", "--input", str(container), "--keyfile", str(keyfile)]
+            )
 
             self.assertEqual(create_result.exit_code, 0, create_result.stderr)
             self.assertTrue(container.exists())
@@ -160,6 +174,8 @@ class HSE2GuiLauncherTests(unittest.TestCase):
             inspect_payload = json.loads(inspect_result.stdout)
             self.assertEqual(inspect_payload["format_version"], 3)
             self.assertEqual(inspect_payload["payload_layout"]["padding_mode"], "last-chunk-to-chunk-size")
+            self.assertEqual(validate_result.exit_code, 0, validate_result.stderr)
+            self.assertTrue(json.loads(validate_result.stdout)["payload_authenticated"])
 
     def test_wrapper_remove_summary_reports_remaining_count(self) -> None:
         summary = _build_hse2_result_summary(

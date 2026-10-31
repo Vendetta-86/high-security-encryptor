@@ -45,6 +45,7 @@ from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_access_cli import run_destroy as run_hse2_access_destroy
 from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
 from .hse2.keyfile_safety import keyfile_colocation_warning
+from .hse2_archive_validate_cli import validate_archive_from_files
 from .hse2_rewrap import rewrap_hse2_file
 from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
 from .hse2_validation_config import HSE2ValidationConfig
@@ -98,6 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_batch_rewrap_handler=_handle_hse2_batch_rewrap,
         hse1_to_hse2_handler=_handle_hse1_to_hse2,
         hse2_validate_handler=_handle_hse2_validate,
+        hse2_archive_validate_handler=_handle_hse2_archive_validate,
         hse2_inspect_handler=_handle_hse2_inspect,
         hse2_wrapper_add_handler=_handle_hse2_wrapper_add,
         hse2_wrapper_manage_handler=_handle_hse2_wrapper_manage,
@@ -458,6 +460,15 @@ def _handle_hse2_validate(args: argparse.Namespace) -> dict[str, Any]:
     if summary["summary_only"]:
         summary["__summary_payload__"] = _hse2_validation_summary_payload(summary)
     return summary
+
+
+def _handle_hse2_archive_validate(args: argparse.Namespace) -> dict[str, Any]:
+    return validate_archive_from_files(
+        input_path=args.input,
+        password_file=args.password_file,
+        keyfile=args.keyfile,
+        allow_dpapi=bool(args.dpapi),
+    )
 
 
 def _handle_hse2_inspect(args: argparse.Namespace) -> dict[str, Any]:

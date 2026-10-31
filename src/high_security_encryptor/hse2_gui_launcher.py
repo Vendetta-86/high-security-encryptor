@@ -14,6 +14,7 @@ from .gui import GuiCommandResult, invoke_cli_command
 from .hse2_access_cli import main as hse2_access_main
 from .hse2_create_cli import main as hse2_create_main
 from .hse2_open_cli import main as hse2_open_main
+from .hse2_archive_validate_cli import main as hse2_archive_validate_main
 from .hse2_gui_tab import build_hse2_experimental_tab
 from .hse2_header_backup_cli import main as hse2_header_backup_main
 from .hse2_inspect_cli import main as hse2_inspect_main
@@ -27,6 +28,7 @@ StandaloneCliMain = Callable[[list[str] | None], int]
 HSE2_STANDALONE_HELPER_COMMANDS: dict[str, StandaloneCliMain] = {
     "hse2-create": hse2_create_main,
     "hse2-open": hse2_open_main,
+    "hse2-archive-validate": hse2_archive_validate_main,
     "hse2-wrapper": hse2_wrapper_main,
     "hse2-access": hse2_access_main,
     "hse2-inspect": hse2_inspect_main,
@@ -157,6 +159,8 @@ def _build_hse2_result_summary(stdout: str) -> str:
     command = payload.get("command")
     if command == "hse2-inspect":
         return _summarize_inspect(payload)
+    if command == "hse2-archive-validate":
+        return _summarize_archive_validation(payload)
     if command == "hse2-wrapper list":
         return _summarize_wrapper_list(payload)
     if command == "hse2-wrapper remove":
@@ -194,6 +198,22 @@ def _summarize_inspect(payload: dict[str, Any]) -> str:
             f"- payload_chunk_count：{payload.get('payload_chunk_count', '')}\n",
             f"- manifest_encrypted：{_format_bool(payload.get('manifest_encrypted'))}\n",
             f"- access_destroyed：{_format_bool(payload.get('access_destroyed'))}\n",
+        ]
+    )
+
+
+def _summarize_archive_validation(payload: dict[str, Any]) -> str:
+    return "".join(
+        [
+            "\n结果摘要：\n",
+            f"- 命令：{payload.get('command', 'hse2-archive-validate')}\n",
+            f"- 容器：{payload.get('input_path', '')}\n",
+            f"- format_version：{payload.get('format_version', '')}\n",
+            f"- wrapper_type：{payload.get('wrapper_type', '')}\n",
+            f"- entry_count：{payload.get('entry_count', '')}\n",
+            f"- payload_chunk_count：{payload.get('payload_chunk_count', '')}\n",
+            f"- payload_authenticated：{_format_bool(payload.get('payload_authenticated'))}\n",
+            f"- plaintext_written：{_format_bool(payload.get('plaintext_written'))}\n",
         ]
     )
 

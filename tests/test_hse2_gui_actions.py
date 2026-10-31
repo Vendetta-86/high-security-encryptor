@@ -65,6 +65,14 @@ class HSE2GuiActionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "请选择密码文件"):
             build_hse2_gui_command(action="archive-open", input_path="archive.hse2", output_path="restored")
 
+    def test_archive_validate_action_requires_unlock_material(self) -> None:
+        plan = build_hse2_gui_command(
+            action="archive-validate", input_path="archive.hse2", keyfile_path="recovery.key"
+        )
+        self.assertEqual(plan.argv, ("hse2-archive-validate", "--input", "archive.hse2", "--keyfile", "recovery.key"))
+        with self.assertRaisesRegex(ValueError, "请选择密码文件"):
+            build_hse2_gui_command(action="archive-validate", input_path="archive.hse2")
+
     def test_validate_action_with_options(self) -> None:
         plan = build_hse2_gui_command(
             action="validate",

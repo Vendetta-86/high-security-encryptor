@@ -17,6 +17,7 @@ HSE2_GUI_ACTIONS = (
     "decrypt-config",
     "archive-create",
     "archive-open",
+    "archive-validate",
     "validate",
     "inspect",
     "header-backup-export",
@@ -35,6 +36,7 @@ HSE2_GUI_ACTION_LABELS = {
     "decrypt-config": "HSE2 解密配置",
     "archive-create": "创建 HSE2 归档",
     "archive-open": "解密并打开 HSE2 归档",
+    "archive-validate": "完整校验 HSE2 归档",
     "validate": "HSE2 只读校验",
     "inspect": "检查 HSE2 元数据",
     "header-backup-export": "导出 HSE2 header backup",
@@ -152,6 +154,19 @@ def build_hse2_gui_command(
             args.append("--overwrite")
         if archive_validate_before_open:
             args.append("--validate-before-open")
+        argv = tuple(args)
+    elif normalized_action == "archive-validate":
+        password_path = password_file.strip()
+        keyfile = keyfile_path.strip()
+        if not password_path and not keyfile and not allow_dpapi:
+            raise ValueError("请选择密码文件、keyfile 或允许 Windows DPAPI 解锁。")
+        args = ["hse2-archive-validate", "--input", _require_text(input_path, "请选择要校验的 .hse2 容器。")]
+        if password_path:
+            args.extend(["--password-file", password_path])
+        if keyfile:
+            args.extend(["--keyfile", keyfile])
+        if allow_dpapi:
+            args.append("--dpapi")
         argv = tuple(args)
     elif normalized_action == "validate":
         args: list[str] = ["hse2-validate", "--config", _require_text(config_path, "请选择 HSE2 校验配置文件。")]

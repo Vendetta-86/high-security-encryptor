@@ -20,6 +20,7 @@ from high_security_encryptor.hse2_access_cli import main as access_main
 from high_security_encryptor.hse2_header_backup_cli import main as backup_main
 from high_security_encryptor.hse2.streaming_file_io import open_v3_container
 from high_security_encryptor.hse2_gui_actions import HSE2_GUI_ACTIONS
+from high_security_encryptor.cli import main as unified_main
 
 
 class HSE2V3CliIntegrationTests(unittest.TestCase):
@@ -358,13 +359,30 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
             "high-security-encryptor-hse2-wrapper",
             "high-security-encryptor-hse2-access",
             "high-security-encryptor-hse2-header-backup",
+            "high-security-encryptor-hse2-archive-validate",
         ):
             self.assertIn(command, scripts)
         self.assertIn("archive-create", HSE2_GUI_ACTIONS)
         self.assertIn("archive-open", HSE2_GUI_ACTIONS)
+        self.assertIn("archive-validate", HSE2_GUI_ACTIONS)
         self.assertIn("wrapper-add", HSE2_GUI_ACTIONS)
         self.assertIn("wrapper-rewrap", HSE2_GUI_ACTIONS)
         self.assertNotIn("header-backup", HSE2_GUI_ACTIONS)
+
+    def test_unified_archive_validate_route_authenticates_v3_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            _root, keyfile, archive, _summary = self._create(base, version=3)
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = unified_main([
+                    "hse2", "validate-archive", "--input", str(archive), "--keyfile", str(keyfile),
+                ])
+            self.assertEqual(exit_code, 0, stderr.getvalue())
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["command"], "hse2-archive-validate")
+            self.assertTrue(payload["payload_authenticated"])
 
 
 if __name__ == "__main__":

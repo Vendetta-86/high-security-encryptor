@@ -34,6 +34,7 @@ def build_cli_parser(
     hse2_batch_rewrap_handler: Handler | None = None,
     hse1_to_hse2_handler: Handler | None = None,
     hse2_validate_handler: Handler | None = None,
+    hse2_archive_validate_handler: Handler | None = None,
     hse2_inspect_handler: Handler | None = None,
     hse2_wrapper_add_handler: Handler | None = None,
     hse2_wrapper_manage_handler: Handler | None = None,
@@ -70,7 +71,7 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler)):
+    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_archive_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler)):
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
         if hse2_inspect_handler is not None:
@@ -87,6 +88,15 @@ def build_cli_parser(
             validate_parser.add_argument("--summary-only", action="store_true", help="Print aggregate counts only while preserving the full report in --output.")
             validate_parser.add_argument("--exit-code-on-failure", action="store_true", help="Return a non-zero exit code when any item fails validation.")
             validate_parser.set_defaults(handler=hse2_validate_handler)
+        if hse2_archive_validate_handler is not None:
+            archive_validate_parser = hse2_subparsers.add_parser(
+                "validate-archive", help="Authenticate a v2/v3 archive and payload without writing plaintext."
+            )
+            archive_validate_parser.add_argument("--input", required=True, help="Input .hse2 container path.")
+            archive_validate_parser.add_argument("--password-file", help="UTF-8 password file used to unlock the archive.")
+            archive_validate_parser.add_argument("--keyfile", help="Keyfile used to unlock the archive.")
+            archive_validate_parser.add_argument("--dpapi", action="store_true", help="Allow the current Windows user DPAPI wrapper.")
+            archive_validate_parser.set_defaults(handler=hse2_archive_validate_handler)
         if hse2_keyfile_inspect_handler is not None:
             keyfile_parser = hse2_subparsers.add_parser("keyfile", help="Inspect HSE2 keyfile material.")
             keyfile_subparsers = keyfile_parser.add_subparsers(dest="keyfile_command", required=True)
