@@ -163,6 +163,7 @@ def _payload_layout_from_dict(data: dict[str, Any]) -> PayloadLayout:
         chunk_count=_required_int(data, "chunk_count"),
         payload_offset=_required_int(data, "payload_offset"),
         footer_offset=_required_int(data, "footer_offset"),
+        padding_mode=data.get("padding_mode", "none"),
     )
 
 

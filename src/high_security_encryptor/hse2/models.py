@@ -139,18 +139,24 @@ class PayloadLayout:
     chunk_count: int = 0
     payload_offset: int = 0
     footer_offset: int = 0
+    padding_mode: str = "none"
 
     def __post_init__(self) -> None:
         for field_name in ("chunk_count", "payload_offset", "footer_offset"):
             if getattr(self, field_name) < 0:
                 raise HSE2ModelError(f"{field_name} must be non-negative")
+        if not isinstance(self.padding_mode, str) or self.padding_mode not in {"none", "last-chunk-to-chunk-size"}:
+            raise HSE2ModelError(f"unsupported payload padding mode: {self.padding_mode}")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        data: dict[str, int | str] = {
             "chunk_count": self.chunk_count,
             "payload_offset": self.payload_offset,
             "footer_offset": self.footer_offset,
         }
+        if self.padding_mode != "none":
+            data["padding_mode"] = self.padding_mode
+        return data
 
 
 @dataclass(frozen=True)

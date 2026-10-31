@@ -71,6 +71,22 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertTrue(payload["dry_run"])
             self.assertFalse(output.exists())
 
+    def test_create_cli_dry_run_reports_opt_in_payload_padding(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+            (root / "payload.bin").write_bytes(b"abc")
+            output = Path(temp_dir) / "out.hse2"
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                exit_code = main([
+                    "--root", str(root), "--output", str(output), "--dry-run", "--pad-last-chunk",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(json.loads(stdout.getvalue())["payload_padding"], "last-chunk-to-chunk-size")
+            self.assertFalse(output.exists())
+
     def test_create_cli_dry_run_reports_multiple_roots(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             first = Path(temp_dir) / "first.txt"

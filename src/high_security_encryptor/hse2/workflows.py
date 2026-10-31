@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
 from pathlib import Path, PurePosixPath
+import secrets
 from typing import Any
 
 from ..atomic_io import atomic_output_path
@@ -30,6 +31,10 @@ from .unlock import HSE2UnlockFactors, unlock_first_matching_wrapper
 from .wrapper_builders import build_dpapi_wrapper, build_keyfile_wrapper, build_password_keyfile_wrapper, build_password_wrapper
 from .streaming_file_io import open_v3_container, write_v3_container
 
+PAYLOAD_PADDING_MODE_NONE = "none"
+PAYLOAD_PADDING_MODE_LAST_CHUNK = "last-chunk-to-chunk-size"
+_PADDED_PAYLOAD_AAD_CONTEXT = b"HSE2:payload-padding:last-chunk-to-chunk-size:v1"
+
 
 @dataclass(frozen=True)
 class HSE2ArchiveCreateResult:
@@ -42,9 +47,10 @@ class HSE2ArchiveCreateResult:
     payload_chunk_count: int
     chunk_size: int
     format_version: int = 2
+    padding_mode: str = PAYLOAD_PADDING_MODE_NONE
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        summary = {
             "command": "hse2-create",
             "experimental": True,
             "container_written": True,
@@ -56,6 +62,9 @@ class HSE2ArchiveCreateResult:
             "chunk_size": self.chunk_size,
             "format_version": self.format_version,
         }
+        if self.padding_mode != PAYLOAD_PADDING_MODE_NONE:
+            summary["payload_padding"] = self.padding_mode
+        return summary
 
 
 @dataclass(frozen=True)
@@ -95,6 +104,7 @@ def create_hse2_archive(
     overwrite: bool = False,
     created_utc: str | None = None,
     container_format_version: int = 2,
+    pad_last_chunk: bool = False,
 ) -> HSE2ArchiveCreateResult:
     """Create a real HSE2 archive container from selected filesystem roots."""
 
@@ -127,18 +137,26 @@ def create_hse2_archive(
     source_map = _file_source_map(root_paths)
     file_paths = tuple(source_map[str(item["path"])] for item in assembly_plan["payload_ranges"])
     expected_sizes = tuple(int(item["size"]) for item in assembly_plan["payload_ranges"])
+    padding_mode = PAYLOAD_PADDING_MODE_LAST_CHUNK if pad_last_chunk else PAYLOAD_PADDING_MODE_NONE
 
     dek = generate_dek()
     mek = generate_mek()
     payload_chunk_count = int(assembly_plan["payload_chunk_count"])
     if container_format_version == 2:
-        payload_chunks = _build_payload_chunks(file_paths, dek=dek, chunk_size=chunk_size)
+        payload_chunks = _build_payload_chunks(
+            file_paths,
+            expected_sizes=expected_sizes,
+            dek=dek,
+            chunk_size=chunk_size,
+            padding_mode=padding_mode,
+        )
     else:
         payload_chunks = _iter_payload_chunks(
             file_paths,
             expected_sizes=expected_sizes,
             dek=dek,
             chunk_size=chunk_size,
+            padding_mode=padding_mode,
         )
     encrypted_manifest = encrypt_manifest(manifest, mek=mek)
 
@@ -156,7 +174,12 @@ def create_hse2_archive(
         created_utc=created,
         cipher_suite=CipherSuite(chunk_size=chunk_size),
         manifest_policy=ManifestPolicy(encrypted=True, store_original_paths=False, filename_policy="encrypted"),
-        payload_layout=PayloadLayout(chunk_count=payload_chunk_count, payload_offset=0, footer_offset=0),
+        payload_layout=PayloadLayout(
+            chunk_count=payload_chunk_count,
+            payload_offset=0,
+            footer_offset=0,
+            padding_mode=padding_mode,
+        ),
         wrappers=(wrapper.record,),
         format_version=container_format_version,
     )
@@ -186,6 +209,7 @@ def create_hse2_archive(
         payload_chunk_count=payload_chunk_count,
         chunk_size=chunk_size,
         format_version=container_format_version,
+        padding_mode=padding_mode,
     )
 
 
@@ -222,6 +246,8 @@ def open_hse2_archive(
             output_dir=destination,
             content_keys=unlocked,
             overwrite=overwrite,
+            chunk_size=container.header.cipher_suite.chunk_size,
+            padding_mode=container.header.payload_layout.padding_mode,
         )
         chunk_count = len(container.payload_chunks)
         wrapper_type = _selected_wrapper_type(container.header.wrappers, factors)
@@ -249,6 +275,7 @@ def open_hse2_archive(
                 targets=targets,
                 content_keys=unlocked_holder[0],
                 chunk_size=reader.header.cipher_suite.chunk_size,
+                padding_mode=reader.header.payload_layout.padding_mode,
             )
             chunk_count = reader.header.payload_layout.chunk_count
             wrapper_type = _selected_wrapper_type(reader.header.wrappers, factors)
@@ -294,35 +321,19 @@ def read_keyfile_bytes(path: str | os.PathLike[str]) -> bytes:
     return data
 
 
-def _build_payload_chunks(paths: tuple[Path, ...], *, dek: Any, chunk_size: int) -> tuple[Any, ...]:
-    chunks: list[Any] = []
-    next_index = 0
-    for path in paths:
-        try:
-            with path.open("rb") as handle:
-                while True:
-                    block = handle.read(chunk_size)
-                    if not block:
-                        break
-                    chunks.append(encrypt_payload_chunk(block, dek=dek, index=next_index))
-                    next_index += 1
-        except OSError as exc:
-            raise HSE2ModelError(f"cannot read archive payload source: {path}") from exc
-    return tuple(chunks)
-
-
-def _iter_payload_chunks(
+def _build_payload_chunks(
     paths: tuple[Path, ...],
     *,
     expected_sizes: tuple[int, ...],
     dek: Any,
     chunk_size: int,
-):
-    """Encrypt payload blocks lazily and detect source changes after planning."""
-
+    padding_mode: str,
+) -> tuple[Any, ...]:
     if len(paths) != len(expected_sizes):
         raise HSE2ModelError("payload source count does not match archive plan")
+    chunks: list[Any] = []
     next_index = 0
+    context = _payload_padding_aad_context(padding_mode)
     for path, expected_size in zip(paths, expected_sizes, strict=True):
         observed_size = 0
         try:
@@ -336,12 +347,87 @@ def _iter_payload_chunks(
                             f"archive payload source changed after archive planning: {path}"
                         )
                     observed_size += len(block)
-                    yield encrypt_payload_chunk(block, dek=dek, index=next_index)
+                    block = _pad_final_payload_block(
+                        block,
+                        expected_size=expected_size,
+                        observed_size=observed_size,
+                        chunk_size=chunk_size,
+                        padding_mode=padding_mode,
+                    )
+                    chunks.append(encrypt_payload_chunk(block, dek=dek, index=next_index, context=context))
                     next_index += 1
         except OSError as exc:
             raise HSE2ModelError(f"cannot read archive payload source: {path}") from exc
         if observed_size != expected_size:
             raise HSE2ModelError(f"archive payload source changed after archive planning: {path}")
+    return tuple(chunks)
+
+
+def _iter_payload_chunks(
+    paths: tuple[Path, ...],
+    *,
+    expected_sizes: tuple[int, ...],
+    dek: Any,
+    chunk_size: int,
+    padding_mode: str,
+):
+    """Encrypt payload blocks lazily and detect source changes after planning."""
+
+    if len(paths) != len(expected_sizes):
+        raise HSE2ModelError("payload source count does not match archive plan")
+    next_index = 0
+    context = _payload_padding_aad_context(padding_mode)
+    for path, expected_size in zip(paths, expected_sizes, strict=True):
+        observed_size = 0
+        try:
+            with path.open("rb") as handle:
+                while True:
+                    block = handle.read(chunk_size)
+                    if not block:
+                        break
+                    if observed_size + len(block) > expected_size:
+                        raise HSE2ModelError(
+                            f"archive payload source changed after archive planning: {path}"
+                        )
+                    observed_size += len(block)
+                    block = _pad_final_payload_block(
+                        block,
+                        expected_size=expected_size,
+                        observed_size=observed_size,
+                        chunk_size=chunk_size,
+                        padding_mode=padding_mode,
+                    )
+                    yield encrypt_payload_chunk(block, dek=dek, index=next_index, context=context)
+                    next_index += 1
+        except OSError as exc:
+            raise HSE2ModelError(f"cannot read archive payload source: {path}") from exc
+        if observed_size != expected_size:
+            raise HSE2ModelError(f"archive payload source changed after archive planning: {path}")
+
+
+def _payload_padding_aad_context(padding_mode: str) -> bytes | None:
+    if padding_mode == PAYLOAD_PADDING_MODE_NONE:
+        return None
+    if padding_mode == PAYLOAD_PADDING_MODE_LAST_CHUNK:
+        return _PADDED_PAYLOAD_AAD_CONTEXT
+    raise HSE2ModelError(f"unsupported payload padding mode: {padding_mode}")
+
+
+def _pad_final_payload_block(
+    block: bytes,
+    *,
+    expected_size: int,
+    observed_size: int,
+    chunk_size: int,
+    padding_mode: str,
+) -> bytes:
+    if (
+        padding_mode == PAYLOAD_PADDING_MODE_LAST_CHUNK
+        and observed_size == expected_size
+        and len(block) < chunk_size
+    ):
+        return block + secrets.token_bytes(chunk_size - len(block))
+    return block
 
 
 def _build_create_wrapper(
@@ -572,6 +658,7 @@ def _restore_v3_manifest_entries(
     targets: dict[str, Path],
     content_keys: Any,
     chunk_size: int,
+    padding_mode: str,
 ) -> None:
     ranges = {item["path"]: item for item in manifest["payload_ranges"]}
     files = sorted(
@@ -579,6 +666,7 @@ def _restore_v3_manifest_entries(
         key=lambda entry: ranges[entry["path"]]["start_chunk"],
     )
     chunks = iter(payload_chunks)
+    context = _payload_padding_aad_context(padding_mode)
     for file_index, entry in enumerate(files):
         path_key = entry["path"]
         payload_range = ranges[path_key]
@@ -590,11 +678,21 @@ def _restore_v3_manifest_entries(
                         chunk = next(chunks)
                     except StopIteration as exc:
                         raise HSE2ModelError("payload ended before manifest range was complete") from exc
-                    plaintext = decrypt_payload_chunk(chunk, dek=content_keys.dek)
-                    if written + len(plaintext) > entry["size"] or len(plaintext) > chunk_size:
+                    plaintext = decrypt_payload_chunk(chunk, dek=content_keys.dek, context=context)
+                    remaining = entry["size"] - written
+                    if len(plaintext) > chunk_size:
                         raise HSE2ModelError(f"restored file size mismatch: {path_key}")
-                    output.write(plaintext)
-                    written += len(plaintext)
+                    if padding_mode == PAYLOAD_PADDING_MODE_LAST_CHUNK:
+                        if len(plaintext) != chunk_size or remaining <= 0:
+                            raise HSE2ModelError(f"padded payload chunk size mismatch: {path_key}")
+                        file_data = plaintext[:remaining]
+                    else:
+                        expected_length = min(chunk_size, remaining)
+                        if len(plaintext) != expected_length:
+                            raise HSE2ModelError(f"restored file size mismatch: {path_key}")
+                        file_data = plaintext
+                    output.write(file_data)
+                    written += len(file_data)
                 if written != entry["size"]:
                     raise HSE2ModelError(f"restored file size mismatch: {path_key}")
                 if file_index == len(files) - 1:
@@ -638,6 +736,8 @@ def _restore_manifest_entries(
     output_dir: Path,
     content_keys: Any,
     overwrite: bool,
+    chunk_size: int,
+    padding_mode: str,
 ) -> None:
     ranges: dict[str, dict[str, Any]] = {}
     for item in manifest["payload_ranges"]:
@@ -666,7 +766,13 @@ def _restore_manifest_entries(
         payload_range = ranges.get(archive_path)
         if payload_range is None:
             raise HSE2ModelError(f"payload range missing for file: {archive_path}")
-        plaintext = _decrypt_file_range(payload_range, payload_chunks=payload_chunks, dek=content_keys.dek)
+        plaintext = _decrypt_file_range(
+            payload_range,
+            payload_chunks=payload_chunks,
+            dek=content_keys.dek,
+            chunk_size=chunk_size,
+            padding_mode=padding_mode,
+        )
         expected_size = item.get("size")
         if not isinstance(expected_size, int) or expected_size < 0:
             raise HSE2ModelError("archive file size is missing or invalid")
@@ -675,20 +781,51 @@ def _restore_manifest_entries(
         _atomic_write_file(target, plaintext)
 
 
-def _decrypt_file_range(payload_range: dict[str, Any], *, payload_chunks: tuple[Any, ...], dek: Any) -> bytes:
+def _decrypt_file_range(
+    payload_range: dict[str, Any],
+    *,
+    payload_chunks: tuple[Any, ...],
+    dek: Any,
+    chunk_size: int,
+    padding_mode: str,
+) -> bytes:
     start = payload_range.get("start_chunk")
     count = payload_range.get("chunk_count")
     if not isinstance(start, int) or start < 0:
         raise HSE2ModelError("payload range start_chunk is missing or invalid")
     if not isinstance(count, int) or count < 0:
         raise HSE2ModelError("payload range chunk_count is missing or invalid")
+    size = payload_range.get("size")
+    if not isinstance(size, int) or size < 0:
+        raise HSE2ModelError("payload range size is missing or invalid")
     if count == 0:
+        if size != 0:
+            raise HSE2ModelError("empty payload range has a non-empty size")
         return b""
     end = start + count
     selected = payload_chunks[start:end]
     if len(selected) != count:
         raise HSE2ModelError("payload range extends beyond available chunks")
-    return b"".join(decrypt_payload_chunk(chunk, dek=dek) for chunk in selected)
+    context = _payload_padding_aad_context(padding_mode)
+    remaining = size
+    plaintext_blocks: list[bytes] = []
+    for chunk in selected:
+        plaintext = decrypt_payload_chunk(chunk, dek=dek, context=context)
+        if len(plaintext) > chunk_size:
+            raise HSE2ModelError("payload plaintext chunk exceeds configured chunk_size")
+        if padding_mode == PAYLOAD_PADDING_MODE_LAST_CHUNK:
+            if len(plaintext) != chunk_size or remaining <= 0:
+                raise HSE2ModelError("padded payload chunk size mismatch")
+            plaintext = plaintext[:remaining]
+        else:
+            expected_length = min(chunk_size, remaining)
+            if len(plaintext) != expected_length:
+                raise HSE2ModelError("payload plaintext size does not match manifest range")
+        plaintext_blocks.append(plaintext)
+        remaining -= len(plaintext)
+    if remaining != 0:
+        raise HSE2ModelError("payload range ended before its declared size")
+    return b"".join(plaintext_blocks)
 
 
 def _manifest_path_key(item: dict[str, Any]) -> str:

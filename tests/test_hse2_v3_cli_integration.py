@@ -9,6 +9,8 @@ import tomllib
 import unittest
 
 from high_security_encryptor.hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE, list_hse2_wrappers
+from high_security_encryptor.hse2 import read_hse2_container
+from high_security_encryptor.hse2.encoding import b64decode_bytes
 from high_security_encryptor.hse2.container_codec import HSE2_PREAMBLE_STRUCT, decode_header_frame
 from high_security_encryptor.hse2.container_stream import read_v3_header_frame
 from high_security_encryptor.hse2_create_cli import main as create_main
@@ -16,6 +18,7 @@ from high_security_encryptor.hse2_open_cli import main as open_main
 from high_security_encryptor.hse2_wrapper_cli import main as wrapper_main
 from high_security_encryptor.hse2_access_cli import main as access_main
 from high_security_encryptor.hse2_header_backup_cli import main as backup_main
+from high_security_encryptor.hse2.streaming_file_io import open_v3_container
 from high_security_encryptor.hse2_gui_actions import HSE2_GUI_ACTIONS
 
 
@@ -38,7 +41,13 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
             read_v3_header_frame(stream)
             return data[stream.tell():]
 
-    def _create(self, base: Path, *, version: int | None) -> tuple[Path, Path, Path, dict[str, object]]:
+    def _create(
+        self,
+        base: Path,
+        *,
+        version: int | None,
+        pad_last_chunk: bool = False,
+    ) -> tuple[Path, Path, Path, dict[str, object]]:
         source_root = base / "source"
         source_root.mkdir(parents=True)
         (source_root / "payload.bin").write_bytes(b"M1.6 CLI archive payload" * 8)
@@ -54,6 +63,8 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
         ]
         if version is not None:
             args.extend(["--format-version", str(version)])
+        if pad_last_chunk:
+            args.append("--pad-last-chunk")
         code, payload, stderr = self._capture(create_main, args)
         self.assertEqual(code, 0, stderr)
         return source_root, keyfile, archive, payload
@@ -82,6 +93,54 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
                 self.assertEqual(code, 0, stderr)
                 self.assertTrue(opened["container_opened"])
                 self.assertEqual((output_dir / "source" / "payload.bin").read_bytes(), b"M1.6 CLI archive payload" * 8)
+
+    def test_padded_archives_hide_names_and_restore_original_files_for_v2_and_v3(self) -> None:
+        for version in (2, 3):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as temp_dir:
+                base = Path(temp_dir)
+                source_root = base / "source"
+                source_root.mkdir()
+                short_payload = b"abc"
+                long_payload = bytes(range(65))
+                (source_root / "private-client-name.txt").write_bytes(short_payload)
+                (source_root / "private-financial-name.bin").write_bytes(long_payload)
+                keyfile = base / "archive.key"
+                keyfile.write_bytes(b"p" * 32)
+                archive = base / "archive.hse2"
+                create_args = [
+                    "--root", str(source_root), "--output", str(archive), "--keyfile", str(keyfile),
+                    "--chunk-size", "32", "--pad-last-chunk", "--compact",
+                ]
+                if version == 3:
+                    create_args.extend(["--format-version", "3"])
+                code, summary, stderr = self._capture(create_main, create_args)
+                self.assertEqual(code, 0, stderr)
+                self.assertEqual(summary["payload_padding"], "last-chunk-to-chunk-size")
+
+                encoded_container = archive.read_bytes()
+                self.assertNotIn(b"private-client-name.txt", encoded_container)
+                self.assertNotIn(b"private-financial-name.bin", encoded_container)
+                if version == 2:
+                    container = read_hse2_container(archive)
+                    lengths = [len(b64decode_bytes(chunk.ciphertext, field_name="ciphertext")) for chunk in container.payload_chunks]
+                    self.assertEqual(container.header.payload_layout.padding_mode, "last-chunk-to-chunk-size")
+                else:
+                    with open_v3_container(archive, authenticate_header=lambda _header: None) as reader:
+                        reader.read_manifest()
+                        lengths = [len(b64decode_bytes(chunk.ciphertext, field_name="ciphertext")) for chunk in reader.iter_payload_chunks()]
+                        self.assertEqual(reader.header.payload_layout.padding_mode, "last-chunk-to-chunk-size")
+                self.assertTrue(lengths)
+                self.assertTrue(all(length == 32 for length in lengths))
+
+                restored = base / "restored"
+                code, opened, stderr = self._capture(
+                    open_main,
+                    ["--input", str(archive), "--output-dir", str(restored), "--keyfile", str(keyfile), "--compact"],
+                )
+                self.assertEqual(code, 0, stderr)
+                self.assertTrue(opened["container_opened"])
+                self.assertEqual((restored / "source" / "private-client-name.txt").read_bytes(), short_payload)
+                self.assertEqual((restored / "source" / "private-financial-name.bin").read_bytes(), long_payload)
 
     def test_wrapper_cli_add_list_and_remove_v3_wrapper(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

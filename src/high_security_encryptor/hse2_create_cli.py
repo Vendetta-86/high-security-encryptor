@@ -43,6 +43,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--format-version", type=int, choices=(2, 3), default=2, help="Container format version. Defaults to v2 for compatibility.")
     parser.add_argument(
+        "--pad-last-chunk",
+        action="store_true",
+        help="Pad each non-empty file's final encrypted chunk to --chunk-size with random bytes; hides its exact size within one chunk.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Emit metadata-only create plan JSON without reading payload bytes or writing a container.",
@@ -103,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
                 chunk_size=int(args.chunk_size),
                 overwrite=bool(args.overwrite),
                 container_format_version=int(args.format_version),
+                pad_last_chunk=bool(args.pad_last_chunk),
             )
             summary = result.to_dict()
             backup_path = _recommended_header_backup_path(output_path)
@@ -151,6 +157,8 @@ def _build_dry_run_summary(*, args: argparse.Namespace, roots: tuple[Path, ...],
     summary["output_path"] = str(output_path)
     summary["wrapper_type"] = _dry_run_wrapper_type(args)
     summary["format_version"] = int(args.format_version)
+    if bool(args.pad_last_chunk):
+        summary["payload_padding"] = "last-chunk-to-chunk-size"
     return summary
 
 
