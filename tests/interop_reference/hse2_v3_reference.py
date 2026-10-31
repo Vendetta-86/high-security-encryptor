@@ -13,8 +13,7 @@ import json
 import os
 import struct
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO
-
+from argon2.low_level import Type, hash_secret_raw
 from Crypto.Cipher import AES
 
 
@@ -22,6 +21,26 @@ PREAMBLE = struct.Struct(">4sBBHQ")
 MANIFEST_PREFIX = struct.Struct(">4sQ")
 CHUNK_PREFIX = struct.Struct(">4sQI")
 CHUNK_SIZE = 64 * 1024
+COMPATIBLE_KDF = {
+    "algorithm": "argon2id",
+    "profile": "compatible",
+    "time_cost": 3,
+    "memory_cost_kib": 65536,
+    "parallelism": 4,
+    "hash_len": 32,
+}
+
+
+def _argon2id(secret: bytes, salt: bytes) -> bytes:
+    return hash_secret_raw(
+        secret=secret,
+        salt=salt,
+        time_cost=COMPATIBLE_KDF["time_cost"],
+        memory_cost=COMPATIBLE_KDF["memory_cost_kib"],
+        parallelism=COMPATIBLE_KDF["parallelism"],
+        hash_len=COMPATIBLE_KDF["hash_len"],
+        type=Type.ID,
+    )
 
 
 def _canonical(value: object) -> bytes:
@@ -42,10 +61,99 @@ def _kek(keyfile: bytes) -> bytes:
     return hashlib.sha256(b"HSE2:keyfile-kek:v1:" + keyfile).digest()
 
 
-def _wrapper_dek_mek(wrapper: dict, keyfile: bytes) -> tuple[bytes, bytes]:
-    kek = _kek(keyfile)
+def _derive_password_kek(
+    password: str,
+    *,
+    keyfile: bytes | None = None,
+    salt: bytes | None = None,
+) -> tuple[bytes, dict]:
+    if not isinstance(password, str) or not password:
+        raise ValueError("password must be a non-empty string")
+    if keyfile is not None and len(keyfile) < 32:
+        raise ValueError("keyfile must contain at least 32 bytes")
+    actual_salt = os.urandom(16) if salt is None else salt
+    if len(actual_salt) != 16:
+        raise ValueError("password KDF salt must be 16 bytes")
+    password_bytes = password.encode("utf-8")
+    if keyfile is None:
+        secret = password_bytes
+    else:
+        secret = (
+            b"HSE2:password-keyfile-kek:v1:"
+            + password_bytes
+            + b":"
+            + hashlib.sha256(keyfile).digest()
+        )
+    kdf = {**COMPATIBLE_KDF, "salt": _b64(actual_salt)}
+    if keyfile is not None:
+        kdf.update({
+            "mode": "password_keyfile",
+            "keyfile_size": len(keyfile),
+            "keyfile_sha256": hashlib.sha256(keyfile).hexdigest(),
+        })
+    kek = _argon2id(secret, actual_salt)
+    return kek, kdf
+
+
+def _wrapper_kek(
+    wrapper: dict,
+    *,
+    keyfile: bytes | None = None,
+    password: str | None = None,
+) -> bytes:
+    wrapper_type = wrapper.get("type")
+    if wrapper_type == "keyfile":
+        if keyfile is None or password is not None:
+            raise ValueError("keyfile wrapper requires only keyfile material")
+        return _kek(keyfile)
+    if wrapper_type not in {"password", "password_keyfile"} or password is None:
+        raise ValueError("reference wrapper requires password factors")
+    kdf = wrapper.get("kdf")
+    if not isinstance(kdf, dict):
+        raise ValueError("password wrapper is missing KDF metadata")
+    for field, expected in COMPATIBLE_KDF.items():
+        if type(kdf.get(field)) is not type(expected) or kdf[field] != expected:
+            raise ValueError(f"unsupported password KDF field: {field}")
+    salt = _unb64(kdf.get("salt", ""))
+    if len(salt) != 16:
+        raise ValueError("password KDF salt must be 16 bytes")
+    if wrapper_type == "password":
+        if keyfile is not None or "mode" in kdf:
+            raise ValueError("password wrapper must not contain keyfile factors")
+        secret = password.encode("utf-8")
+    else:
+        if keyfile is None or kdf.get("mode") != "password_keyfile":
+            raise ValueError("password_keyfile wrapper requires both factors")
+        keyfile_sha256 = kdf.get("keyfile_sha256")
+        if (
+            len(keyfile) < 32
+            or type(kdf.get("keyfile_size")) is not int
+            or not isinstance(keyfile_sha256, str)
+        ):
+            raise ValueError("invalid password_keyfile metadata")
+        digest = hashlib.sha256(keyfile).hexdigest()
+        if kdf["keyfile_size"] != len(keyfile) or not hmac.compare_digest(
+            keyfile_sha256, digest
+        ):
+            raise ValueError("password_keyfile metadata does not match keyfile")
+        secret = (
+            b"HSE2:password-keyfile-kek:v1:"
+            + password.encode("utf-8")
+            + b":"
+            + hashlib.sha256(keyfile).digest()
+        )
+    return _argon2id(secret, salt)
+
+
+def _wrapper_dek_mek(
+    wrapper: dict,
+    *,
+    keyfile: bytes | None = None,
+    password: str | None = None,
+) -> tuple[bytes, bytes]:
+    kek = _wrapper_kek(wrapper, keyfile=keyfile, password=password)
     cipher = AES.new(kek, AES.MODE_GCM, nonce=_unb64(wrapper["nonce"]))
-    cipher.update(b"HSE2:wrapper-record:keyfile")
+    cipher.update(f"HSE2:wrapper-record:{wrapper['type']}".encode("ascii"))
     plain = cipher.decrypt_and_verify(
         _unb64(wrapper["wrapped_keys"]["dek"]) + _unb64(wrapper["wrapped_keys"]["mek"]),
         _unb64(wrapper["auth_tag"]),
@@ -55,13 +163,18 @@ def _wrapper_dek_mek(wrapper: dict, keyfile: bytes) -> tuple[bytes, bytes]:
     return plain[:32], plain[32:]
 
 
-def _header_keys(header: dict, keyfile: bytes) -> tuple[bytes, bytes]:
+def _header_keys(
+    header: dict,
+    *,
+    keyfile: bytes | None = None,
+    password: str | None = None,
+) -> tuple[bytes, bytes]:
     if header.get("format") != "HSE2" or header.get("format_version") != 3:
         raise ValueError("expected HSE2 v3 header")
     wrappers = header.get("wrappers")
-    if not isinstance(wrappers, list) or len(wrappers) != 1 or wrappers[0].get("type") != "keyfile":
-        raise ValueError("reference profile requires exactly one keyfile wrapper")
-    dek, mek = _wrapper_dek_mek(wrappers[0], keyfile)
+    if not isinstance(wrappers, list) or len(wrappers) != 1:
+        raise ValueError("reference profile requires exactly one wrapper")
+    dek, mek = _wrapper_dek_mek(wrappers[0], keyfile=keyfile, password=password)
     unsigned = json.loads(json.dumps(header))
     tag = _unb64(unsigned["header_auth"].pop("tag"))
     expected = hmac.new(mek, b"HSE2:header-auth:v1" + _canonical(unsigned), hashlib.sha256).digest()
@@ -70,23 +183,48 @@ def _header_keys(header: dict, keyfile: bytes) -> tuple[bytes, bytes]:
     return dek, mek
 
 
-def write_archive(path: str | os.PathLike[str], files: dict[str, bytes], keyfile: bytes) -> None:
-    """Write a v3 archive from relative POSIX paths and bytes."""
+def write_archive(
+    path: str | os.PathLike[str],
+    files: dict[str, bytes],
+    keyfile: bytes | None = None,
+    *,
+    password: str | None = None,
+    wrapper_type: str = "keyfile",
+) -> None:
+    """Write a v3 archive for one keyfile, password, or combined wrapper."""
     if not files:
         raise ValueError("at least one file is required")
     if any(not name or "\\" in name or PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts for name in files):
         raise ValueError("unsafe archive path")
+    if wrapper_type == "keyfile":
+        if keyfile is None or password is not None:
+            raise ValueError("keyfile reference profile requires only keyfile material")
+        kek = _kek(keyfile)
+        kdf = {
+            "algorithm": "sha256-domain-separated",
+            "keyfile_size": len(keyfile),
+            "keyfile_sha256": hashlib.sha256(keyfile).hexdigest(),
+        }
+    elif wrapper_type == "password":
+        if password is None or keyfile is not None:
+            raise ValueError("password reference profile requires only a password")
+        kek, kdf = _derive_password_kek(password)
+    elif wrapper_type == "password_keyfile":
+        if password is None or keyfile is None:
+            raise ValueError("password_keyfile reference profile requires both factors")
+        kek, kdf = _derive_password_kek(password, keyfile=keyfile)
+    else:
+        raise ValueError("unsupported reference wrapper type")
+
     dek, mek = os.urandom(32), os.urandom(32)
     nonce = os.urandom(12)
-    wrapped = AES.new(_kek(keyfile), AES.MODE_GCM, nonce=nonce)
-    wrapped.update(b"HSE2:wrapper-record:keyfile")
+    wrapped = AES.new(kek, AES.MODE_GCM, nonce=nonce)
+    wrapped.update(f"HSE2:wrapper-record:{wrapper_type}".encode("ascii"))
     wrapped_ct, wrapped_tag = wrapped.encrypt_and_digest(dek + mek)
     wrapper = {
-        "id": "reference-keyfile-1", "type": "keyfile", "created_utc": "2026-01-01T00:00:00Z",
-        "label": "independent reference", "kdf": {
-            "algorithm": "sha256-domain-separated", "keyfile_size": len(keyfile),
-            "keyfile_sha256": hashlib.sha256(keyfile).hexdigest(),
-        }, "wrap_cipher": "AES-256-GCM", "nonce": _b64(nonce),
+        "id": f"reference-{wrapper_type}-1", "type": wrapper_type,
+        "created_utc": "2026-01-01T00:00:00Z", "label": "independent reference",
+        "kdf": kdf, "wrap_cipher": "AES-256-GCM", "nonce": _b64(nonce),
         "wrapped_keys": {"dek": _b64(wrapped_ct[:32]), "mek": _b64(wrapped_ct[32:])},
         "auth_tag": _b64(wrapped_tag),
     }
@@ -131,8 +269,13 @@ def write_archive(path: str | os.PathLike[str], files: dict[str, bytes], keyfile
             out.write(nonce + ciphertext + tag)
 
 
-def read_archive(path: str | os.PathLike[str], keyfile: bytes) -> dict[str, bytes]:
-    """Authenticate and decrypt a documented v3 keyfile archive independently."""
+def read_archive(
+    path: str | os.PathLike[str],
+    keyfile: bytes | None = None,
+    *,
+    password: str | None = None,
+) -> dict[str, bytes]:
+    """Authenticate and decrypt a documented v3 wrapper profile independently."""
     with Path(path).open("rb") as src:
         pre = src.read(PREAMBLE.size)
         if len(pre) != PREAMBLE.size:
@@ -146,7 +289,7 @@ def read_archive(path: str | os.PathLike[str], keyfile: bytes) -> dict[str, byte
         header = json.loads(raw_header.decode("utf-8"))
         if _canonical(header) != raw_header:
             raise ValueError("noncanonical header")
-        dek, mek = _header_keys(header, keyfile)
+        dek, mek = _header_keys(header, keyfile=keyfile, password=password)
         prefix = src.read(MANIFEST_PREFIX.size)
         if len(prefix) != MANIFEST_PREFIX.size:
             raise ValueError("truncated manifest prefix")

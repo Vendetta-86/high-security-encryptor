@@ -67,7 +67,7 @@
 | 阶段 | 状态 | 名称 | 当前判断 |
 |---|---|---|---|
 | Phase 0 | [x] | 升级计划建立 | 本进度文档已建立 |
-| Phase 1 | [~] | HSE2 格式冻结 | v2/v3 格式及 framing 文档、实现均已存在；第三方 v3 双向互操作和独立格式审查仍待完成 |
+| Phase 1 | [~] | HSE2 格式冻结 | v2/v3 格式及 framing 文档、实现均已存在；本地独立代码路径现覆盖 keyfile、password、password+keyfile 的双向互读写（password KDF 限 compatible）；第三方 v3 互操作和独立格式审查仍待完成 |
 | Phase 2 | [~] | DEK + Wrapper 架构 | DEK/MEK、wrapper add/remove/rewrap 及文档已实现；稳定兼容契约需随 Phase 1 审查冻结 |
 | Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
 | Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
@@ -490,4 +490,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：alpha.8 打包 GUI wrapper/access 人工 smoke：临时 v3 容器 wrapper 列表显示 2 项并退出码 0；移除 `recovery-keyfile` 后新副本仅剩 `keyfile-1`，打包 CLI 复核一致；永久禁用访问按精确短语和二次确认后写出新副本，CLI 复核 `wrapper_count=0`、`access_destroyed=true`。原输入均保留；本轮为手工候选验收，不替代跨版本自动 GUI 测试。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：alpha.8 打包 GUI wrapper add/rewrap 人工 smoke：GUI 添加 `gui-add-check` 后得到 3 个 wrapper；GUI 将其替换为 `gui-rewrap-check` 后仍有 3 个 wrapper。打包 CLI 以新的独立 keyfile 执行 `--validate-before-open` 并完整恢复 3 个文件，SHA-256 与文件长度（含零字节空文件）均匹配源目录。所有操作使用不同输出副本；该结果补充真实 Windows 打包 GUI 验收，不替代跨版本自动 GUI 测试。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：alpha.8 打包 GUI header-backup 导出与打包 CLI 恢复实测：GUI 使用错误 `.json` 后缀时退出码为 2 并明确拒绝；改用文档约定 `.hse2.header` 后退出码 0，生成含 body digest/offset/size 等元数据的 2051 字节备份。打包 header-backup CLI 从该备份恢复到新文件，报告 `body_digest_verified=true`，恢复副本与输入 v3 归档 SHA-256 完全相同；打包 open 的 `validate-before-open` 通过，使用原 keyfile 恢复 3 个文件（含空文件），相对路径、长度和 SHA-256 均与源目录匹配。原归档未覆盖；该手工实测不替代跨版本 GUI 自动化测试。Commit: 待提交
+- 2026-10-31：扩展 test-only HSE2 v3 参考写入器/读取器，继续保持不导入 `high_security_encryptor`；现覆盖 keyfile、password、password+keyfile 三种 wrapper 的双向对照，password wrapper 限于 compatible Argon2id profile，并验证错误密码与错误 keyfile 会拒绝。测试发现并修复参考 reader 将 wrapper AAD 固定为 keyfile 的缺陷。全量 unittest 674 通过、4 跳过，compileall、pre-commit 与 `git diff --check` 通过。该本地独立代码路径仍复用 Argon2/AES 原语库，不能替代第三方互操作或格式审查。Commit: 待提交
 

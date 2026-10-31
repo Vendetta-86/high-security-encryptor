@@ -84,12 +84,13 @@ The framing and cryptographic fields are specified in [HSE2 Framing Reference](h
 
 ## Local independent reference comparison
 
-`tests/interop_reference/hse2_v3_reference.py` is a deliberately small implementation that imports no `high_security_encryptor` code. It implements the documented keyfile wrapper, authenticated canonical header, manifest record, payload chunks, and strict EOF handling. The two directions are exercised by `tests/test_hse2_v3_independent_interop.py`:
+`tests/interop_reference/hse2_v3_reference.py` is a deliberately small implementation that imports no `high_security_encryptor` code. It implements the documented keyfile, password, and password+keyfile wrapper profiles, authenticated canonical header, manifest record, payload chunks, and strict EOF handling. Password-based checks use the bounded `compatible` Argon2id profile. The two directions are exercised by `tests/test_hse2_v3_independent_interop.py`:
 
-1. Reference writer -> repository `open_hse2_archive`.
-2. Repository `create_hse2_archive` -> reference reader.
+1. Reference writer -> repository `open_hse2_archive` for keyfile, password, and password+keyfile wrappers.
+2. Repository `create_hse2_archive` -> reference reader for all three wrapper profiles.
+3. Wrong-password rejection for the reference password reader.
 
-The focused test run on 2026-10-31 passed both directions (`Ran 2 tests ... OK`). The source payload checks are:
+The focused test run on 2026-10-31 passed both directions for all three wrapper profiles and rejected an incorrect password and incorrect combined-wrapper keyfile (`Ran 5 tests ... OK`). The source payload checks are:
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
@@ -97,4 +98,4 @@ The focused test run on 2026-10-31 passed both directions (`Ran 2 tests ... OK`)
 | `nested/beta.bin` | 131328 | `91f86bc16210e6eab1715b5e77465cc1a906243e758bcecb884060dbe9a26fe3` |
 | `empty.dat` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 
-This is a local independent-code-path compatibility check, not certification by an external implementation. The reference reader/writer currently covers the keyfile wrapper profile only; password, password+keyfile, and DPAPI interoperability remain outside this evidence.
+This is a local independent-code-path compatibility check, not certification by an external implementation. The reference writer and reader use separate HSE2 framing and wrapper code but share the project's installed Argon2 and AES primitive libraries; password interoperability is limited to the `compatible` Argon2id profile. DPAPI and other KDF profiles remain outside this evidence.
