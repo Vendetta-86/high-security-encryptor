@@ -204,6 +204,8 @@ git diff --check
 
 外部实现互操作尚未验证：仓库内参考实现提供了独立编码/解码路径的双向证据，但不是第三方实现；此前检查的远端旧分支和 release tag 均不支持 v3。若需要对外部版本兼容性作保证，仍需找到并记录另一个 v3-capable 发行版的准确版本，再做双向读写和明文哈希核验。
 
+2026-10-31 后续补强本地 M1.7 对照：参考实现现覆盖 keyfile、password 与 password+keyfile 三类 wrapper 的双向读写，密码只跑 compatible Argon2id profile，并验证错误密码及错误组合 keyfile 被拒绝。实现身份为本仓库 test-only reference commit `fc278607bbcd001c174525677c118abc08e6bbad`；定向测试 5 项通过，全量测试 674 项通过、4 项跳过。该进展完成的是本地独立代码路径门槛，不改变第三方互操作与独立格式审查仍待完成的状态。
+
 2026-10-31 对远端候选分支 `feature/hse2-streaming-helpers`（`f3e537a3514abe8497858979bdb3624902241983`）做只读检查。该分支包含早期 streaming helper，但在其 `src`、`docs`、`tests` 中没有 `MNF3`、`CHK3` 或 v3 format-version 声明，因此不能作为 M1.7 的 v3 互操作端。本轮远端 refs 名称筛查未发现其他明显的 v3/streaming 候选；没有逐一审查所有 release tag。远端 `master` 与本地当前提交 `e489ed8` 一致。
 
 继续检查最新 release tag `v0.6.0-alpha.7`（提交 `37a99c78cc43a289cf53a76c771c8010cc1a3a77`）：该版本没有 `container_stream.py`、v3 测试模块、`MNF3`、`CHK3` 或 format version 3 声明，不能作为第二个 v3-capable 版本。

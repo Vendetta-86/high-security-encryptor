@@ -56,7 +56,7 @@ Write-Output 'PASS: independent v3 archive opened; payload length and SHA-256 ma
 
 ## Acceptance gate
 
-M1.7 cross-version interoperability passes only when both directions pass using distinct implementations, and the evidence records each implementation identity and the plaintext checks. A current-writer/current-reader round trip, the checked-in fixture alone, or matching format-version fields do not satisfy this gate. Until the independent writer and reader are available, mark the gate pending.
+The local independent-code-path gate passes when both directions are exercised using the checked-in reference implementation and plaintext checks match. The broader M1.7 external-implementation gate passes only when both directions also pass with an implementation maintained outside this repository, with its exact identity and plaintext checks recorded. A current-writer/current-reader round trip, the checked-in fixture alone, or matching format-version fields do not satisfy either gate. The local gate is now covered; external interoperability and stable-format certification remain pending.
 
 ## Evidence record template
 
@@ -90,7 +90,7 @@ The framing and cryptographic fields are specified in [HSE2 Framing Reference](h
 2. Repository `create_hse2_archive` -> reference reader for all three wrapper profiles.
 3. Wrong-password rejection for the reference password reader.
 
-The focused test run on 2026-10-31 passed both directions for all three wrapper profiles and rejected an incorrect password and incorrect combined-wrapper keyfile (`Ran 5 tests ... OK`). The source payload checks are:
+The focused test run on 2026-10-31 passed both directions for all three wrapper profiles and rejected an incorrect password and incorrect combined-wrapper keyfile (`Ran 5 tests ... OK`). Reference implementation identity: repository test code at commit `fc278607bbcd001c174525677c118abc08e6bbad`, tested on Windows 11 with Python 3.13.15. The source payload checks are:
 
 | Path | Bytes | SHA-256 |
 |---|---:|---|
