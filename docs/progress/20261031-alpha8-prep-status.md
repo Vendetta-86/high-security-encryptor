@@ -69,8 +69,21 @@ The project venv used during prep is `work\hse2-test-venv`. Build and smoke each
 
 ## Remaining release gates
 
-- Maintainer review of the release checklist, threat model, format and GUI/CLI behavior.
+- Tag-specific Windows EXE workflow and uploaded release asset must pass before public release. The workflow is release-producing when run for a tag, so the tag remains uncreated until its publication step is explicitly authorized.
 
 ## Status
 
-Local Windows candidate validation and clean-clone release gate are complete. Remote CI runs [41187598235](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41187598235) and [41189557379](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41189557379) passed on the GCM-limit code and latest progress record. Maintainer release review remains outstanding. No tag or release has been created.
+Local Windows candidate validation and clean-clone release gate are complete. Remote CI runs [41187598235](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41187598235) and [41189557379](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41189557379) passed on the GCM-limit code and latest progress record. Maintainer review is recorded below. The tag-specific Windows EXE workflow and publication remain outstanding. No tag or release has been created.
+
+## Maintainer review — 2026-10-31
+
+**Decision: CONDITIONALLY APPROVED as the `v0.6.0-alpha.8` release candidate; public release is not approved yet.**
+
+Reviewed source commit: `9caf7fe62f078803ea531ef5214e0becd5cd3a7c` (candidate code); documentation/head commit at review: `b57cf1a2565cab868e2cbaf4f5e21cdff88a8db8`.
+
+- Reviewed the release checklist, HSE2 threat model, format/framing references, candidate change, and recorded CLI/package evidence. The Windows restore-path validation rejects platform-invalid path components before creating restore outputs; no correctness, security, architecture, or performance blocker was found in the reviewed change.
+- Confirmed the documented boundaries: HSE2 remains experimental; v3 is explicit while v2 remains the default; DPAPI is bound to the current Windows protection context; header backups do not replace unlock factors; plausible deniability and secure deletion are not claimed.
+- The candidate source commit's Windows Python 3.11/3.12/3.13 CI run [41197355242](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41197355242) passed. The documentation/head commit's corresponding three-version run [41197607726](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41197607726) passed.
+- Refreshed local candidate: `work/alpha8-refresh-9caf7fe/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 134,010,611 bytes, 16 entries; all ten bundled executable hashes match their build outputs. SHA-256: `29d56e28d34903c6e114c9bd6311ce1b050ec085ca5c5199a0654a6f96744cef`.
+- On the packaged candidate, DPAPI v3 create and open succeeded for an empty file and a 200,000-byte multi-chunk file; restored relative paths, lengths, and SHA-256 values matched. Latest standalone HSE2 GUI metadata inspection and wrapper listing both exited 0 on this disposable archive; metadata showed format version 3, one DPAPI wrapper, four payload chunks, and no access-destroyed marker.
+- The tag-specific Windows EXE workflow has not run and its tag-triggered publication/upload has not been verified. GitHub currently returns 404 for both the `v0.6.0-alpha.8` tag ref and release. Therefore this is candidate approval only, not approval to publish or a claim that the final tag asset exists.
