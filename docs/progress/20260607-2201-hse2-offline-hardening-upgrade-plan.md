@@ -444,7 +444,7 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：新增 HSE2 wrapper 原子 rewrap API/CLI，可替换最后一个 wrapper 或保留其他 wrapper，一次写出新认证 header 并流式复制 v2/v3 body；新增旧/新因子和失败回滚测试并更新 CLI 文档。HSE2 定向 154/154、全量 593 项通过（6 项跳过）。Commit: 未提交
 - 2026-10-31：HSE2 实验 GUI 新增 wrapper rewrap 操作、原/新因子输入、标签和 DPAPI 选项；密码 wrapper 提供兼容旧设备/推荐高安全/极高安全中文档位，极高安全在新密码文件已设置时展示耗时与内存提示，并在执行前确认。GUI 定向 42 项、全量 597 项通过（6 项跳过）；Windows 界面已目视检查，未使用真实容器执行 rewrap。Commit: 未提交
 - 2026-10-31：HSE2 实验 GUI 新增 wrapper add 流程，复用现有容器验证因子并单独采集新 wrapper 因子，支持中文 KDF 档位、密码+keyfile 与 DPAPI；增加执行前确认并更新 README、GUI 集成和 CLI 工作流文档。GUI 定向 44 项、全量 599 项通过（6 项跳过），Windows GUI 中 add/rewrap 表单已目视检查。Commit: 未提交
-- 2026-10-31：完成 Phase 4 keyfile inspect：新增 `high-security-encryptor hse2 keyfile inspect`、128 KiB 有界 SHA-256 读取、HSE2 32-byte 适配状态与文档；`tests.test_hse2_keyfile_inspect` 4/4 通过。Commit: 待汇总提交
-- 2026-10-31：完成 paranoid wrapper 因子策略：password-backed paranoid create 需要 keyfile；workflow 与 dry-run 共用策略校验，keyfile-only/独立 DPAPI 仍可用。定向测试 `tests.test_hse2_paranoid_wrapper_policy` 5/5 通过。Commit: 待汇总提交
-- 2026-10-31：完成 keyfile 丢失风险提示：威胁模型说明不可从归档或密码恢复 keyfile，要求独立离线备份并验证可读；GUI 在生成 keyfile 与 wrapper 管理/移除/销毁相关操作显示提示并增强确认文案。`tests.test_hse2_gui_tab` 25/25 通过，Windows GUI 中生成和 wrapper-add 表单提示目视确认。Commit: 待汇总提交
-- 2026-10-31：完成 keyfile 同目录风险提示：create/open/wrapper CLI 检查 keyfile 与归档目录共址并将警告写入 stderr，GUI 提示明确避免共址；路径/CLI 定向测试 5/5 通过，全量测试 615 项通过、6 项跳过。`git diff --check` 通过。Commit: 待提交
+- 2026-10-31：完成 Phase 4 keyfile inspect：新增 `high-security-encryptor hse2 keyfile inspect`、128 KiB 有界 SHA-256 读取、HSE2 32-byte 适配状态与文档；`tests.test_hse2_keyfile_inspect` 4/4 通过。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
+- 2026-10-31：完成 paranoid wrapper 因子策略：password-backed paranoid create 需要 keyfile；workflow 与 dry-run 共用策略校验，keyfile-only/独立 DPAPI 仍可用。定向测试 `tests.test_hse2_paranoid_wrapper_policy` 5/5 通过。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
+- 2026-10-31：完成 keyfile 丢失风险提示：威胁模型说明不可从归档或密码恢复 keyfile，要求独立离线备份并验证可读；GUI 在生成 keyfile 与 wrapper 管理/移除/销毁相关操作显示提示并增强确认文案。`tests.test_hse2_gui_tab` 25/25 通过，Windows GUI 中生成和 wrapper-add 表单提示目视确认。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
+- 2026-10-31：完成 keyfile 同目录风险提示：create/open/wrapper CLI 检查 keyfile 与归档目录共址并将警告写入 stderr，GUI 提示明确避免共址；路径/CLI 定向测试 5/5 通过，全量测试 615 项通过、6 项跳过。`git diff --check` 通过。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
