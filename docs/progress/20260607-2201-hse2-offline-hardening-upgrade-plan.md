@@ -72,7 +72,7 @@
 | Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
 | Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
-| Phase 6 | [~] | Destroy Access | wrapper list/remove/access destroy CLI+GUI 已完成；backup 恢复场景仍需补测 |
+| Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [~] | DPAPI 正式化 | create 阶段已有 DPAPI wrapper；add/remove/跨机风险文档仍需补齐 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [~] | 元数据最小化 | encrypted manifest/store_original_paths=false 已落地；随机名/padding 仍需补齐 |
@@ -211,7 +211,7 @@
 
 - [x] 删除单个 wrapper 后，其他 wrapper 仍可解密
 - [x] 删除全部 wrapper 后不可解密
-- [ ] 有 header backup 时可恢复 wrapper 区域（需独立场景补测）
+- [x] 有 header backup 时可恢复 wrapper 区域（v2/v3 access destroy 后以匹配 body digest 恢复并解密）
 - [x] 无 header backup 时明确不可恢复
 
 ---
@@ -449,3 +449,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：完成 keyfile 丢失风险提示：威胁模型说明不可从归档或密码恢复 keyfile，要求独立离线备份并验证可读；GUI 在生成 keyfile 与 wrapper 管理/移除/销毁相关操作显示提示并增强确认文案。`tests.test_hse2_gui_tab` 25/25 通过，Windows GUI 中生成和 wrapper-add 表单提示目视确认。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
 - 2026-10-31：完成 keyfile 同目录风险提示：create/open/wrapper CLI 检查 keyfile 与归档目录共址并将警告写入 stderr，GUI 提示明确避免共址；路径/CLI 定向测试 5/5 通过，全量测试 615 项通过、6 项跳过。`git diff --check` 通过。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
 - 2026-10-31：完成 Phase 5 header backup 提示：create 成功后在 stderr 输出可复制的 export 命令，JSON 附推荐 `.hse2.header` 路径和 argv；GUI 顶部增加常驻醒目提示，说明 header backup 不能恢复或替代密码、keyfile、DPAPI 解锁条件。测试会实际执行建议 argv 并确认备份文件生成；HSE2 定向 397 项通过、2 项跳过；全量 616 项通过、6 项跳过。Commit: `9c19ced`
+- 2026-10-31：完成 Phase 6 header backup wrapper 恢复场景：修复 restore 在 header 长度变化后仍使用备份旧 offset 的问题；有效当前 header 用于定位现有 body，恢复后继续校验备份 frame offset、body 长度及 SHA-256，损坏 header 仍回退备份 offset。新增 v2/v3 测试：备份、access destroy、恢复旧 wrapper、验证 body 完全一致并以原 keyfile 解密。HSE2 定向 398 项通过、2 项跳过；全量 617 项通过、6 项跳过。Commit: 待提交

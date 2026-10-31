@@ -79,7 +79,7 @@ Recommended handling:
 
 ## Body-Offset Recovery Metadata
 
-Header backups may include metadata such as body offset, encrypted body size, encrypted body digest, and container size. This metadata is intended to recover when the current preamble or header is damaged but the encrypted body remains intact.
+Header backups may include metadata such as body offset, encrypted body size, encrypted body digest, and container size. If the current header is valid, restore uses its declared body offset and verifies the body size and digest; this allows recovery of an earlier wrapper header after a header-length change. If the current preamble or header is damaged, the backup metadata supplies the original body offset and size checks.
 
 Risk boundary:
 

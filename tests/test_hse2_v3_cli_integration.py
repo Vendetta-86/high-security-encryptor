@@ -207,6 +207,55 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
             self.assertTrue(listed.access_destroyed)
             self.assertEqual(listed.wrappers, ())
 
+    def test_header_backup_restores_wrapper_region_after_access_destroy_v2_and_v3(self) -> None:
+        for version in (2, 3):
+            with self.subTest(version=version), tempfile.TemporaryDirectory() as temp_dir:
+                base = Path(temp_dir)
+                _root, keyfile, archive, create_summary = self._create(base, version=version)
+                backup = Path(str(create_summary["header_backup_path"]))
+                code, _backup_summary, stderr = self._capture(
+                    backup_main,
+                    create_summary["header_backup_export_argv"][1:],
+                )
+                self.assertEqual(code, 0, stderr)
+
+                destroyed = base / "destroyed.hse2"
+                code, destroy_summary, stderr = self._capture(
+                    access_main,
+                    [
+                        "destroy", "--input", str(archive), "--output", str(destroyed),
+                        "--confirm", DESTROY_ACCESS_CONFIRMATION_PHRASE,
+                        "--keyfile", str(keyfile), "--compact",
+                    ],
+                )
+                self.assertEqual(code, 0, stderr)
+                self.assertTrue(destroy_summary["access_destroyed"])
+                self.assertEqual(self._container_body(archive), self._container_body(destroyed))
+                self.assertNotEqual(archive.stat().st_size, destroyed.stat().st_size)
+
+                restored = base / "recovered.hse2"
+                code, restore_summary, stderr = self._capture(
+                    backup_main,
+                    [
+                        "restore", "--input", str(destroyed), "--backup", str(backup),
+                        "--output", str(restored), "--compact",
+                    ],
+                )
+                self.assertEqual(code, 0, stderr)
+                self.assertTrue(restore_summary["body_digest_verified"])
+
+                output_dir = base / "opened"
+                code, open_summary, stderr = self._capture(
+                    open_main,
+                    ["--input", str(restored), "--output-dir", str(output_dir), "--keyfile", str(keyfile), "--compact"],
+                )
+                self.assertEqual(code, 0, stderr)
+                self.assertTrue(open_summary["container_opened"])
+                self.assertEqual(
+                    (output_dir / "source" / "payload.bin").read_bytes(),
+                    b"M1.6 CLI archive payload" * 8,
+                )
+
     def test_v3_header_backup_cli_export_and_restore(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)

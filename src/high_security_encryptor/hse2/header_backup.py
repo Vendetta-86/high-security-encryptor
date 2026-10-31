@@ -115,11 +115,10 @@ def replace_container_header_with_backup_bytes(
 ) -> bytes:
     """Replace a container header frame with a backup header frame.
 
-    If ``body_offset`` is omitted, metadata is preferred. If no metadata exists,
-    this function first tries the current container preamble/header length, then
-    falls back to the backup frame length. The fallback is useful when the current
-    container preamble is damaged but the encrypted body still starts at the same
-    offset as the original header backup frame.
+    If ``body_offset`` is omitted, a valid current container header determines
+    where its body begins. Backup metadata supplies the offset only when the
+    current header cannot be decoded; without metadata, the backup frame length
+    is the final fallback.
     """
 
     backup_header = restore_header_from_backup_bytes(backup_data)
@@ -127,7 +126,12 @@ def replace_container_header_with_backup_bytes(
     chosen_offset = _select_body_offset(container_data, backup_data, body_offset=body_offset, metadata=metadata)
     body = _container_body_from_offset(container_data, chosen_offset)
     if metadata is not None:
-        _validate_metadata_for_body(metadata, body_offset=chosen_offset, body=body, verify_digest=verify_body_digest)
+        _validate_metadata_for_body(
+            metadata,
+            body_offset=_backup_frame_length(backup_data),
+            body=body,
+            verify_digest=verify_body_digest,
+        )
     return export_header_backup_bytes(backup_header) + body
 
 
@@ -201,13 +205,11 @@ def restore_container_header_from_backup(
     backup_frame = export_header_backup_bytes(backup_header)
     if body_offset is not None:
         chosen_offset = body_offset
-    elif metadata is not None:
-        chosen_offset = metadata.body_offset
     else:
         try:
             _current_header, chosen_offset, _current_frame = _read_header_frame_from_path(source)
         except HSE2ModelError:
-            chosen_offset = len(backup_frame)
+            chosen_offset = metadata.body_offset if metadata is not None else len(backup_frame)
     if chosen_offset < 0:
         raise HSE2ModelError("body_offset must be non-negative")
     if target.exists() and not overwrite:
@@ -232,7 +234,7 @@ def restore_container_header_from_backup(
             if metadata is not None:
                 _validate_metadata_values(
                     metadata,
-                    body_offset=chosen_offset,
+                    body_offset=len(backup_frame),
                     body_size=body_size,
                     body_sha256=digest.hexdigest(),
                     verify_digest=verify_body_digest,
@@ -265,11 +267,11 @@ def _select_body_offset(
         if body_offset < 0:
             raise HSE2ModelError("body_offset must be non-negative")
         return body_offset
-    if metadata is not None:
-        return metadata.body_offset
     try:
         return _declared_body_offset(container_data)
     except HSE2ModelError:
+        if metadata is not None:
+            return metadata.body_offset
         return _backup_frame_length(backup_data)
 
 

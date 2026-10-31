@@ -175,7 +175,7 @@ Header backups include non-secret recovery metadata:
 - body size
 - container size
 
-By default, restore verifies the encrypted body digest before writing the restored container. For advanced recovery cases, a manual body offset can be supplied:
+By default, restore uses a valid current header to locate the encrypted body, then verifies its size and SHA-256 against the backup metadata. This supports restoring an older wrapper header after wrapper changes that alter the header length. If the current header is damaged, restore falls back to the backup's recorded body offset; a manual offset can be supplied for advanced recovery cases:
 
 ```bash
 high-security-encryptor-hse2-header-backup restore \
