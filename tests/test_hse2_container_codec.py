@@ -13,6 +13,7 @@ from high_security_encryptor.hse2 import (
     generate_dek,
     generate_kek,
     generate_mek,
+    hse2_header_from_dict,
     require_valid_header_auth_tag,
     HSE2Header,
 )
@@ -92,6 +93,17 @@ class HSE2ContainerCodecTests(unittest.TestCase):
 
         with self.assertRaises(HSE2ModelError):
             decode_header_frame(preamble + b"[]")
+
+    def test_header_integer_fields_reject_json_booleans(self) -> None:
+        header, _ = self._authenticated_header()
+
+        for section, field in (("cipher_suite", "chunk_size"), ("payload_layout", "chunk_count")):
+            with self.subTest(section=section, field=field):
+                data = header.to_dict()
+                data[section][field] = True
+
+                with self.assertRaisesRegex(HSE2ModelError, f"{field} must be an integer"):
+                    hse2_header_from_dict(data)
 
 
 if __name__ == "__main__":

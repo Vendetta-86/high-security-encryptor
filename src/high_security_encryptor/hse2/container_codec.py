@@ -210,6 +210,6 @@ def _required_str(data: dict[str, Any], key: str) -> str:
 
 def _required_int(data: dict[str, Any], key: str) -> int:
     value = data.get(key)
-    if not isinstance(value, int):
+    if type(value) is not int:
         raise HSE2ModelError(f"{key} must be an integer")
     return value
