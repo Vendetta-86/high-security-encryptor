@@ -52,12 +52,14 @@ class HSE2GuiActionTests(unittest.TestCase):
         plan = build_hse2_gui_command(
             action="archive-open", input_path="archive.hse2", output_path="restored",
             password_file="secret.txt", keyfile_path="recovery.key", allow_dpapi=True, force=True,
+            archive_validate_before_open=True,
         )
         self.assertEqual(
             plan.argv,
             (
                 "hse2-open", "--input", "archive.hse2", "--output-dir", "restored",
                 "--password-file", "secret.txt", "--keyfile", "recovery.key", "--dpapi", "--overwrite",
+                "--validate-before-open",
             ),
         )
         with self.assertRaisesRegex(ValueError, "请选择密码文件"):

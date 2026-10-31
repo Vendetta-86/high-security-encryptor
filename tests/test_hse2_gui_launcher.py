@@ -204,12 +204,13 @@ class HSE2GuiLauncherTests(unittest.TestCase):
                 build_hse2_command_from_tab_state(
                     HSE2GuiTabState(
                         action="archive-open", input_path=str(container), output_path=str(output_dir),
-                        keyfile_path=str(keyfile),
+                        keyfile_path=str(keyfile), archive_validate_before_open=True,
                     )
                 )
             )
             self.assertEqual(create_result.exit_code, 0, create_result.stderr)
             self.assertEqual(open_result.exit_code, 0, open_result.stderr)
+            self.assertTrue(json.loads(open_result.stdout)["pre_open_validation"]["ok"])
             restored_files = list(output_dir.rglob("payload.txt"))
             self.assertEqual(len(restored_files), 1)
             self.assertEqual(restored_files[0].read_bytes(), expected)

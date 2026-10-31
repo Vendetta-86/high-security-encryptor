@@ -87,6 +87,7 @@ def build_hse2_gui_command(
     archive_chunk_size: int = 1024 * 1024,
     archive_pad_last_chunk: bool = False,
     archive_validate_after_create: bool = False,
+    archive_validate_before_open: bool = False,
     access_confirmation_phrase: str = "",
 ) -> HSE2GuiCommandPlan:
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
@@ -149,6 +150,8 @@ def build_hse2_gui_command(
             args.append("--dpapi")
         if force:
             args.append("--overwrite")
+        if archive_validate_before_open:
+            args.append("--validate-before-open")
         argv = tuple(args)
     elif normalized_action == "validate":
         args: list[str] = ["hse2-validate", "--config", _require_text(config_path, "请选择 HSE2 校验配置文件。")]

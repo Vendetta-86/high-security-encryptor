@@ -31,7 +31,8 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
         "archive_validate_after_create",
     }),
     "archive-open": frozenset({
-        "input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force", "dpapi_warning",
+        "input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force",
+        "archive_validate_before_open", "dpapi_warning",
     }),
     "validate": frozenset(
         {
@@ -74,6 +75,7 @@ _OPTION_FIELD_ORDER = (
     "new_wrapper_dpapi",
     "archive_pad_last_chunk",
     "archive_validate_after_create",
+    "archive_validate_before_open",
 )
 
 _HSE2_KDF_PROFILE_LABELS = {
@@ -149,6 +151,7 @@ class HSE2GuiTabState:
     archive_chunk_size: int = 1024 * 1024
     archive_pad_last_chunk: bool = False
     archive_validate_after_create: bool = False
+    archive_validate_before_open: bool = False
     access_confirmation_phrase: str = ""
 
 
@@ -213,6 +216,7 @@ def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
         archive_chunk_size=state.archive_chunk_size,
         archive_pad_last_chunk=state.archive_pad_last_chunk,
         archive_validate_after_create=state.archive_validate_after_create,
+        archive_validate_before_open=state.archive_validate_before_open,
         access_confirmation_phrase=state.access_confirmation_phrase,
     )
     return list(plan.argv)
@@ -253,6 +257,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.archive_chunk_size = tk.IntVar(value=1024 * 1024)
         self.archive_pad_last_chunk = tk.BooleanVar(value=False)
         self.archive_validate_after_create = tk.BooleanVar(value=True)
+        self.archive_validate_before_open = tk.BooleanVar(value=False)
         self.access_confirmation_phrase = tk.StringVar()
 
         self._field_widgets: dict[str, FieldWidgets] = {}
@@ -439,6 +444,11 @@ class HSE2ExperimentalTab(ttk.Frame):
             "archive_pad_last_chunk": ttk.Checkbutton(self._options_frame, text="隐藏文件精确大小（末块 padding）", variable=self.archive_pad_last_chunk),
             "archive_validate_after_create": ttk.Checkbutton(
                 self._options_frame, text="创建后校验归档（不写出明文）", variable=self.archive_validate_after_create
+            ),
+            "archive_validate_before_open": ttk.Checkbutton(
+                self._options_frame,
+                text="打开前完整校验归档（避免校验失败时留下部分恢复文件）",
+                variable=self.archive_validate_before_open,
             ),
         }
 
