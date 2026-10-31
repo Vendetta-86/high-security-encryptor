@@ -76,13 +76,13 @@ def main(argv: list[str] | None = None) -> int:
         if warning:
             print(f"hse2-wrapper: warning: {warning}", file=sys.stderr)
         if args.command == "list":
-            summary = _run_list(args)
+            summary = run_list(args)
         elif args.command == "remove":
-            summary = _run_remove(args)
+            summary = run_remove(args)
         elif args.command == "add":
             summary = run_add(args)
         elif args.command == "rewrap":
-            summary = _run_rewrap(args)
+            summary = run_rewrap(args)
         else:  # pragma: no cover - argparse enforces command choices
             raise HSE2ModelError(f"unsupported command: {args.command}")
     except (HSE2ModelError, OSError, ValueError) as exc:
@@ -103,13 +103,13 @@ def _keyfile_colocation_warning_for_args(args: argparse.Namespace) -> str | None
     return keyfile_colocation_warning(keyfiles, containers)
 
 
-def _run_list(args: argparse.Namespace) -> dict[str, Any]:
+def run_list(args: argparse.Namespace) -> dict[str, Any]:
     input_path = Path(args.input)
     _validate_container_path(input_path, field_name="input")
     return list_hse2_wrappers(input_path).to_dict()
 
 
-def _run_remove(args: argparse.Namespace) -> dict[str, Any]:
+def run_remove(args: argparse.Namespace) -> dict[str, Any]:
     input_path = Path(args.input)
     output_path = Path(args.output)
     _validate_container_path(input_path, field_name="input")
@@ -157,18 +157,26 @@ def run_add(args: argparse.Namespace) -> dict[str, Any]:
             "wrapper_count": len(listed.wrappers), "format_version": listed.format_version}
 
 
-def _run_rewrap(args: argparse.Namespace) -> dict[str, Any]:
+def run_rewrap(args: argparse.Namespace) -> dict[str, Any]:
     input_path = Path(args.input)
     output_path = Path(args.output)
     _validate_container_path(input_path, field_name="input")
     _validate_container_path(output_path, field_name="output")
     wrapper_id = args.new_wrapper_id or args.wrapper_id
+    new_password = read_secret_text_file(args.new_password_file) if args.new_password_file else None
+    new_keyfile_bytes = read_keyfile_bytes(args.new_keyfile) if args.new_keyfile else None
+    validate_hse2_wrapper_policy(
+        profile_name=args.new_profile,
+        has_password=bool(new_password),
+        has_keyfile=new_keyfile_bytes is not None,
+        use_dpapi=bool(args.new_dpapi),
+    )
     return rewrap_hse2_wrapper(
         input_path, output_path,
         replaced_wrapper_id=args.wrapper_id,
         new_wrapper_id=wrapper_id,
-        new_password=read_secret_text_file(args.new_password_file) if args.new_password_file else None,
-        new_keyfile_bytes=read_keyfile_bytes(args.new_keyfile) if args.new_keyfile else None,
+        new_password=new_password,
+        new_keyfile_bytes=new_keyfile_bytes,
         unlock_password=read_secret_text_file(args.password_file) if args.password_file else None,
         unlock_keyfile_bytes=read_keyfile_bytes(args.keyfile) if args.keyfile else None,
         allow_dpapi=bool(args.dpapi),

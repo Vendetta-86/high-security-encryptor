@@ -51,7 +51,12 @@ from .hse2_validation_report import build_hse2_validation_report
 from .integrity import IntegrityValidationError
 from .keyfile_generation import generate_keyfile
 from .hse2.keyfile_inspect import inspect_hse2_keyfile
-from .hse2_wrapper_cli import run_add as run_hse2_wrapper_add
+from .hse2_wrapper_cli import (
+    run_add as run_hse2_wrapper_add,
+    run_list as run_hse2_wrapper_list,
+    run_remove as run_hse2_wrapper_remove,
+    run_rewrap as run_hse2_wrapper_rewrap,
+)
 from .password_sources import PasswordSourceError, SecretSpec, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
 from .streaming_format import IntegrityError
@@ -94,6 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_validate_handler=_handle_hse2_validate,
         hse2_inspect_handler=_handle_hse2_inspect,
         hse2_wrapper_add_handler=_handle_hse2_wrapper_add,
+        hse2_wrapper_manage_handler=_handle_hse2_wrapper_manage,
         generate_keyfile_handler=_handle_generate_keyfile,
         hse2_keyfile_inspect_handler=_handle_hse2_keyfile_inspect,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
@@ -289,6 +295,23 @@ def _handle_hse2_wrapper_add(args: argparse.Namespace) -> dict[str, Any]:
         summary["dpapi_recovery_warning"] = DPAPI_WRAPPER_PORTABILITY_WARNING
         print(f"hse2-wrapper: DPAPI recovery warning: {DPAPI_WRAPPER_PORTABILITY_WARNING}", file=sys.stderr)
     return summary
+
+
+def _handle_hse2_wrapper_manage(args: argparse.Namespace) -> dict[str, Any]:
+    if args.wrapper_command == "list":
+        return run_hse2_wrapper_list(args)
+    warning = keyfile_colocation_warning((getattr(args, "keyfile", None),), (args.input, args.output))
+    if warning:
+        print(f"hse2-wrapper: warning: {warning}", file=sys.stderr)
+    if args.wrapper_command == "remove":
+        return run_hse2_wrapper_remove(args)
+    if args.wrapper_command == "rewrap":
+        summary = run_hse2_wrapper_rewrap(args)
+        if args.new_dpapi:
+            summary["dpapi_recovery_warning"] = DPAPI_WRAPPER_PORTABILITY_WARNING
+            print(f"hse2-wrapper: DPAPI recovery warning: {DPAPI_WRAPPER_PORTABILITY_WARNING}", file=sys.stderr)
+        return summary
+    raise CliConfigError(f"unsupported HSE2 wrapper command: {args.wrapper_command}")
 
 
 def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:

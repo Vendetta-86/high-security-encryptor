@@ -117,6 +117,50 @@ class HSE2AccessManagementCliTests(unittest.TestCase):
             wrappers = _list_wrappers(output)
             self.assertEqual(wrappers["wrappers"][1]["type"], "dpapi")
 
+    def test_unified_cli_lists_removes_and_rewraps_wrappers(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            fixture = _create_fixture(base)
+            _append_password_wrapper(fixture.container, fixture.keyfile)
+            replacement_keyfile = base / "replacement.key"
+            replacement_keyfile.write_bytes(b"r" * 32)
+            rewrapped = base / "rewrapped.hse2"
+            removed = base / "removed-unified.hse2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                rewrap_exit = root_main([
+                    "hse2", "wrapper", "rewrap",
+                    "--input", str(fixture.container),
+                    "--output", str(rewrapped),
+                    "--wrapper-id", "password-2",
+                    "--new-wrapper-id", "keyfile-rewrapped",
+                    "--keyfile", str(fixture.keyfile),
+                    "--new-keyfile", str(replacement_keyfile),
+                ])
+            self.assertEqual(rewrap_exit, 0)
+            self.assertTrue(json.loads(stdout.getvalue())["container_written"])
+
+            list_stdout = io.StringIO()
+            with contextlib.redirect_stdout(list_stdout):
+                list_exit = root_main(["hse2", "wrapper", "list", "--input", str(rewrapped)])
+            self.assertEqual(list_exit, 0)
+            listed = json.loads(list_stdout.getvalue())
+            self.assertEqual(listed["wrapper_count"], 2)
+            self.assertIn("keyfile-rewrapped", [item["id"] for item in listed["wrappers"]])
+
+            with contextlib.redirect_stdout(io.StringIO()):
+                remove_exit = root_main([
+                    "hse2", "wrapper", "remove",
+                    "--input", str(rewrapped),
+                    "--output", str(removed),
+                    "--wrapper-id", "keyfile-rewrapped",
+                    "--keyfile", str(fixture.keyfile),
+                ])
+            self.assertEqual(remove_exit, 0)
+            self.assertEqual(_list_wrappers(removed)["wrapper_count"], 1)
+            self.assertEqual(_open_container(removed, fixture.keyfile, fixture.restored_dir), 0)
+
     def test_wrapper_cli_lists_safe_wrapper_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture = _create_fixture(Path(temp_dir))
