@@ -821,9 +821,9 @@ def _validate_payload_chunk_count(manifest: dict[str, Any], actual_count: int) -
         _manifest_path_key(item)
         start = item.get("start_chunk")
         count = item.get("chunk_count")
-        if not isinstance(start, int) or start < 0:
+        if type(start) is not int or start < 0:
             raise HSE2ModelError("payload range start_chunk is missing or invalid")
-        if not isinstance(count, int) or count < 0:
+        if type(count) is not int or count < 0:
             raise HSE2ModelError("payload range chunk_count is missing or invalid")
         if start + count > actual_count:
             raise HSE2ModelError("payload range extends beyond available chunks")
@@ -931,7 +931,7 @@ def _restore_manifest_entries(
             padding_mode=padding_mode,
         )
         expected_size = item.get("size")
-        if not isinstance(expected_size, int) or expected_size < 0:
+        if type(expected_size) is not int or expected_size < 0:
             raise HSE2ModelError("archive file size is missing or invalid")
         if len(plaintext) != expected_size:
             raise HSE2ModelError(f"restored file size mismatch: {archive_path}")
@@ -948,12 +948,12 @@ def _decrypt_file_range(
 ) -> bytes:
     start = payload_range.get("start_chunk")
     count = payload_range.get("chunk_count")
-    if not isinstance(start, int) or start < 0:
+    if type(start) is not int or start < 0:
         raise HSE2ModelError("payload range start_chunk is missing or invalid")
-    if not isinstance(count, int) or count < 0:
+    if type(count) is not int or count < 0:
         raise HSE2ModelError("payload range chunk_count is missing or invalid")
     size = payload_range.get("size")
-    if not isinstance(size, int) or size < 0:
+    if type(size) is not int or size < 0:
         raise HSE2ModelError("payload range size is missing or invalid")
     if count == 0:
         if size != 0:

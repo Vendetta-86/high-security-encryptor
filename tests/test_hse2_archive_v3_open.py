@@ -223,6 +223,31 @@ class HSE2ArchiveV3OpenTests(unittest.TestCase):
 
             self.assertFalse(destination.exists())
 
+    def test_manifest_boolean_integer_fields_are_rejected_before_restore(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source.bin"
+            source.write_bytes(b"x")
+            archive = Path(temp_dir) / "archive.hse2"
+            self._create_v3((source,), archive)
+
+            for section, field in (
+                ("entries", "size"),
+                ("payload_ranges", "size"),
+                ("payload_ranges", "start_chunk"),
+                ("payload_ranges", "chunk_count"),
+            ):
+                with self.subTest(section=section, field=field):
+                    malformed = Path(temp_dir) / f"malformed-{section}-{field}.hse2"
+                    destination = Path(temp_dir) / f"restore-{section}-{field}"
+                    _header, _encrypted_manifest, _chunks, manifest, _unlocked = self._read_archive_parts(archive)
+                    manifest[section][0][field] = True
+                    self._rewrite_manifest(archive, malformed, manifest)
+
+                    with self.assertRaises(HSE2ModelError):
+                        self._open(malformed, destination)
+
+                    self.assertFalse(destination.exists())
+
     def test_tampered_last_chunk_keeps_earlier_complete_file_and_discards_failed_file_temp(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "source"

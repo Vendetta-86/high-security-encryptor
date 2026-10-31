@@ -72,6 +72,8 @@ class HSE2PayloadCryptoTests(unittest.TestCase):
             encrypt_payload_chunk(b"chunk", dek=generate_dek(), index=-1)
         with self.assertRaises(HSE2ModelError):
             encrypt_payload_chunk(b"chunk", dek=generate_dek(), index="0")  # type: ignore[arg-type]
+        with self.assertRaises(HSE2ModelError):
+            encrypt_payload_chunk(b"chunk", dek=generate_dek(), index=True)  # type: ignore[arg-type]
 
     def test_encrypted_payload_chunk_rejects_invalid_lengths(self) -> None:
         with self.assertRaises(HSE2ModelError):
@@ -105,6 +107,10 @@ class HSE2PayloadCryptoTests(unittest.TestCase):
             encrypted_payload_chunk_from_dict("not-dict")  # type: ignore[arg-type]
         with self.assertRaises(HSE2ModelError):
             encrypted_payload_chunk_from_dict({"index": "0"})
+        malformed = encrypted.to_dict()
+        malformed["index"] = True
+        with self.assertRaises(HSE2ModelError):
+            encrypted_payload_chunk_from_dict(malformed)
         with self.assertRaises(HSE2ModelError):
             encrypted_payload_chunk_from_dict({"index": 0, "nonce": 1})
 

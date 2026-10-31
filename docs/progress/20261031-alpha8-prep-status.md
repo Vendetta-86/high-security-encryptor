@@ -23,15 +23,16 @@ This release-prep line follows the published `v0.6.0-alpha.7`. It packages the c
 
 ## Completed local validation
 
-- Full suite after the strict JSON integer parsing fix: 667 passed, 6 skipped. The regression test confirms JSON booleans are rejected for integer-valued HSE2 header fields.
+- Full suite after strict JSON integer validation across HSE2 headers, header-backup metadata, payload chunk indices, and archive manifests: 669 passed, 6 skipped. Regression tests confirm JSON booleans are rejected in those integer fields.
 - `compileall`, `pre-commit run --all-files`, `pip_audit . --progress-spinner off`: passed.
 - Windows 11 x64 / Python 3.13.15 / PyInstaller 6.22.3: all 10 executables built; main CLI/GUI smoke, all helper `--help`, and config validation examples passed.
 - Packaged EXE v3 create → inspect → standalone validate → validate-before-open → restore: passed; restored bytes matched and temporary restore directory was empty.
 - Packaged HSE2 GUI: localized action labels and action-specific fields inspected; password entries masked; metadata inspection of a disposable v3 container exited 0 and showed the expected non-secret summary.
 - Packaged GUI metadata inspection was repeated after rebuilding with the parsing fix: a disposable v3 container returned exit code 0 and showed the expected non-secret summary.
-- Refreshed local ZIP: `dist/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 133,998,872 bytes, 16 entries (10 EXEs plus documentation/examples); contents checked.
+- Rebuilt all ten executables from the expanded fix; CLI smoke checks and packaged v3 create/inspect/validate/open round trip passed again, with byte-identical restored content.
+- Refreshed local ZIP: `dist/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 133,995,227 bytes, 16 entries (10 EXEs plus documentation/examples); contents checked.
 
-The previously pushed candidate commit `6699036294fa5f9a7c6dc3aac4c972a0e041c74e` passed GitHub Actions run [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016), and roadmap commit `141c056240cb7fc117461e204cc665f75e7c244e` passed run [41179913657](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41179913657), each on Windows Python 3.11, 3.12, and 3.13. The local parsing fix and rebuilt artifacts documented above are newer and still require a fresh remote CI run. These CI results do not substitute for maintainer release review. The following commands are the reproducible local release gate when validating a clean candidate:
+Candidate commit `6699036294fa5f9a7c6dc3aac4c972a0e041c74e`, roadmap commit `141c056240cb7fc117461e204cc665f75e7c244e`, and initial parser fix `45e7e4cec5ce2bd598d6df02ed5d9bb7aaec3546` passed runs [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016), [41179913657](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41179913657), and [41180527122](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180527122), respectively, on Windows Python 3.11, 3.12, and 3.13. The additional integer-boundary hardening and rebuilt artifacts documented above are newer and still require a fresh remote CI run. These CI results do not substitute for maintainer release review. The following commands are the reproducible local release gate when validating a clean candidate:
 
 ```powershell
 python -m compileall -q src tests build_tools
@@ -49,4 +50,4 @@ The project venv used during prep is `work\hse2-test-venv`. Build and smoke each
 
 ## Status
 
-Local Windows candidate validation is complete, including a post-fix rebuild; fresh CI for the parsing fix and maintainer release review are outstanding. No tag or release has been created.
+Local Windows candidate validation is complete, including a rebuild with the additional integer-boundary hardening; fresh CI for that addition and maintainer release review are outstanding. No tag or release has been created.

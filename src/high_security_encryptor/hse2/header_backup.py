@@ -389,6 +389,6 @@ def _canonical_json_bytes(value: dict[str, Any]) -> bytes:
 
 def _required_non_negative_int(data: dict[str, Any], key: str) -> int:
     value = data.get(key)
-    if not isinstance(value, int) or value < 0:
+    if type(value) is not int or value < 0:
         raise HSE2ModelError(f"header backup metadata {key} is invalid")
     return value

@@ -28,7 +28,7 @@ class EncryptedPayloadChunk:
     auth_tag: str
 
     def __post_init__(self) -> None:
-        if not isinstance(self.index, int):
+        if type(self.index) is not int:
             raise HSE2ModelError("payload chunk index must be an integer")
         if self.index < 0:
             raise HSE2ModelError("payload chunk index must be non-negative")
@@ -49,7 +49,7 @@ class EncryptedPayloadChunk:
 
 
 def _payload_aad(index: int, context: bytes | None) -> bytes:
-    if not isinstance(index, int):
+    if type(index) is not int:
         raise HSE2ModelError("payload chunk index must be an integer")
     if index < 0:
         raise HSE2ModelError("payload chunk index must be non-negative")
@@ -105,7 +105,7 @@ def encrypted_payload_chunk_from_dict(data: dict[str, object]) -> EncryptedPaylo
     nonce = data.get("nonce")
     ciphertext = data.get("ciphertext")
     auth_tag = data.get("auth_tag")
-    if not isinstance(index, int):
+    if type(index) is not int:
         raise HSE2ModelError("payload chunk index is missing or invalid")
     if not isinstance(nonce, str):
         raise HSE2ModelError("payload chunk nonce is missing or invalid")

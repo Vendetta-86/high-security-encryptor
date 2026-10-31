@@ -4,6 +4,7 @@ import unittest
 
 from high_security_encryptor.hse2 import (
     HSE2Header,
+    HSE2HeaderBackupMetadata,
     HSE2ModelError,
     PayloadLayout,
     attach_header_auth_tag,
@@ -70,6 +71,22 @@ class HSE2HeaderBackupTests(unittest.TestCase):
 
         with self.assertRaises(HSE2ModelError):
             export_header_backup_bytes(header)
+
+    def test_header_backup_metadata_rejects_boolean_integer_fields(self) -> None:
+        data = {
+            "format": "HSE2-header-backup-metadata-v1",
+            "body_offset": 1,
+            "body_sha256": "a" * 64,
+            "body_size": 1,
+            "container_size": 2,
+        }
+
+        for field in ("body_offset", "body_size", "container_size"):
+            with self.subTest(field=field):
+                malformed = dict(data)
+                malformed[field] = True
+                with self.assertRaises(HSE2ModelError):
+                    HSE2HeaderBackupMetadata.from_dict(malformed)
 
     def test_restore_rejects_full_container_body(self) -> None:
         header, dek, mek = self._header()
