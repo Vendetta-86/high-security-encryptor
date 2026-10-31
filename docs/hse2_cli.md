@@ -74,6 +74,15 @@ high-security-encryptor hse2 access destroy \
 Access destruction always writes a separate output container (unless
 `--overwrite` is explicitly selected) and removes every unlock wrapper from it.
 
+Validate a batch of HSE2 containers without creating plaintext output:
+
+```bash
+high-security-encryptor hse2 validate --config <VALIDATION_CONFIG_JSON>
+```
+
+The unified route accepts `--output`, `--summary-only`, and
+`--exit-code-on-failure`, matching the existing `hse2-validate` helper.
+
 ### Encrypt one file
 
 ```bash

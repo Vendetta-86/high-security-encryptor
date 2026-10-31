@@ -76,7 +76,7 @@
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
-| Phase 10 | [~] | GUI / CLI 完整闭环 | 统一 inspect、wrapper 管理与 access destroy 已接入；统一 validate 命令与完整向导仍需补齐 |
+| Phase 10 | [~] | GUI / CLI 完整闭环 | 统一 inspect、validate、wrapper 管理与 access destroy 已接入；完整向导仍需补齐 |
 | Phase 11 | [~] | 测试与发布 | v0.6.0-alpha.3 release-prep 已建立，待 CI/本地验收与发布 |
 
 ---
@@ -299,7 +299,7 @@
 - [x] `high-security-encryptor hse2 wrapper add-dpapi`
 - [x] `high-security-encryptor hse2 wrapper list/remove/rewrap`
 - [x] `high-security-encryptor hse2 access destroy`（精确确认短语，写入独立副本）
-- [ ] `high-security-encryptor hse2 validate`
+- [x] `high-security-encryptor hse2 validate`
 
 ### 完成标准
 
@@ -460,3 +460,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 10 CLI 整合第二步：统一 `hse2 wrapper add-password/add-keyfile/add-dpapi` 三条路径，复用现有 wrapper add 校验和写入实现；新入口支持现有解锁因子、密码档位、组合 password+keyfile、覆盖控制、keyfile 共址提示及 DPAPI 恢复警告，并在 paranoid 密码 wrapper 缺少 keyfile 时拒绝写入。三条 `--help`、密码/keyfile/Windows DPAPI 路由集成回归及 compileall 均通过；全量 625 项通过（6 项跳过），`git diff --check` 通过。Commit: `22ebc2b`
 - 2026-10-31：Phase 10 CLI 整合第三步：统一 `hse2 wrapper list/remove/rewrap` 命令，保留专用 helper；安全元数据列表、header 鉴权后 wrapper 移除、body 原样保留的 rewrap 均复用现有实现。集成回归验证 list、rewrap、remove 后保留 keyfile 可重新解密；全量 626 项通过（6 项跳过），help、compileall 与 `git diff --check` 通过。Commit: `04c22f6`
 - 2026-10-31：Phase 10 CLI 整合第四步：接入统一 `hse2 access destroy`，保留专用 helper；要求完全匹配的破坏性确认短语，授权因子通过后写入新容器并清除全部 wrappers。集成测试验证输出 `access_destroyed=true` 且 wrappers 为空；help、compileall 与 `git diff --check` 通过，全量 627 项通过（6 项跳过）。Commit: `8d4000f`
+- 2026-10-31：Phase 10 CLI 整合第五步：在统一命令树下接入 `hse2 validate`，复用原 validation handler，并保持报告文件、summary-only 和失败退出码选项一致；同一有效/无效混合样本对比 unified 与 helper 两个入口的总数、成功数和失败数相同。定向回归、help 和 `git diff --check` 通过；全量 627 项通过（6 项跳过）。Commit: `bccde7a`
