@@ -393,7 +393,7 @@ python -m pip_audit . --progress-spinner off
 |---|---|---|
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
-| `v0.6.0-alpha.8` | [~] | 本机候选验证与干净克隆 release gate 完成：671 tests（干净克隆 4 skipped）、质量门、10 个 Windows EXE、v3 EXE 往返与打包 GUI 元数据检查、16 项候选 ZIP；GCM 上限修复和最新进度提交的 CI 均通过；待维护者审查。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
+| `v0.6.0-alpha.8` | [~] | 本机候选验证与干净克隆 release gate 完成：最新代码全量 679 passed/6 skipped、质量门、10 个 Windows EXE、v3/DPAPI 往返与打包 GUI 检查、16 项候选 ZIP；候选已获有条件维护者批准。tag 专属 Windows EXE 工作流及公开发布仍待执行。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
@@ -499,4 +499,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：刷新 restore-path hardening 后的 Windows 候选构建：PyInstaller 6.22.3 从提交 `4c3bb09` 构建 10 个 EXE；8 个 CLI `--help`、主 GUI smoke、打包 v3 create/validate/open、字节哈希还原及两类恶意路径拒绝均通过。独立刷新 ZIP 为 16 项，10 个 EXE 内容哈希与构建输出一致；记录在 `docs/progress/20261031-alpha8-prep-status.md`。CI run `41196270229` 三版本全通过。产物留在本地隔离目录，未覆盖旧候选或发布 tag。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：Phase 12 Windows restore filename hardening：解档路径共用 `validate_archive_path`，在 Windows 拒绝 ADS 冒号、控制/保留字符、DOS 设备名（含扩展名与上标 COM/LPT 变体）及尾随 ASCII 空格/句点；manifest 认证后、输出目录创建前执行。28 项定向测试、全量 679 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。Framing 与 alpha.8 发布说明已更新，并依据 Microsoft Win32 文件命名规则记录范围。Commit: 待提交
 - 2026-10-31：刷新 Windows filename hardening 后的 alpha.8 隔离候选：提交 `9caf7fe` 的 CI run `41197355242` 三版本全通过；PyInstaller 6.22.3 构建 10 个 EXE，8 个 CLI help、主 GUI smoke、打包 v3 create/validate/open/哈希恢复、7 种 Windows 非法 manifest 路径拒绝均通过。新 ZIP 16 项，10 个 EXE 哈希一致；artifact 及 SHA-256 记录在 `docs/progress/20261031-alpha8-prep-status.md`。未覆盖旧 ZIP、未创建 tag/Release。Commit: 本提交（SHA 见 Git 历史）
+- 2026-10-31：完成 alpha.8 维护者候选审查：威胁模型、格式/ framing、路径校验改动、发布清单和本机候选证据均已复核；打包 DPAPI v3 往返（空文件与多块文件）、当前 HSE2 GUI 元数据检查和 wrapper 列表通过。候选有条件批准，公开发布未批准；tag 工作流会创建 Release，故未创建 tag。审查记录提交 `de26842b3440824f94991b4fd69f95a6418334e` 的 CI run [41198406486](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41198406486) 三个 Windows Python job 全部成功。Commit: 本提交（SHA 见 Git 历史）
 
