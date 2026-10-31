@@ -118,6 +118,20 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("payload_authenticated：true", summary)
         self.assertIn("plaintext_written：false", summary)
 
+    def test_archive_create_summary_shows_validation_backup_and_next_steps(self) -> None:
+        summary = _build_hse2_result_summary(
+            json.dumps({
+                "command": "hse2-create", "container_written": True, "output_path": "archive.hse2",
+                "format_version": 3, "wrapper_type": "password_keyfile", "file_count": 2,
+                "payload_chunk_count": 4, "post_create_validation": {"ok": True},
+                "header_backup_path": "archive.hse2.header",
+            })
+        )
+        self.assertIn("创建后认证校验：true", summary)
+        self.assertIn("建议 header backup：archive.hse2.header", summary)
+        self.assertIn("解密并打开 HSE2 归档", summary)
+        self.assertIn("不替代密码或 keyfile", summary)
+
     def test_wrapper_list_summary_formats_table(self) -> None:
         summary = _build_hse2_result_summary(
             json.dumps(

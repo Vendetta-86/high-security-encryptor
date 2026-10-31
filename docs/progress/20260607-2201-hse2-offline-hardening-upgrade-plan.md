@@ -326,7 +326,7 @@
 - [x] GUI 可单独完整校验现有归档，打开前可选完整校验；打开前会执行只读 inspect 预览并要求确认
 - [x] wrapper 管理界面
 - [x] destroy-access 独立危险操作界面
-- [x] wrapper/access JSON 结果可读摘要
+- [x] create/wrapper/access JSON 结果可读摘要；创建结果提供校验、备份和恢复下一步
 
 ### 完成标准
 
@@ -474,5 +474,6 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 12 Windows 流式内存基准：运行 `build_tools/benchmark_hse2_v3_memory.py --small-mib 8 --large-mib 128 --max-growth-mib 32`。create Python heap 7.67→7.67 MiB、working set 41.66→41.49 MiB；open heap 7.67→7.67 MiB、working set 41.59→41.46 MiB；增长预算通过。该结论仅适用于本机和本次 8/128 MiB 样本。Commit: 待提交
 - 2026-10-31：Phase 12 检查目录归档未落地明文中间归档：create 根据 manifest 分块读取源文件并立即加密，v3 将加密 payload 流直接交给容器 writer；现有 v2/v3 create/open 与 GUI dispatcher 往返集成覆盖此路径。`workflows.py` 未创建明文 staging archive。Commit: 待提交
 - 2026-10-31：Windows 发布补齐 archive-validate helper：新增 PyInstaller entry script；workflow build、文件存在检查、`--help` smoke 和 release ZIP copy 均加入 helper；Windows EXE 文档及 workflow contract test 同步。隔离 venv 安装 `.[build]` 后实际构建 onefile EXE 并运行 `--help` 成功；契约测试通过，全量 659 项通过（6 项跳过），compileall 和 `git diff --check` 通过。Commit: `15912da`
-- 2026-10-31：Phase 12 质量门：安装 `.[dev]` 后 `pre-commit run --all-files` 通过；为识别出的固定 HSE2 测试密码与 fixture hash 加精确 false-positive 注释。`pip-audit . --progress-spinner off` 报告未发现已知漏洞。Commit: 待提交
+- 2026-10-31：Phase 12 质量门：安装 `.[dev]` 后 `pre-commit run --all-files` 通过；为识别出的固定 HSE2 测试密码与 fixture hash 加精确 false-positive 注释。`pip-audit . --progress-spinner off` 报告未发现已知漏洞。Commit: `ac5810e`
+- 2026-10-31：Phase 11 创建后 GUI 导航摘要：创建成功后摘要展示容器格式、wrapper 类型、payload 计数、创建后认证状态和建议 header backup 路径，并指向导出备份及归档恢复入口；明确 header backup 不替代密码/keyfile。定向 GUI 83 项、全量 660 项通过（6 项跳过）。Commit: 待提交
 

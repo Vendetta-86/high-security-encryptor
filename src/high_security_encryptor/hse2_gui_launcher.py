@@ -200,6 +200,8 @@ def _build_hse2_result_summary(stdout: str) -> str:
     if not isinstance(payload, dict):
         return ""
     command = payload.get("command")
+    if command == "hse2-create":
+        return _summarize_archive_create(payload)
     if command == "hse2-inspect":
         return _summarize_inspect(payload)
     if command == "hse2-archive-validate":
@@ -211,6 +213,31 @@ def _build_hse2_result_summary(stdout: str) -> str:
     if command == "hse2-access destroy":
         return _summarize_access_destroy(payload)
     return ""
+
+
+def _summarize_archive_create(payload: dict[str, Any]) -> str:
+    validation = payload.get("post_create_validation")
+    validation_status = (
+        _format_bool(validation.get("ok")) if isinstance(validation, dict) else "未运行"
+    )
+    backup_path = payload.get("header_backup_path") or "未提供"
+    next_steps = (
+        "下一步：导出并妥善保存 header backup；然后选择“解密并打开 HSE2 归档”，"
+        "预览确认后即可恢复。"
+    ) if payload.get("container_written") else ""
+    lines = [
+        "\n结果摘要：\n",
+        f"- 输出归档：{payload.get('output_path', '')}\n",
+        f"- 格式版本：{payload.get('format_version', '')}\n",
+        f"- Wrapper 类型：{payload.get('wrapper_type', '')}\n",
+        f"- 文件数：{payload.get('file_count', '')}\n",
+        f"- Payload 块数：{payload.get('payload_chunk_count', '')}\n",
+        f"- 创建后认证校验：{validation_status}\n",
+        f"- 建议 header backup：{backup_path}\n",
+    ]
+    if next_steps:
+        lines.extend([f"- {next_steps}\n", "- Header backup 用于恢复容器 header 元数据，不替代密码或 keyfile。\n"])
+    return "".join(lines)
 
 
 def _parse_json_stdout(stdout: str) -> Any:

@@ -154,7 +154,9 @@ window:
 The launcher keeps raw JSON stdout in the log for copy/paste debugging and also
 adds a readable summary for selected HSE2 helper results.
 
-`inspect` summaries include:
+`archive-create` summaries include format, wrapper type, payload counts,
+post-create validation status, recommended header backup path, and the next
+GUI actions. `inspect` summaries include:
 
 - input container path;
 - format version;
