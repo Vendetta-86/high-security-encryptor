@@ -9,9 +9,10 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from high_security_encryptor import hse2_gui_launcher
-from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
+from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_archive_open_confirmation, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
 from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state, build_hse2_plan_from_tab_state
 from high_security_encryptor.hse2_quickstart_gui_tab import HSE2QuickstartTab, build_hse2_quickstart_tab
@@ -56,6 +57,55 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("payload_chunk_count：3", summary)
         self.assertIn("manifest_encrypted：true", summary)
         self.assertIn("access_destroyed：false", summary)
+
+    def test_archive_open_confirmation_previews_metadata_and_disclaims_authentication(self) -> None:
+        preview = _build_archive_open_confirmation(
+            {
+                "input_path": "archive.hse2", "format_version": 3, "container_size": 4096,
+                "wrapper_count": 2, "wrapper_types": ["password", "keyfile"],
+                "payload_chunk_count": 7, "access_destroyed": False,
+            },
+            ["hse2-open", "--input", "archive.hse2", "--output-dir", "restored"],
+        )
+        self.assertIn("恢复位置：restored", preview)
+        self.assertIn("格式版本：3", preview)
+        self.assertIn("Wrapper 数：2（password, keyfile）", preview)
+        self.assertIn("不代表认证通过", preview)
+        self.assertIn("打开前完整校验", preview)
+
+    def test_archive_open_preview_is_read_only_and_cancel_stops_before_restore(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            source = base / "source"
+            source.mkdir()
+            (source / "payload.txt").write_bytes(b"preview-only test")
+            keyfile = base / "recovery.key"
+            keyfile.write_bytes(b"k" * 32)
+            container = base / "archive.hse2"
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(create_main([
+                    "--root", str(source), "--output", str(container), "--keyfile", str(keyfile),
+                ]), 0)
+            output_dir = base / "restored"
+            plan = build_hse2_plan_from_tab_state(
+                HSE2GuiTabState(
+                    action="archive-open", input_path=str(container), output_path=str(output_dir),
+                    keyfile_path=str(keyfile),
+                )
+            )
+
+            class PreviewProbe:
+                log: list[str] = []
+
+                def _append_log(self, value: str) -> None:
+                    self.log.append(value)
+
+            probe = PreviewProbe()
+            with patch("high_security_encryptor.hse2_gui_launcher.messagebox.askyesno", return_value=False) as ask:
+                self.assertFalse(HSE2ExperimentalApp._confirm_archive_open(probe, plan))
+            self.assertFalse(output_dir.exists())
+            self.assertIn("格式版本：2", ask.call_args.args[1])
+            self.assertTrue(any("hse2-inspect" in item for item in probe.log))
 
     def test_archive_validation_summary_reports_authentication_without_plaintext(self) -> None:
         summary = _build_hse2_result_summary(

@@ -323,16 +323,16 @@
 - [x] DPAPI 本机绑定选项
 - [x] header backup 导出提示和 GUI 导出入口（创建后提醒；备份与容器分开保存）
 - [x] 新建归档默认执行创建后认证校验，可在 GUI 关闭；失败会明确报告且不写出明文
-- [~] GUI 可单独完整校验现有归档，打开前可选完整校验；元数据 inspect 的预览/确认串联仍待接入
+- [x] GUI 可单独完整校验现有归档，打开前可选完整校验；打开前会执行只读 inspect 预览并要求确认
 - [x] wrapper 管理界面
 - [x] destroy-access 独立危险操作界面
 - [x] wrapper/access JSON 结果可读摘要
 
 ### 完成标准
 
-- [~] 新手可通过 GUI 选择目录并创建 v2/v3 password-file + keyfile 归档；确认密码与完整恢复向导仍待补齐
+- [~] 新手可通过 GUI 选择目录并创建 v2/v3 password-file 或确认密码 + keyfile 归档；从归档创建到预览、确认、恢复的统一引导仍可继续收敛
 - [x] GUI 可用 password-file/keyfile/DPAPI 打开并恢复 v2/v3 归档；可选的整包预校验失败时不创建输出目录
-- [~] GUI 不诱导用户只依赖 DPAPI
+- [x] GUI 不诱导用户只依赖 DPAPI：创建与 wrapper 管理均提示 DPAPI 本机绑定/可移植性风险及独立恢复方式
 - [x] GUI 对 destroy-access 有强确认和单独入口
 
 
@@ -468,5 +468,6 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 创建后归档认证校验：新增 v2/v3 `validate_hse2_archive`，验证 header HMAC、manifest AEAD、完整 payload AEAD 与布局，不写出明文；v3 按 chunk 流式验证。GUI 创建向导默认勾选，可关闭；CLI 失败会返回独立非零状态并明确说明归档已写出。验证涵盖 v2/v3 padding、空文件、错误 key 与损坏末块 tag；GUI dispatcher 检查报告成功及 `plaintext_written=false`。定向 90 项通过；全量 643 项通过（6 项跳过），Tk 默认选项检查、compileall 与 `git diff --check` 通过。Commit: `f7661a3`
 - 2026-10-31：Phase 11 打开前认证校验：`hse2-open --validate-before-open` 和 GUI 可选项会先认证 header、manifest 和全部 payload tags，再执行恢复；失败时输出目录不会创建，GUI 默认关闭以避免重复读大文件。损坏 tag/无输出目录回归、GUI dispatcher v3 create/validate/open、定向 74 项及全量 643 项（6 项跳过）通过；Tk 选项显隐、compileall 与 `git diff --check` 通过。Commit: `dc073bb`
 - 2026-10-31：Phase 11 单独归档校验入口：新增 unified `hse2 validate-archive`、focused `high-security-encryptor-hse2-archive-validate` 和 GUI action，报告 header/manifest/payload 全部认证且未写明文。v3 unified CLI 与 GUI dispatcher 集成通过；定向 84 项、全量 648 项通过（6 项跳过），Tk 输入控件检查、compileall 与 `git diff --check` 通过。Commit: `69953c0`
-- 2026-10-31：Phase 11 GUI 密码输入确认：新建归档可在两个掩码输入框内输入并确认密码；CLI builder 校验匹配、互斥的 password-file/DPAPI 方式及 paranoid+keyfile 策略。密码只在内存命令计划中携带（repr 隐藏），不进 argv、日志或临时文件，提交后 GUI 清空输入框；GUI dispatcher 端到端创建并恢复比对成功。GUI 定向 78 项通过；全量 654 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: 待提交
+- 2026-10-31：Phase 11 GUI 密码输入确认：新建归档可在两个掩码输入框内输入并确认密码；CLI builder 校验匹配、互斥的 password-file/DPAPI 方式及 paranoid+keyfile 策略。密码只在内存命令计划中携带（repr 隐藏），不进 argv、日志或临时文件，提交后 GUI 清空输入框；GUI dispatcher 端到端创建并恢复比对成功。GUI 定向 78 项通过；全量 654 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `0098582`
+- 2026-10-31：Phase 11 打开前 inspect 预览确认：GUI 恢复动作先运行只读 inspect，展示输入容器、恢复目标、格式、容器大小、wrapper 类型、payload 块数及访问禁用标记；预览检查失败或用户取消都会阻止恢复。界面明确该预览不代表认证通过且不显示加密文件名，打开仍按原流程认证。定向 GUI 80 项、全量 656 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: 待提交
 

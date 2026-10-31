@@ -53,9 +53,14 @@ without writing plaintext. A validation failure is reported distinctly and
 the already-created archive remains on disk. A paranoid password wrapper
 requires a keyfile. The `archive-open`
 action restores a selected container into a destination folder and keeps all
-unlock factors as file paths or explicit DPAPI allowance. An optional pre-open
-validation authenticates the full archive before creating the restore directory;
-it is off by default because it adds a complete archive read.
+unlock factors as file paths or explicit DPAPI allowance. Before starting, the
+GUI performs a read-only metadata inspect and asks the user to confirm the
+container, destination, format, size, wrapper types, and payload chunk count.
+Canceling here does not start restore. This preview does not authenticate the
+archive or reveal encrypted filenames; open still performs its normal
+authentication. An optional pre-open validation authenticates the full archive
+before creating the restore directory; it is off by default because it adds a
+complete archive read.
 
 The tab dynamically hides fields that are not relevant to the selected action.
 This keeps each operation focused on the values the underlying CLI actually

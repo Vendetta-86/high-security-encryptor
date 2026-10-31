@@ -110,6 +110,8 @@ class HSE2ExperimentalApp(ttk.Frame):
 
     def _execute(self, plan: HSE2GuiCommandPlan) -> None:
         try:
+            if plan.action == "archive-open" and not self._confirm_archive_open(plan):
+                return
             result = _invoke_hse2_gui_command(plan)
             if result.stdout:
                 self._append_log(result.stdout)
@@ -126,6 +128,35 @@ class HSE2ExperimentalApp(ttk.Frame):
             messagebox.showerror("执行失败", str(exc))
         finally:
             self._is_busy = False
+
+    def _confirm_archive_open(self, plan: HSE2GuiCommandPlan) -> bool:
+        argv = list(plan.argv)
+        input_path = _option_value(argv, "--input")
+        if not input_path:
+            messagebox.showerror("无法预览归档", "恢复操作缺少输入容器路径。")
+            return False
+        inspect_result = _invoke_hse2_gui_command(["hse2-inspect", "--input", input_path])
+        if inspect_result.stdout:
+            self._append_log(inspect_result.stdout)
+            summary = _build_hse2_result_summary(inspect_result.stdout)
+            if summary:
+                self._append_log(summary)
+        if inspect_result.stderr:
+            self._append_log(inspect_result.stderr)
+        if inspect_result.exit_code != 0:
+            self._append_log("\n元数据预览失败，已取消恢复。\n")
+            messagebox.showerror("无法预览归档", "只读元数据检查失败，未开始恢复。请查看日志。")
+            return False
+        payload = _parse_json_stdout(inspect_result.stdout)
+        if not isinstance(payload, dict):
+            self._append_log("\n元数据预览结果无法解析，已取消恢复。\n")
+            messagebox.showerror("无法预览归档", "元数据检查未返回有效结果，未开始恢复。")
+            return False
+        preview = _build_archive_open_confirmation(payload, argv)
+        if not messagebox.askyesno("确认恢复 HSE2 归档", preview):
+            self._append_log("\n用户取消恢复操作。\n")
+            return False
+        return True
 
     def _append_log(self, text: str) -> None:
         self.log.insert(tk.END, text)
@@ -198,6 +229,35 @@ def _parse_json_stdout(stdout: str) -> Any:
         return None
 
 
+def _option_value(argv: list[str], option: str) -> str | None:
+    try:
+        return argv[argv.index(option) + 1]
+    except (ValueError, IndexError):
+        return None
+
+
+def _build_archive_open_confirmation(payload: dict[str, Any], argv: list[str]) -> str:
+    wrapper_types = payload.get("wrapper_types")
+    if isinstance(wrapper_types, list):
+        wrapper_types_text = ", ".join(str(item) for item in wrapper_types) or "无"
+    else:
+        wrapper_types_text = str(wrapper_types or "无")
+    return "\n".join(
+        [
+            "即将恢复以下 HSE2 归档：",
+            f"输入容器：{payload.get('input_path', '')}",
+            f"恢复位置：{_option_value(argv, '--output-dir') or ''}",
+            f"格式版本：{payload.get('format_version', '未知')}",
+            f"容器大小：{payload.get('container_size', '未知')} 字节",
+            f"Wrapper 数：{payload.get('wrapper_count', '未知')}（{wrapper_types_text}）",
+            f"Payload 块数：{payload.get('payload_chunk_count', '未知')}",
+            f"访问已禁用：{_format_bool(payload.get('access_destroyed'))}",
+            "",
+            "此预览只读取未解锁元数据，不代表认证通过，也不会显示加密的文件名。",
+            "恢复操作仍会验证归档认证信息；可另选打开前完整校验以避免失败时留下恢复文件。",
+            "是否继续？",
+        ]
+    )
 def _summarize_inspect(payload: dict[str, Any]) -> str:
     wrapper_types = payload.get("wrapper_types")
     if isinstance(wrapper_types, list):
