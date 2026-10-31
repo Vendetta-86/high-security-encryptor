@@ -262,6 +262,7 @@ def open_hse2_archive(
     input_file = Path(input_path)
     version = _read_container_version(input_file)
     destination = Path(output_dir)
+    restore_temp_dir = _configured_restore_temp_dir(destination)
     if version == 2:
         container = read_hse2_container(input_file)
         unlocked = unlock_first_matching_wrapper(container.header.wrappers, factors=factors)
@@ -277,6 +278,7 @@ def open_hse2_archive(
             overwrite=overwrite,
             chunk_size=container.header.cipher_suite.chunk_size,
             padding_mode=container.header.payload_layout.padding_mode,
+            temp_dir=restore_temp_dir,
         )
         chunk_count = len(container.payload_chunks)
         wrapper_type = _selected_wrapper_type(container.header.wrappers, factors)
@@ -305,6 +307,7 @@ def open_hse2_archive(
                 content_keys=unlocked_holder[0],
                 chunk_size=reader.header.cipher_suite.chunk_size,
                 padding_mode=reader.header.payload_layout.padding_mode,
+                temp_dir=restore_temp_dir,
             )
             chunk_count = reader.header.payload_layout.chunk_count
             wrapper_type = _selected_wrapper_type(reader.header.wrappers, factors)
@@ -758,6 +761,7 @@ def _restore_v3_manifest_entries(
     content_keys: Any,
     chunk_size: int,
     padding_mode: str,
+    temp_dir: Path | None = None,
 ) -> None:
     ranges = {item["path"]: item for item in manifest["payload_ranges"]}
     files = sorted(
@@ -770,7 +774,7 @@ def _restore_v3_manifest_entries(
         path_key = entry["path"]
         payload_range = ranges[path_key]
         written = 0
-        with atomic_output_path(targets[path_key]) as temp_path:
+        with atomic_output_path(targets[path_key], temp_dir=temp_dir) as temp_path:
             with temp_path.open("wb") as output:
                 for _ in range(payload_range["chunk_count"]):
                     try:
@@ -890,6 +894,7 @@ def _restore_manifest_entries(
     overwrite: bool,
     chunk_size: int,
     padding_mode: str,
+    temp_dir: Path | None = None,
 ) -> None:
     ranges: dict[str, dict[str, Any]] = {}
     for item in manifest["payload_ranges"]:
@@ -930,7 +935,7 @@ def _restore_manifest_entries(
             raise HSE2ModelError("archive file size is missing or invalid")
         if len(plaintext) != expected_size:
             raise HSE2ModelError(f"restored file size mismatch: {archive_path}")
-        _atomic_write_file(target, plaintext)
+        _atomic_write_file(target, plaintext, temp_dir=temp_dir)
 
 
 def _decrypt_file_range(
@@ -996,10 +1001,14 @@ def _safe_manifest_path(value: str) -> PurePosixPath:
     return path
 
 
-def _atomic_write_file(target: Path, data: bytes) -> None:
+def _atomic_write_file(target: Path, data: bytes, *, temp_dir: Path | None = None) -> None:
     import tempfile
 
-    fd, temp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent))
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.",
+        suffix=".tmp",
+        dir=str(target.parent if temp_dir is None else temp_dir),
+    )
     temp_path = Path(temp_name)
     try:
         with os.fdopen(fd, "wb") as handle:
@@ -1012,6 +1021,23 @@ def _atomic_write_file(target: Path, data: bytes) -> None:
             temp_path.unlink(missing_ok=True)
         finally:
             raise
+
+
+def _configured_restore_temp_dir(destination: Path) -> Path | None:
+    configured = os.environ.get("HSE2_RESTORE_TEMP_DIR")
+    if not configured:
+        return None
+    temp_dir = Path(configured).expanduser()
+    if not temp_dir.is_dir():
+        raise HSE2ModelError("HSE2_RESTORE_TEMP_DIR must name an existing directory")
+    destination_anchor = destination.absolute()
+    while not destination_anchor.exists() and destination_anchor != destination_anchor.parent:
+        destination_anchor = destination_anchor.parent
+    if temp_dir.stat().st_dev != destination_anchor.stat().st_dev:
+        raise HSE2ModelError(
+            "HSE2_RESTORE_TEMP_DIR must be on the same filesystem as the restore destination"
+        )
+    return temp_dir.resolve()
 
 
 def _selected_wrapper_type(wrappers: tuple[Any, ...], factors: HSE2UnlockFactors) -> str:

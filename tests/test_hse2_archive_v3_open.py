@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from dataclasses import replace
+import os
 import tempfile
 import unittest
 
@@ -37,6 +38,75 @@ class HSE2ArchiveV3OpenTests(unittest.TestCase):
             keyfile_bytes=keyfile,
             overwrite=overwrite,
         )
+
+    def test_restore_temp_dir_is_used_for_v3_atomic_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            source = base / "source.bin"
+            source.write_bytes(b"plaintext")
+            archive = base / "archive.hse2"
+            destination = base / "restored"
+            temp_dir_path = base / "restore-temp"
+            temp_dir_path.mkdir()
+            self._create_v3((source,), archive)
+            previous = os.environ.get("HSE2_RESTORE_TEMP_DIR")
+            os.environ["HSE2_RESTORE_TEMP_DIR"] = str(temp_dir_path)
+            try:
+                self._open(archive, destination)
+            finally:
+                if previous is None:
+                    os.environ.pop("HSE2_RESTORE_TEMP_DIR", None)
+                else:
+                    os.environ["HSE2_RESTORE_TEMP_DIR"] = previous
+
+            self.assertEqual((destination / "source.bin").read_bytes(), b"plaintext")
+            self.assertEqual(list(temp_dir_path.iterdir()), [])
+
+    def test_invalid_restore_temp_dir_fails_before_creating_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            source = base / "source.bin"
+            source.write_bytes(b"plaintext")
+            archive = base / "archive.hse2"
+            destination = base / "restored"
+            self._create_v3((source,), archive)
+            previous = os.environ.get("HSE2_RESTORE_TEMP_DIR")
+            os.environ["HSE2_RESTORE_TEMP_DIR"] = str(base / "missing-temp")
+            try:
+                with self.assertRaisesRegex(HSE2ModelError, "existing directory"):
+                    self._open(archive, destination)
+            finally:
+                if previous is None:
+                    os.environ.pop("HSE2_RESTORE_TEMP_DIR", None)
+                else:
+                    os.environ["HSE2_RESTORE_TEMP_DIR"] = previous
+            self.assertFalse(destination.exists())
+
+    def test_restore_temp_dir_is_used_for_v2_atomic_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            source = base / "source.bin"
+            source.write_bytes(b"legacy plaintext")
+            archive = base / "archive-v2.hse2"
+            destination = base / "restored"
+            temp_dir_path = base / "restore-temp"
+            temp_dir_path.mkdir()
+            create_hse2_archive(
+                roots=(source,), output_path=archive, keyfile_bytes=b"k" * 32,
+                chunk_size=3, container_format_version=2, created_utc="2026-10-28T00:00:00Z",
+            )
+            previous = os.environ.get("HSE2_RESTORE_TEMP_DIR")
+            os.environ["HSE2_RESTORE_TEMP_DIR"] = str(temp_dir_path)
+            try:
+                self._open(archive, destination)
+            finally:
+                if previous is None:
+                    os.environ.pop("HSE2_RESTORE_TEMP_DIR", None)
+                else:
+                    os.environ["HSE2_RESTORE_TEMP_DIR"] = previous
+
+            self.assertEqual((destination / "source.bin").read_bytes(), b"legacy plaintext")
+            self.assertEqual(list(temp_dir_path.iterdir()), [])
 
     def _read_archive_parts(self, archive: Path):
         factors = HSE2UnlockFactors(keyfile_bytes=b"k" * 32)

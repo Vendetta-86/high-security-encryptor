@@ -10,14 +10,14 @@ from typing import BinaryIO, Iterator
 
 
 @contextmanager
-def atomic_output_path(target: str | Path) -> Iterator[Path]:
+def atomic_output_path(target: str | Path, *, temp_dir: str | Path | None = None) -> Iterator[Path]:
     """Yield a unique temp path and replace the target only after success."""
 
     target_path = Path(target)
     file_descriptor, raw_temp_path = tempfile.mkstemp(
         prefix=f".{target_path.name}.",
         suffix=".tmp",
-        dir=target_path.parent,
+        dir=target_path.parent if temp_dir is None else temp_dir,
     )
     os.close(file_descriptor)
     temp_path = Path(raw_temp_path)

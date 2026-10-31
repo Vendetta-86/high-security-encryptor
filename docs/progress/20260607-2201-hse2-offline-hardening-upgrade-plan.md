@@ -371,7 +371,7 @@
 - [x] KDF 参数被篡改后认证失败
 - [x] 大文件 streaming 内存增长受限：Windows benchmark 对比 8 MiB/128 MiB create/open，Python heap 增长均为 0 MiB，working-set 增长分别为 -0.17/-0.13 MiB，均低于 32 MiB 预算
 - [x] 文件夹加密不落地未加密中间归档：create 从源文件分块加密并直接写 HSE2 容器；创建/恢复集成回归通过
-- [ ] 解密临时目录可通过环境变量指定
+- [x] 解密临时目录可通过 `HSE2_RESTORE_TEMP_DIR` 指定；要求目录已存在且与恢复目标位于同一文件系统卷，以保留原子替换；未设置时继续在目标文件旁暂存
 
 ### 常规测试命令
 
@@ -473,6 +473,7 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 创建后直接密码打开/校验：归档创建、解密恢复和完整校验均支持掩码密码输入并直接传入原 CLI helper；创建必须确认两次，打开/校验单次输入。端到端 GUI dispatcher 创建后直接以输入密码恢复并完整认证，argv/stdout/stderr 均不含密码；Tk 检查确认三个动作字段均掩码且确认框只在创建时出现。定向 88 项通过；全量 658 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `ba4e25a`
 - 2026-10-31：Phase 12 Windows 流式内存基准：运行 `build_tools/benchmark_hse2_v3_memory.py --small-mib 8 --large-mib 128 --max-growth-mib 32`。create Python heap 7.67→7.67 MiB、working set 41.66→41.49 MiB；open heap 7.67→7.67 MiB、working set 41.59→41.46 MiB；增长预算通过。该结论仅适用于本机和本次 8/128 MiB 样本。Commit: 待提交
 - 2026-10-31：Phase 12 检查目录归档未落地明文中间归档：create 根据 manifest 分块读取源文件并立即加密，v3 将加密 payload 流直接交给容器 writer；现有 v2/v3 create/open 与 GUI dispatcher 往返集成覆盖此路径。`workflows.py` 未创建明文 staging archive。Commit: 待提交
+- 2026-10-31：Phase 12 完成恢复临时目录配置：`HSE2_RESTORE_TEMP_DIR` 对 v2/v3 原子写入生效；缺失目录在目标目录创建前失败，同卷恢复及临时文件清理回归通过。Commit: 待提交
 - 2026-10-31：Windows 发布补齐 archive-validate helper：新增 PyInstaller entry script；workflow build、文件存在检查、`--help` smoke 和 release ZIP copy 均加入 helper；Windows EXE 文档及 workflow contract test 同步。隔离 venv 安装 `.[build]` 后实际构建 onefile EXE 并运行 `--help` 成功；契约测试通过，全量 659 项通过（6 项跳过），compileall 和 `git diff --check` 通过。Commit: `15912da`
 - 2026-10-31：Phase 12 质量门：安装 `.[dev]` 后 `pre-commit run --all-files` 通过；为识别出的固定 HSE2 测试密码与 fixture hash 加精确 false-positive 注释。`pip-audit . --progress-spinner off` 报告未发现已知漏洞。Commit: `ac5810e`
 - 2026-10-31：Phase 11 创建后 GUI 导航摘要：创建成功后摘要展示容器格式、wrapper 类型、payload 计数、创建后认证状态和建议 header backup 路径，并指向导出备份及归档恢复入口；明确 header backup 不替代密码/keyfile。定向 GUI 83 项、全量 660 项通过（6 项跳过）。Commit: 待提交

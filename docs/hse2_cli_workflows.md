@@ -38,6 +38,8 @@ high-security-encryptor-hse2-open \
 
 Add `--validate-before-open` to authenticate the complete archive before restoring files. If authentication fails, the CLI returns an error before creating the output directory. This reads the archive twice and is optional; the normal open path still authenticates each chunk as it restores it.
 
+Set `HSE2_RESTORE_TEMP_DIR` to an existing directory to control where per-file plaintext temporary files are staged during restore. The directory must be on the same filesystem volume as the restore destination so the final atomic replacement remains supported. If unset, temporary files remain beside each destination file. Invalid or cross-volume configuration fails before the restore destination is created.
+
 Validate an existing v2/v3 archive without restoring it:
 
 ```bash
