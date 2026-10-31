@@ -47,6 +47,15 @@ This release-prep line follows the published `v0.6.0-alpha.7`. It packages the c
 - Refreshed local candidate ZIP: `work/alpha8-refresh-4c3bb09/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 16 entries, 133,999,429 bytes. All ten EXE hashes inside the ZIP match the isolated build outputs. SHA-256: `47915a4d21c2230761499464b44a3df9d19df77587eccfefc5c1c86e5e199eb0`.
 - This refreshed ZIP is a local verification artifact; it was not copied over the earlier `dist` candidate and no tag or GitHub Release was created. Maintainer release review remains outstanding.
 
+## Current-source refresh after Windows filename restrictions
+
+- Source commit: `9caf7fe62f078803ea531ef5214e0becd5cd3a7c`; GitHub Actions run [41197355242](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41197355242) passed on Windows Python 3.11, 3.12, and 3.13.
+- Windows 11 x64 / Python 3.13.15 / PyInstaller 6.22.3: rebuilt all ten executables in `work/alpha8-refresh-9caf7fe/dist`. Eight console entry points passed `--help`; the main GUI `--smoke-test` passed. The standalone HSE2 GUI was built but not manually opened during this refresh.
+- Packaged v3 create, standalone validate, and `validate-before-open` restore passed for three files, including an empty file and a multi-chunk binary; restored SHA-256 values matched.
+- Packaged open rejected seven authenticated archives containing Windows alternate-data-stream syntax, reserved device names (including superscript COM/LPT variants), forbidden filename characters, or trailing ASCII spaces/periods. Every rejection returned exit code 2 before the restore directory was created.
+- Refreshed ZIP: `work/alpha8-refresh-9caf7fe/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 16 entries, 134,010,611 bytes; all ten bundled executable hashes match build outputs. SHA-256: `29d56e28d34903c6e114c9bd6311ce1b050ec085ca5c5199a0654a6f96744cef`.
+- The ZIP remains a local verification artifact; the earlier `dist` candidate was not overwritten. No tag or GitHub Release was created, and maintainer release review remains outstanding.
+
 Candidate commit `6699036294fa5f9a7c6dc3aac4c972a0e041c74e`, roadmap commit `141c056240cb7fc117461e204cc665f75e7c244e`, initial parser fix `45e7e4cec5ce2bd598d6df02ed5d9bb7aaec3546`, and expanded integer-boundary fix `258607f2e6c209fd6de4940a9a436a4f794bb045` passed runs [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016), [41179913657](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41179913657), [41180527122](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180527122), and [41180988674](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180988674), respectively, on Windows Python 3.11, 3.12, and 3.13. The latest remote CI does not substitute for maintainer release review. The following commands are the reproducible local release gate when validating a clean candidate:
 
 ```powershell
