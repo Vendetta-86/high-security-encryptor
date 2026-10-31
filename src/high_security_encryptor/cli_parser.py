@@ -7,6 +7,7 @@ from typing import Callable
 
 from .kdf_profiles import KDF_PROFILE_COMPATIBLE, KDF_PROFILE_HARDENED, KDF_PROFILE_PARANOID
 from .keyfile_generation import DEFAULT_GENERATED_KEYFILE_BYTES
+from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
 from .security_mode import (
     SECURITY_MODE_COMPATIBLE,
     SECURITY_MODE_HARDENED,
@@ -36,6 +37,7 @@ def build_cli_parser(
     hse2_inspect_handler: Handler | None = None,
     hse2_wrapper_add_handler: Handler | None = None,
     hse2_wrapper_manage_handler: Handler | None = None,
+    hse2_access_destroy_handler: Handler | None = None,
     hse2_plan_archive_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
     hse2_keyfile_inspect_handler: Handler | None = None,
@@ -68,7 +70,7 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler)):
+    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler)):
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
         if hse2_inspect_handler is not None:
@@ -84,6 +86,18 @@ def build_cli_parser(
             inspect_parser = keyfile_subparsers.add_parser("inspect", help="Check keyfile size and print its SHA-256 fingerprint.")
             inspect_parser.add_argument("--input", required=True, help="Path to the keyfile to inspect.")
             inspect_parser.set_defaults(handler=hse2_keyfile_inspect_handler)
+        if hse2_access_destroy_handler is not None:
+            access_parser = hse2_subparsers.add_parser("access", help="Manage HSE2 unlock access.")
+            access_subparsers = access_parser.add_subparsers(dest="access_command", required=True)
+            destroy_parser = access_subparsers.add_parser("destroy", help="Remove every unlock wrapper from a new output copy.")
+            destroy_parser.add_argument("--input", required=True, help="Source .hse2 container path.")
+            destroy_parser.add_argument("--output", required=True, help="Output .hse2 container path.")
+            destroy_parser.add_argument("--confirm", required=True, help=f"Required exact confirmation phrase: {DESTROY_ACCESS_CONFIRMATION_PHRASE}")
+            destroy_parser.add_argument("--password-file", help="Password used to authenticate the source container.")
+            destroy_parser.add_argument("--keyfile", help="Keyfile used to authenticate the source container.")
+            destroy_parser.add_argument("--dpapi", action="store_true", help="Allow Windows DPAPI to unlock the source container.")
+            destroy_parser.add_argument("--overwrite", action="store_true")
+            destroy_parser.set_defaults(handler=hse2_access_destroy_handler)
         if hse2_wrapper_add_handler is not None or hse2_wrapper_manage_handler is not None:
             wrapper_parser = hse2_subparsers.add_parser("wrapper", help="Manage HSE2 unlock wrappers.")
             wrapper_subparsers = wrapper_parser.add_subparsers(dest="wrapper_command", required=True)

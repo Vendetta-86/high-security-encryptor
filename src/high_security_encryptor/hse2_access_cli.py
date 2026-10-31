@@ -40,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
     try:
         if args.command == "destroy":
-            summary = _run_destroy(args)
+            summary = run_destroy(args)
         else:  # pragma: no cover - argparse enforces command choices
             raise HSE2ModelError(f"unsupported command: {args.command}")
     except (HSE2ModelError, OSError, ValueError) as exc:
@@ -50,7 +50,9 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _run_destroy(args: argparse.Namespace) -> dict[str, Any]:
+def run_destroy(args: argparse.Namespace) -> dict[str, Any]:
+    """Destroy HSE2 wrapper access using the shared CLI namespace contract."""
+
     input_path = Path(args.input)
     output_path = Path(args.output)
     _validate_container_path(input_path, field_name="input")

@@ -42,6 +42,7 @@ from .hse2_batch import decrypt_hse2_batch, encrypt_hse2_batch
 from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig, HSE2BatchRewrapConfig
 from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
+from .hse2_access_cli import run_destroy as run_hse2_access_destroy
 from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
 from .hse2.keyfile_safety import keyfile_colocation_warning
 from .hse2_rewrap import rewrap_hse2_file
@@ -100,6 +101,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_inspect_handler=_handle_hse2_inspect,
         hse2_wrapper_add_handler=_handle_hse2_wrapper_add,
         hse2_wrapper_manage_handler=_handle_hse2_wrapper_manage,
+        hse2_access_destroy_handler=_handle_hse2_access_destroy,
         generate_keyfile_handler=_handle_generate_keyfile,
         hse2_keyfile_inspect_handler=_handle_hse2_keyfile_inspect,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
@@ -312,6 +314,10 @@ def _handle_hse2_wrapper_manage(args: argparse.Namespace) -> dict[str, Any]:
             print(f"hse2-wrapper: DPAPI recovery warning: {DPAPI_WRAPPER_PORTABILITY_WARNING}", file=sys.stderr)
         return summary
     raise CliConfigError(f"unsupported HSE2 wrapper command: {args.wrapper_command}")
+
+
+def _handle_hse2_access_destroy(args: argparse.Namespace) -> dict[str, Any]:
+    return run_hse2_access_destroy(args)
 
 
 def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:

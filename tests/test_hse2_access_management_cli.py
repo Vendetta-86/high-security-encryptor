@@ -161,6 +161,29 @@ class HSE2AccessManagementCliTests(unittest.TestCase):
             self.assertEqual(_list_wrappers(removed)["wrapper_count"], 1)
             self.assertEqual(_open_container(removed, fixture.keyfile, fixture.restored_dir), 0)
 
+    def test_unified_cli_access_destroy_requires_confirmation_and_marks_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            fixture = _create_fixture(base)
+            output = base / "access-destroyed.hse2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = root_main([
+                    "hse2", "access", "destroy",
+                    "--input", str(fixture.container),
+                    "--output", str(output),
+                    "--confirm", DESTROY_ACCESS_CONFIRMATION_PHRASE,
+                    "--keyfile", str(fixture.keyfile),
+                ])
+
+            self.assertEqual(exit_code, 0)
+            summary = json.loads(stdout.getvalue())
+            self.assertTrue(summary["access_destroyed"])
+            destroyed = read_hse2_container(output)
+            self.assertTrue(destroyed.header.access_destroyed)
+            self.assertEqual(destroyed.header.wrappers, ())
+
     def test_wrapper_cli_lists_safe_wrapper_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture = _create_fixture(Path(temp_dir))
