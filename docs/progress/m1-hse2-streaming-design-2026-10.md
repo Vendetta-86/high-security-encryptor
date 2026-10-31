@@ -179,7 +179,9 @@ work\\hse2-test-venv\\Scripts\\python.exe -m unittest tests.test_hse2_v3_cli_int
 git diff --check
 ```
 
-M1.7 本机验收已完成，跨版本 v3 互操作仍待独立参考版本。新增固定归档样本：v2 fixture 由基线提交 `fdb7cb5`（2026-07-26，v3 实现前）生成，v3 fixture 由当前 v3 writer 生成；测试固定 SHA-256 并分别验证 header format version 与解档明文。基线 v2 fixture 的 hash 为 `44be3d3405f3b0bd4b0df01bd0493181440575505dc010ea91e13dbe1875f9b2`，v3 fixture 的 hash 为 `8676572a59a12cfc513dc4dd9a7a9c63fe867d4241dfc8ba3ff4fdc1a0b4c163`。现有回归还覆盖 record magic/长度/索引、字段边界截断、精确 EOF、header HMAC 与 chunk AEAD 篡改、错误密钥、manifest 路径和范围校验，以及原子写入失败保留旧目标并清理临时文件。
+M1.7 本机验收已完成。新增固定归档样本：v2 fixture 由基线提交 `fdb7cb5`（2026-07-26，v3 实现前）生成，v3 fixture 由当前 v3 writer 生成；测试固定 SHA-256 并分别验证 header format version 与解档明文。基线 v2 fixture 的 hash 为 `44be3d3405f3b0bd4b0df01bd0493181440575505dc010ea91e13dbe1875f9b2`，v3 fixture 的 hash 为 `8676572a59a12cfc513dc4dd9a7a9c63fe867d4241dfc8ba3ff4fdc1a0b4c163`。现有回归还覆盖 record magic/长度/索引、字段边界截断、精确 EOF、header HMAC 与 chunk AEAD 篡改、错误密钥、manifest 路径和范围校验，以及原子写入失败保留旧目标并清理临时文件。
+
+双向独立代码路径对照已通过：测试参考实现 `tests/interop_reference/hse2_v3_reference.py` 不导入项目包；独立 writer 生成的容器由项目 reader 解档，项目 writer 创建的容器由独立 reader 解档。两个方向都覆盖 3 个文件（空文件、嵌套路径和多 chunk），并核对恢复路径、长度和 SHA-256。测试命令为 `work\hse2-test-venv\Scripts\python.exe -m unittest tests.test_hse2_v3_independent_interop -v`，结果 2/2 通过。参考实现 identity 为本仓库测试目录内的本地参考代码（当前工作区版本，尚未提交），不是第三方发行版；不将其描述为外部供应商认证。
 
 M1.7 验证运行环境：Windows 11 专业工作站版 build 26300、Python 3.13.15；执行时 Git HEAD 为 `fdb7cb55f6458736f69a43b83710fa0780bc7e94`，工作区包含本路线图实现的未提交变更。M1 定向回归 146/146 通过；2026-10-31 后续增加 wrapper rewrap 和格式文档更新后，全量测试套件为 593 项通过、6 项跳过。Windows 原子替换两个用例在该 Windows 环境中实际运行并通过。
 
@@ -194,7 +196,11 @@ work\hse2-test-venv\Scripts\python.exe build_tools\benchmark_hse2_v3_memory.py -
 git diff --check
 ```
 
-尚未验证的 M1.7 条件：v3 尚无独立旧版/第三方实现可作为跨版本互操作端，因此固定 v3 样本只证明字节冻结和当前 reader 可读，不能证明不同版本实现可交换。取得第二个 v3-capable 版本后，应让两个版本分别创建容器并互相解档，核对 SHA-256、路径、文件长度和明文哈希一致，再记录双方版本和命令。该互操作验收完成前，M1.7 不标记为完全关闭。
+外部实现互操作尚未验证：仓库内参考实现提供了独立编码/解码路径的双向证据，但不是第三方实现；此前检查的远端旧分支和 release tag 均不支持 v3。若需要对外部版本兼容性作保证，仍需找到并记录另一个 v3-capable 发行版的准确版本，再做双向读写和明文哈希核验。
+
+2026-10-31 对远端候选分支 `feature/hse2-streaming-helpers`（`f3e537a3514abe8497858979bdb3624902241983`）做只读检查。该分支包含早期 streaming helper，但在其 `src`、`docs`、`tests` 中没有 `MNF3`、`CHK3` 或 v3 format-version 声明，因此不能作为 M1.7 的 v3 互操作端。本轮远端 refs 名称筛查未发现其他明显的 v3/streaming 候选；没有逐一审查所有 release tag。远端 `master` 与本地当前提交 `e489ed8` 一致。
+
+继续检查最新 release tag `v0.6.0-alpha.7`（提交 `37a99c78cc43a289cf53a76c771c8010cc1a3a77`）：该版本没有 `container_stream.py`、v3 测试模块、`MNF3`、`CHK3` 或 format version 3 声明，不能作为第二个 v3-capable 版本。
 2026-10-31 GUI wrapper 端到端验收：在隔离临时目录中以 GUI 将 `recovery-gui` 替换为 `recovery-gui-v2`。GUI 日志报告原 wrapper 数量 2、结果数量 2、替换 ID 正确且退出码 0；wrapper list 显示原 `password-1` 与新 `recovery-gui-v2`，旧 recovery ID 不存在。新密码与原始密码均成功解档并匹配载荷；旧 recovery 密码无法解锁。比较 rewrap 前后的 header 后数据体，604 字节逐字节相同，SHA-256 为 `91d17d13cd412f743697a2fb9a8417faf19f744cef5480e1521811badfe34c80`。GUI wrapper add 测试也已通过，旧/新增密码均可解档。所有凭据和容器均为一次性测试样本，保留在 `%LOCALAPPDATA%\Temp\hse2-wrapper-gui-2807583301e34c37a9999ebdae829bbf`，未自动删除。
 
-本次最终回归：`work\hse2-test-venv\Scripts\python.exe -m unittest discover -s tests`，599 项通过、6 项跳过；`git diff --check` 通过。跨版本 v3 互操作仍需要另一个独立 v3-capable 实现，不能以当前 writer/reader 自测替代。
+此前最终回归：`work\hse2-test-venv\Scripts\python.exe -m unittest discover -s tests`，599 项通过、6 项跳过。之后新增的独立参考互操作定向测试 2/2 通过；`git diff --check` 通过。外部发行版互操作仍需另一个外部 v3-capable 实现。
