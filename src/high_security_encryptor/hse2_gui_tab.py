@@ -68,6 +68,11 @@ _HSE2_KDF_PROFILE_LABELS = {
     "paranoid": "极高安全",
 }
 
+HEADER_BACKUP_RECOVERY_WARNING = (
+    "重要：header backup 只用于恢复容器头部，不能恢复或替代解锁所需的密码、keyfile 或 DPAPI 访问条件。"
+    "请将备份与 .hse2 容器分开保存，并继续保管原有解锁因子。"
+)
+
 
 def hse2_kdf_profile_display_values() -> tuple[str, ...]:
     return tuple(_HSE2_KDF_PROFILE_LABELS.values())
@@ -270,18 +275,27 @@ class HSE2ExperimentalTab(ttk.Frame):
             justify=tk.LEFT,
         ).grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
-        _add_choice_row(self, 1, "操作", self.action_label, hse2_gui_action_display_values())
-        self._field_widgets["config_path"] = _add_path_row(self, 2, "配置文件", self.config_path, self._browse_config)
+        ttk.Label(
+            self,
+            text=HEADER_BACKUP_RECOVERY_WARNING,
+            wraplength=780,
+            justify=tk.LEFT,
+            foreground="#9b1c1c",
+            font=("TkDefaultFont", 9, "bold"),
+        ).grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+
+        _add_choice_row(self, 2, "操作", self.action_label, hse2_gui_action_display_values())
+        self._field_widgets["config_path"] = _add_path_row(self, 3, "配置文件", self.config_path, self._browse_config)
         self._field_widgets["input_path"] = _add_path_row(
             self,
-            3,
+            4,
             "输入文件 / .hse2 容器",
             self.input_path,
             self._browse_input,
         )
         self._field_widgets["output_path"] = _add_path_row(
             self,
-            4,
+            5,
             "输出文件",
             self.output_path,
             self._browse_output,
@@ -289,22 +303,22 @@ class HSE2ExperimentalTab(ttk.Frame):
         )
         self._field_widgets["validation_report_output"] = _add_path_row(
             self,
-            5,
+            6,
             "校验报告保存到",
             self.validation_report_output,
             self._browse_validation_report,
             save=True,
         )
-        self._field_widgets["size"] = _add_spin_row(self, 6, "keyfile 大小", self.size)
-        self._field_widgets["scope"] = _add_choice_row(self, 7, "DPAPI scope", self.scope, ("current_user", "local_machine"))
-        self._field_widgets["wrapper_id"] = _add_text_row(self, 8, "wrapper id", self.wrapper_id)
-        self._field_widgets["password_file"] = _add_path_row(self, 9, "密码文件", self.password_file, self._browse_password_file)
-        self._field_widgets["keyfile_path"] = _add_path_row(self, 10, "keyfile", self.keyfile_path, self._browse_keyfile)
-        self._field_widgets["new_wrapper_id"] = _add_text_row(self, 11, "新 wrapper id（留空则沿用原 ID）", self.new_wrapper_id)
-        self._field_widgets["new_password_file"] = _add_path_row(self, 12, "新密码文件", self.new_password_file, self._browse_new_password_file)
-        self._field_widgets["new_keyfile_path"] = _add_path_row(self, 13, "新 keyfile", self.new_keyfile_path, self._browse_new_keyfile)
-        self._field_widgets["new_kdf_profile"] = _add_choice_row(self, 14, "新密码安全等级", self.new_kdf_profile, hse2_kdf_profile_display_values())
-        self._field_widgets["new_label"] = _add_text_row(self, 15, "新 wrapper 标签", self.new_label)
+        self._field_widgets["size"] = _add_spin_row(self, 7, "keyfile 大小", self.size)
+        self._field_widgets["scope"] = _add_choice_row(self, 8, "DPAPI scope", self.scope, ("current_user", "local_machine"))
+        self._field_widgets["wrapper_id"] = _add_text_row(self, 9, "wrapper id", self.wrapper_id)
+        self._field_widgets["password_file"] = _add_path_row(self, 10, "密码文件", self.password_file, self._browse_password_file)
+        self._field_widgets["keyfile_path"] = _add_path_row(self, 11, "keyfile", self.keyfile_path, self._browse_keyfile)
+        self._field_widgets["new_wrapper_id"] = _add_text_row(self, 12, "新 wrapper id（留空则沿用原 ID）", self.new_wrapper_id)
+        self._field_widgets["new_password_file"] = _add_path_row(self, 13, "新密码文件", self.new_password_file, self._browse_new_password_file)
+        self._field_widgets["new_keyfile_path"] = _add_path_row(self, 14, "新 keyfile", self.new_keyfile_path, self._browse_new_keyfile)
+        self._field_widgets["new_kdf_profile"] = _add_choice_row(self, 15, "新密码安全等级", self.new_kdf_profile, hse2_kdf_profile_display_values())
+        self._field_widgets["new_label"] = _add_text_row(self, 16, "新 wrapper 标签", self.new_label)
         warning = ttk.Label(
             self,
             text="keyfile 丢失后无法解锁依赖它的容器。请保留独立离线备份，并确认能读取备份；不要把 keyfile 与 .hse2 容器放在同一目录。极高安全会明显增加密码 wrapper 创建、重新包装和解锁所需时间及内存；资源有限时请选择推荐档。",
@@ -312,10 +326,10 @@ class HSE2ExperimentalTab(ttk.Frame):
             justify=tk.LEFT,
         )
         self._field_widgets["paranoid_warning"] = (warning,)
-        warning.grid(row=16, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        warning.grid(row=17, column=0, columnspan=3, sticky="ew", pady=(4, 0))
         self._field_widgets["access_confirmation_phrase"] = _add_text_row(
             self,
-            17,
+            18,
             "永久禁用访问确认短语",
             self.access_confirmation_phrase,
         )
@@ -326,11 +340,11 @@ class HSE2ExperimentalTab(ttk.Frame):
             wraplength=780,
             justify=tk.LEFT,
         )
-        danger_label.grid(row=18, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        danger_label.grid(row=19, column=0, columnspan=3, sticky="ew", pady=(6, 0))
         self._field_widgets["danger_text"] = (danger_label,)
 
         self._options_frame = ttk.Frame(self)
-        self._options_frame.grid(row=19, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        self._options_frame.grid(row=20, column=0, columnspan=3, sticky="w", pady=(8, 0))
         self._option_widgets = {
             "force": ttk.Checkbutton(self._options_frame, text="允许覆盖输出文件", variable=self.force),
             "validation_summary_only": ttk.Checkbutton(
@@ -352,7 +366,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         }
 
         ttk.Button(self, text="运行 HSE2 实验操作", command=self.run_selected_action).grid(
-            row=20,
+            row=21,
             column=0,
             sticky="w",
             pady=(14, 0),

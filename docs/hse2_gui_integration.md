@@ -31,6 +31,11 @@ component and `build_hse2_experimental_tab(...)` helper. The component collects
 paths and options, calls the HSE2 command builders, and delegates execution to an
 injected runner callback.
 
+The tab always displays a prominent recovery warning: a header backup only
+restores header metadata and cannot replace or recover the password, keyfile, or
+DPAPI access conditions needed to unlock a container. Archive creation and
+header-backup export remain CLI-only workflows.
+
 The tab dynamically hides fields that are not relevant to the selected action.
 This keeps each operation focused on the values the underlying CLI actually
 consumes. For example:

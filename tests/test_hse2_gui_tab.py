@@ -5,6 +5,7 @@ from __future__ import annotations
 import unittest
 
 from high_security_encryptor.hse2_gui_tab import (
+    HEADER_BACKUP_RECOVERY_WARNING,
     HSE2GuiTabState,
     build_hse2_command_from_tab_state,
     hse2_gui_action_display_label,
@@ -18,6 +19,10 @@ from high_security_encryptor.hse2_gui_tab import (
 
 
 class HSE2GuiTabTests(unittest.TestCase):
+    def test_header_backup_warning_says_it_cannot_replace_unlock_factors(self) -> None:
+        self.assertIn("不能恢复或替代", HEADER_BACKUP_RECOVERY_WARNING)
+        self.assertIn("密码、keyfile 或 DPAPI", HEADER_BACKUP_RECOVERY_WARNING)
+
     def test_build_encrypt_command_from_tab_state(self) -> None:
         argv = build_hse2_command_from_tab_state(HSE2GuiTabState(action="encrypt-config", config_path="encrypt.json"))
         self.assertEqual(argv, ["hse2-encrypt-config", "--config", "encrypt.json"])

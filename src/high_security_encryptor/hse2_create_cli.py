@@ -104,6 +104,23 @@ def main(argv: list[str] | None = None) -> int:
                 container_format_version=int(args.format_version),
             )
             summary = result.to_dict()
+            backup_path = _recommended_header_backup_path(output_path)
+            summary["header_backup_recommended"] = True
+            summary["header_backup_path"] = str(backup_path)
+            summary["header_backup_export_argv"] = [
+                "high-security-encryptor-hse2-header-backup",
+                "export",
+                "--input",
+                str(output_path),
+                "--output",
+                str(backup_path),
+            ]
+            print(
+                "hse2-create: header backup recommended; export it now with: "
+                f'high-security-encryptor-hse2-header-backup export --input "{output_path}" '
+                f'--output "{backup_path}". It restores header metadata only and cannot replace the password or keyfile.',
+                file=sys.stderr,
+            )
     except (HSE2ModelError, OSError, ValueError) as exc:
         print(f"hse2-create: {exc}", file=sys.stderr)
         return 2
@@ -147,6 +164,10 @@ def _dry_run_wrapper_type(args: argparse.Namespace) -> str:
 def _validate_output_path(path: Path) -> None:
     if path.suffix.lower() != HSE2_CONTAINER_SUFFIX:
         raise ValueError("output path must use the .hse2 suffix")
+
+
+def _recommended_header_backup_path(output_path: Path) -> Path:
+    return output_path.with_suffix(".hse2.header")
 
 
 def _format_json(payload: dict[str, Any], *, compact: bool) -> str:

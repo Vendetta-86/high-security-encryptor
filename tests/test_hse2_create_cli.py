@@ -7,6 +7,7 @@ import unittest
 
 from high_security_encryptor.hse2 import read_hse2_container
 from high_security_encryptor.hse2_create_cli import main
+from high_security_encryptor.hse2_header_backup_cli import main as header_backup_main
 
 
 class HSE2CreateCliTests(unittest.TestCase):
@@ -158,8 +159,9 @@ class HSE2CreateCliTests(unittest.TestCase):
             keyfile.write_bytes(b"k" * 32)
             output = Path(temp_dir) / "out.hse2"
             stdout = io.StringIO()
+            stderr = io.StringIO()
 
-            with contextlib.redirect_stdout(stdout):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = main([
                     "--root",
                     str(root),
@@ -177,6 +179,16 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertTrue(payload["container_written"])
             self.assertEqual(payload["wrapper_type"], "keyfile")
             self.assertEqual(payload["payload_chunk_count"], 2)
+            backup_path = output.with_suffix(".hse2.header")
+            self.assertTrue(payload["header_backup_recommended"])
+            self.assertEqual(payload["header_backup_path"], str(backup_path))
+            self.assertEqual(payload["header_backup_export_argv"][-1], str(backup_path))
+            self.assertIn("header backup recommended", stderr.getvalue())
+            self.assertIn(str(backup_path), stderr.getvalue())
+            self.assertIn("cannot replace the password or keyfile", stderr.getvalue())
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(header_backup_main(payload["header_backup_export_argv"][1:]), 0)
+            self.assertTrue(backup_path.exists())
             container = read_hse2_container(output)
             self.assertEqual(container.header.payload_layout.chunk_count, 2)
             self.assertEqual([wrapper.type for wrapper in container.header.wrappers], ["keyfile"])

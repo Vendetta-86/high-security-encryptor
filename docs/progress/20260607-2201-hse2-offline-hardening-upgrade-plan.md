@@ -71,7 +71,7 @@
 | Phase 2 | [~] | DEK + Wrapper 架构 | DEK/MEK 与 wrapper 架构已实现；rewrap/正式文档仍需补齐 |
 | Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
 | Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
-| Phase 5 | [~] | Header Backup | export/restore CLI 与测试已实现；GUI 提示未完成 |
+| Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [~] | Destroy Access | wrapper list/remove/access destroy CLI+GUI 已完成；backup 恢复场景仍需补测 |
 | Phase 7 | [~] | DPAPI 正式化 | create 阶段已有 DPAPI wrapper；add/remove/跨机风险文档仍需补齐 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
@@ -179,7 +179,7 @@
 
 - [x] 新增 header export 命令
 - [x] 新增 header restore 命令
-- [ ] 加密完成后提示导出 header backup
+- [x] 加密完成后提示导出 header backup（stderr 给出可复制命令，JSON 提供推荐路径与 argv；dry-run 不提示）
 - [x] header backup 不包含明文 DEK / MEK
 - [x] header backup 不包含用户密码
 - [x] header backup 不包含 keyfile 内容
@@ -190,7 +190,7 @@
 - [x] header backup 可导出
 - [x] header backup 可恢复
 - [x] 恢复后 payload auth 仍正常
-- [ ] GUI 有强提示：header backup 不能替代 keyfile / 密码
+- [x] GUI 有强提示：header backup 不能替代 keyfile / 密码 / DPAPI 解锁条件
 
 ---
 
@@ -448,3 +448,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：完成 paranoid wrapper 因子策略：password-backed paranoid create 需要 keyfile；workflow 与 dry-run 共用策略校验，keyfile-only/独立 DPAPI 仍可用。定向测试 `tests.test_hse2_paranoid_wrapper_policy` 5/5 通过。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
 - 2026-10-31：完成 keyfile 丢失风险提示：威胁模型说明不可从归档或密码恢复 keyfile，要求独立离线备份并验证可读；GUI 在生成 keyfile 与 wrapper 管理/移除/销毁相关操作显示提示并增强确认文案。`tests.test_hse2_gui_tab` 25/25 通过，Windows GUI 中生成和 wrapper-add 表单提示目视确认。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
 - 2026-10-31：完成 keyfile 同目录风险提示：create/open/wrapper CLI 检查 keyfile 与归档目录共址并将警告写入 stderr，GUI 提示明确避免共址；路径/CLI 定向测试 5/5 通过，全量测试 615 项通过、6 项跳过。`git diff --check` 通过。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
+- 2026-10-31：完成 Phase 5 header backup 提示：create 成功后在 stderr 输出可复制的 export 命令，JSON 附推荐 `.hse2.header` 路径和 argv；GUI 顶部增加常驻醒目提示，说明 header backup 不能恢复或替代密码、keyfile、DPAPI 解锁条件。测试会实际执行建议 argv 并确认备份文件生成；HSE2 定向 397 项通过、2 项跳过；全量 616 项通过、6 项跳过。Commit: 待提交

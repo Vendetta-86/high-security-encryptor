@@ -157,6 +157,8 @@ high-security-encryptor-hse2-header-backup export \
   --output <HEADER_BACKUP_PATH>
 ```
 
+After a successful `hse2-create`, the CLI recommends exporting a header backup and prints a ready-to-copy command to stderr. Its JSON result also includes `header_backup_recommended`, `header_backup_path`, and `header_backup_export_argv`; dry-run output does not recommend a backup because no container was written. A header backup only restores header metadata. It cannot replace or recover the password, keyfile, or DPAPI access conditions needed to unlock the container.
+
 Restore a damaged-header container by replacing the current header frame with the backup header while preserving the encrypted body:
 
 ```bash
