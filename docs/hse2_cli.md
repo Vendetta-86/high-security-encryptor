@@ -30,6 +30,27 @@ high-security-encryptor hse2 inspect --input <ARCHIVE_PATH>
 The command prints format, authenticated layout, and wrapper metadata as JSON. It
 does not print wrapper bytes or decrypt filenames or payload content.
 
+Add unlock wrappers with explicit factor types:
+
+```bash
+high-security-encryptor hse2 wrapper add-password \
+  --input <ARCHIVE_PATH> --output <OUTPUT_PATH> --wrapper-id <WRAPPER_ID> \
+  --keyfile <CURRENT_KEYFILE> --new-password-file <NEW_PASSWORD_FILE>
+
+high-security-encryptor hse2 wrapper add-keyfile \
+  --input <ARCHIVE_PATH> --output <OUTPUT_PATH> --wrapper-id <WRAPPER_ID> \
+  --keyfile <CURRENT_KEYFILE> --new-keyfile <NEW_KEYFILE>
+
+high-security-encryptor hse2 wrapper add-dpapi \
+  --input <ARCHIVE_PATH> --output <OUTPUT_PATH> --wrapper-id <WRAPPER_ID> \
+  --keyfile <CURRENT_KEYFILE>
+```
+
+The existing container is unlocked with `--password-file`, `--keyfile`, or
+`--dpapi`. Password and keyfile commands also accept the other new factor to
+create a combined wrapper. DPAPI is Windows-only; retain an independent password
+or keyfile wrapper for recovery.
+
 ### Encrypt one file
 
 ```bash
