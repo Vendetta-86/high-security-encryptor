@@ -15,6 +15,7 @@ from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
 HSE2_GUI_ACTIONS = (
     "encrypt-config",
     "decrypt-config",
+    "archive-create",
     "validate",
     "inspect",
     "header-backup-export",
@@ -31,6 +32,7 @@ HSE2_GUI_ACTIONS = (
 HSE2_GUI_ACTION_LABELS = {
     "encrypt-config": "HSE2 加密配置",
     "decrypt-config": "HSE2 解密配置",
+    "archive-create": "创建 HSE2 归档",
     "validate": "HSE2 只读校验",
     "inspect": "检查 HSE2 元数据",
     "header-backup-export": "导出 HSE2 header backup",
@@ -59,6 +61,7 @@ def build_hse2_gui_command(
     *,
     action: str,
     config_path: str = "",
+    root_path: str = "",
     input_path: str = "",
     output_path: str = "",
     size: int = 32,
@@ -77,6 +80,10 @@ def build_hse2_gui_command(
     new_profile_name: str = "hardened",
     new_label: str = "",
     new_wrapper_dpapi: bool = False,
+    archive_profile: str = "hardened",
+    archive_format_version: int = 2,
+    archive_chunk_size: int = 1024 * 1024,
+    archive_pad_last_chunk: bool = False,
     access_confirmation_phrase: str = "",
 ) -> HSE2GuiCommandPlan:
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
@@ -86,6 +93,39 @@ def build_hse2_gui_command(
         argv = ("hse2-encrypt-config", "--config", _require_text(config_path, "请选择 HSE2 加密配置文件。"))
     elif normalized_action == "decrypt-config":
         argv = ("hse2-decrypt-config", "--config", _require_text(config_path, "请选择 HSE2 解密配置文件。"))
+    elif normalized_action == "archive-create":
+        if archive_profile not in {"compatible", "hardened", "paranoid"}:
+            raise ValueError("请选择有效的 HSE2 密码安全等级。")
+        if archive_format_version not in {2, 3}:
+            raise ValueError("HSE2 格式版本必须为 2 或 3。")
+        if archive_chunk_size < 1 or archive_chunk_size > 16 * 1024 * 1024:
+            raise ValueError("HSE2 chunk size must be between 1 byte and 16 MiB.")
+        password_path = password_file.strip()
+        keyfile = keyfile_path.strip()
+        if new_wrapper_dpapi and (password_path or keyfile):
+            raise ValueError("新归档 DPAPI wrapper 不能同时使用密码或 keyfile。")
+        if not new_wrapper_dpapi and not password_path and not keyfile:
+            raise ValueError("请选择密码文件、keyfile 或 Windows DPAPI 作为归档解锁方式。")
+        if archive_profile == "paranoid" and password_path and not keyfile:
+            raise ValueError("极高安全密码 wrapper 需要同时提供 keyfile。")
+        args = [
+            "hse2-create",
+            "--root", _require_text(root_path, "请选择要加密的文件夹。"),
+            "--output", _require_text(output_path, "请选择 HSE2 归档输出路径。"),
+            "--format-version", str(archive_format_version),
+            "--chunk-size", str(archive_chunk_size),
+        ]
+        if password_path:
+            args.extend(["--password-file", password_path, "--profile", archive_profile])
+        if keyfile:
+            args.extend(["--keyfile", keyfile])
+        if new_wrapper_dpapi:
+            args.append("--dpapi")
+        if archive_pad_last_chunk:
+            args.append("--pad-last-chunk")
+        if force:
+            args.append("--overwrite")
+        argv = tuple(args)
     elif normalized_action == "validate":
         args: list[str] = ["hse2-validate", "--config", _require_text(config_path, "请选择 HSE2 校验配置文件。")]
         if validation_report_output.strip():

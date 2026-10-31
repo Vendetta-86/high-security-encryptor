@@ -18,6 +18,35 @@ class HSE2GuiActionTests(unittest.TestCase):
         plan = build_hse2_gui_command(action="decrypt-config", config_path="decrypt.json")
         self.assertEqual(plan.argv, ("hse2-decrypt-config", "--config", "decrypt.json"))
 
+    def test_archive_create_action_uses_secret_files_and_explicit_archive_options(self) -> None:
+        plan = build_hse2_gui_command(
+            action="archive-create",
+            root_path="source",
+            output_path="archive.hse2",
+            keyfile_path="recovery.key",
+            archive_format_version=3,
+            archive_chunk_size=4096,
+            archive_pad_last_chunk=True,
+        )
+        self.assertEqual(
+            plan.argv,
+            (
+                "hse2-create", "--root", "source", "--output", "archive.hse2",
+                "--format-version", "3", "--chunk-size", "4096", "--keyfile", "recovery.key",
+                "--pad-last-chunk",
+            ),
+        )
+
+    def test_archive_create_rejects_password_only_paranoid_profile(self) -> None:
+        with self.assertRaisesRegex(ValueError, "需要同时提供 keyfile"):
+            build_hse2_gui_command(
+                action="archive-create",
+                root_path="source",
+                output_path="archive.hse2",
+                password_file="secret.txt",
+                archive_profile="paranoid",
+            )
+
     def test_validate_action_with_options(self) -> None:
         plan = build_hse2_gui_command(
             action="validate",

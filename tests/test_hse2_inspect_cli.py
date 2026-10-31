@@ -56,6 +56,18 @@ class HSE2InspectCliTests(unittest.TestCase):
             payload = json.loads(stdout.getvalue())
             self.assertEqual(payload["command"], "hse2-inspect")
 
+    def test_inspect_streams_v3_record_metadata_without_materializing_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture = _create_fixture(Path(temp_dir), format_version=3)
+
+            payload = _inspect_container(fixture.container)
+
+            self.assertEqual(payload["format_version"], 3)
+            self.assertEqual(payload["preamble"]["format_version"], 3)
+            self.assertEqual(payload["payload_chunk_count"], 2)
+            self.assertTrue(payload["payload_chunk_count_matches_header"])
+            self.assertTrue(payload["manifest_encrypted"])
+
     def test_inspect_rejects_non_hse2_suffix(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             bad_path = Path(temp_dir) / "archive.txt"
@@ -79,7 +91,7 @@ class _Fixture:
         self.container = base / "archive.hse2"
 
 
-def _create_fixture(base: Path) -> _Fixture:
+def _create_fixture(base: Path, *, format_version: int = 2) -> _Fixture:
     fixture = _Fixture(base)
     fixture.root.mkdir()
     (fixture.root / "a.txt").write_bytes(b"abcdef")
@@ -95,6 +107,8 @@ def _create_fixture(base: Path) -> _Fixture:
             str(fixture.keyfile),
             "--chunk-size",
             "4",
+            "--format-version",
+            str(format_version),
         ])
     if create_exit != 0:
         raise AssertionError(f"fixture create failed: {create_exit}")

@@ -8,6 +8,7 @@ large Tkinter application.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable
@@ -24,6 +25,10 @@ FieldWidgets = tuple[tk.Widget, ...]
 HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "encrypt-config": frozenset({"config_path"}),
     "decrypt-config": frozenset({"config_path"}),
+    "archive-create": frozenset({
+        "root_path", "output_path", "password_file", "keyfile_path", "archive_profile", "archive_format_version",
+        "archive_chunk_size", "new_wrapper_dpapi", "force", "archive_pad_last_chunk", "paranoid_warning", "dpapi_warning",
+    }),
     "validate": frozenset(
         {
             "config_path",
@@ -63,6 +68,7 @@ _OPTION_FIELD_ORDER = (
     "validation_exit_code_on_failure",
     "allow_dpapi",
     "new_wrapper_dpapi",
+    "archive_pad_last_chunk",
 )
 
 _HSE2_KDF_PROFILE_LABELS = {
@@ -93,7 +99,7 @@ def hse2_kdf_profile_key_from_display(value: str) -> str:
 
 def should_show_paranoid_profile_warning(action: str, new_profile: str, new_password_file: str) -> bool:
     return (
-        hse2_gui_action_key_from_display(action) in {"wrapper-add", "wrapper-rewrap"}
+        hse2_gui_action_key_from_display(action) in {"archive-create", "wrapper-add", "wrapper-rewrap"}
         and hse2_kdf_profile_key_from_display(new_profile) == "paranoid"
         and bool(new_password_file.strip())
     )
@@ -103,7 +109,7 @@ def dpapi_warning_for_state(action: str, scope: str, new_wrapper_dpapi: bool) ->
     normalized_action = hse2_gui_action_key_from_display(action)
     if normalized_action == "dpapi-protect" and scope == "local_machine":
         return DPAPI_LOCAL_MACHINE_SCOPE_WARNING
-    if normalized_action in {"wrapper-add", "wrapper-rewrap"} and new_wrapper_dpapi:
+    if normalized_action in {"archive-create", "wrapper-add", "wrapper-rewrap"} and new_wrapper_dpapi:
         return DPAPI_WRAPPER_PORTABILITY_WARNING
     return None
 
@@ -114,6 +120,7 @@ class HSE2GuiTabState:
 
     action: str
     config_path: str = ""
+    root_path: str = ""
     input_path: str = ""
     output_path: str = ""
     size: int = 32
@@ -132,6 +139,10 @@ class HSE2GuiTabState:
     new_kdf_profile: str = "hardened"
     new_label: str = ""
     new_wrapper_dpapi: bool = False
+    archive_profile: str = "hardened"
+    archive_format_version: str = "2"
+    archive_chunk_size: int = 1024 * 1024
+    archive_pad_last_chunk: bool = False
     access_confirmation_phrase: str = ""
 
 
@@ -172,6 +183,7 @@ def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
     plan = build_hse2_gui_command(
         action=hse2_gui_action_key_from_display(state.action),
         config_path=state.config_path,
+        root_path=state.root_path,
         input_path=state.input_path,
         output_path=state.output_path,
         size=state.size,
@@ -190,6 +202,10 @@ def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
         new_profile_name=hse2_kdf_profile_key_from_display(state.new_kdf_profile),
         new_label=state.new_label,
         new_wrapper_dpapi=state.new_wrapper_dpapi,
+        archive_profile=hse2_kdf_profile_key_from_display(state.archive_profile),
+        archive_format_version=int(state.archive_format_version),
+        archive_chunk_size=state.archive_chunk_size,
+        archive_pad_last_chunk=state.archive_pad_last_chunk,
         access_confirmation_phrase=state.access_confirmation_phrase,
     )
     return list(plan.argv)
@@ -206,6 +222,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.action = tk.StringVar(value="encrypt-config")
         self.action_label = tk.StringVar(value=hse2_gui_action_display_label(self.action.get()))
         self.config_path = tk.StringVar()
+        self.root_path = tk.StringVar()
         self.input_path = tk.StringVar()
         self.output_path = tk.StringVar()
         self.size = tk.IntVar(value=32)
@@ -224,6 +241,10 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.new_kdf_profile = tk.StringVar(value=_HSE2_KDF_PROFILE_LABELS["hardened"])
         self.new_label = tk.StringVar()
         self.new_wrapper_dpapi = tk.BooleanVar(value=False)
+        self.archive_profile = tk.StringVar(value=_HSE2_KDF_PROFILE_LABELS["hardened"])
+        self.archive_format_version = tk.StringVar(value="2")
+        self.archive_chunk_size = tk.IntVar(value=1024 * 1024)
+        self.archive_pad_last_chunk = tk.BooleanVar(value=False)
         self.access_confirmation_phrase = tk.StringVar()
 
         self._field_widgets: dict[str, FieldWidgets] = {}
@@ -235,8 +256,10 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.action.trace_add("write", self._on_action_changed)
         self.new_kdf_profile.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.new_password_file.trace_add("write", lambda *_args: self._apply_action_visibility())
+        self.password_file.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.scope.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.new_wrapper_dpapi.trace_add("write", lambda *_args: self._apply_action_visibility())
+        self.archive_profile.trace_add("write", lambda *_args: self._apply_action_visibility())
         self._apply_action_visibility()
 
     def state(self) -> HSE2GuiTabState:
@@ -245,6 +268,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         return HSE2GuiTabState(
             action=self.action.get(),
             config_path=self.config_path.get(),
+            root_path=self.root_path.get(),
             input_path=self.input_path.get(),
             output_path=self.output_path.get(),
             size=int(self.size.get()),
@@ -263,6 +287,10 @@ class HSE2ExperimentalTab(ttk.Frame):
             new_kdf_profile=hse2_kdf_profile_key_from_display(self.new_kdf_profile.get()),
             new_label=self.new_label.get(),
             new_wrapper_dpapi=bool(self.new_wrapper_dpapi.get()),
+            archive_profile=hse2_kdf_profile_key_from_display(self.archive_profile.get()),
+            archive_format_version=self.archive_format_version.get(),
+            archive_chunk_size=int(self.archive_chunk_size.get()),
+            archive_pad_last_chunk=bool(self.archive_pad_last_chunk.get()),
             access_confirmation_phrase=self.access_confirmation_phrase.get(),
         )
 
@@ -368,8 +396,19 @@ class HSE2ExperimentalTab(ttk.Frame):
         danger_label.grid(row=20, column=0, columnspan=3, sticky="ew", pady=(6, 0))
         self._field_widgets["danger_text"] = (danger_label,)
 
+        self._field_widgets["root_path"] = _add_path_row(self, 22, "要加密的文件夹", self.root_path, self._browse_root)
+        self._field_widgets["archive_profile"] = _add_choice_row(
+            self, 23, "归档密码安全等级", self.archive_profile, hse2_kdf_profile_display_values()
+        )
+        self._field_widgets["archive_format_version"] = _add_choice_row(
+            self, 24, "容器格式版本", self.archive_format_version, ("2", "3")
+        )
+        self._field_widgets["archive_chunk_size"] = _add_spin_row(
+            self, 25, "Payload chunk 大小（字节）", self.archive_chunk_size
+        )
+
         self._options_frame = ttk.Frame(self)
-        self._options_frame.grid(row=21, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        self._options_frame.grid(row=26, column=0, columnspan=3, sticky="w", pady=(8, 0))
         self._option_widgets = {
             "force": ttk.Checkbutton(self._options_frame, text="允许覆盖输出文件", variable=self.force),
             "validation_summary_only": ttk.Checkbutton(
@@ -388,10 +427,11 @@ class HSE2ExperimentalTab(ttk.Frame):
                 variable=self.allow_dpapi,
             ),
             "new_wrapper_dpapi": ttk.Checkbutton(self._options_frame, text="新 wrapper 使用 Windows DPAPI", variable=self.new_wrapper_dpapi),
+            "archive_pad_last_chunk": ttk.Checkbutton(self._options_frame, text="隐藏文件精确大小（末块 padding）", variable=self.archive_pad_last_chunk),
         }
 
         ttk.Button(self, text="运行 HSE2 实验操作", command=self.run_selected_action).grid(
-            row=22,
+            row=27,
             column=0,
             sticky="w",
             pady=(14, 0),
@@ -418,6 +458,9 @@ class HSE2ExperimentalTab(ttk.Frame):
         }
         if action in wrapper_id_labels:
             self._field_widgets["wrapper_id"][0].configure(text=wrapper_id_labels[action])
+        self._option_widgets["new_wrapper_dpapi"].configure(
+            text="新建归档使用 Windows DPAPI" if action == "archive-create" else "新 wrapper 使用 Windows DPAPI"
+        )
         for field_key, widgets in self._field_widgets.items():
             for widget in widgets:
                 if field_key in visible_fields:
@@ -430,7 +473,9 @@ class HSE2ExperimentalTab(ttk.Frame):
                 "generate-keyfile", "wrapper-add", "wrapper-remove", "wrapper-rewrap", "access-destroy"
             }
             if always_show_keyfile_risk or should_show_paranoid_profile_warning(
-                action, self.new_kdf_profile.get(), self.new_password_file.get()
+                action,
+                self.archive_profile.get() if action == "archive-create" else self.new_kdf_profile.get(),
+                self.password_file.get() if action == "archive-create" else self.new_password_file.get(),
             ):
                 for widget in self._field_widgets["paranoid_warning"]:
                     widget.grid()
@@ -494,6 +539,12 @@ class HSE2ExperimentalTab(ttk.Frame):
                 "确认永久禁用访问",
                 "该操作会写出一个移除全部 wrapper 且标记 access_destroyed 的新 HSE2 容器。数据将无法再解锁。是否继续？",
             )
+        if action == "archive-create" and self.force.get() and self.output_path.get().strip():
+            if Path(self.output_path.get().strip()).exists():
+                return messagebox.askyesno(
+                    "确认覆盖 HSE2 归档",
+                    "输出路径已存在。覆盖会替换现有容器；请确认已有安全备份和可用解锁因子。是否继续？",
+                )
         return True
 
     def _browse_config(self) -> None:
@@ -501,6 +552,11 @@ class HSE2ExperimentalTab(ttk.Frame):
 
     def _browse_input(self) -> None:
         _browse_open(self.input_path, [("HSE2 容器", "*.hse2"), ("所有文件", "*.*")])
+
+    def _browse_root(self) -> None:
+        path = filedialog.askdirectory(title="选择要加密的文件夹")
+        if path:
+            self.root_path.set(path)
 
     def _browse_output(self) -> None:
         _browse_save(self.output_path, "")

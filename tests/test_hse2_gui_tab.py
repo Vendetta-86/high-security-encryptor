@@ -25,6 +25,13 @@ class HSE2GuiTabTests(unittest.TestCase):
         self.assertIn("密码、keyfile 或 DPAPI", HEADER_BACKUP_RECOVERY_WARNING)
         self.assertIn("创建归档后立即导出", HEADER_BACKUP_RECOVERY_WARNING)
 
+    def test_archive_create_warnings_cover_paranoid_factor_and_dpapi_scope(self) -> None:
+        self.assertTrue(should_show_paranoid_profile_warning("archive-create", "paranoid", "password.txt"))
+        self.assertFalse(should_show_paranoid_profile_warning("archive-create", "hardened", "password.txt"))
+        warning = dpapi_warning_for_state("archive-create", "current_user", True)
+        self.assertIsNotNone(warning)
+        self.assertIn("Keep an independent password or keyfile wrapper", warning)
+
     def test_dpapi_warnings_cover_machine_scope_and_wrapper_portability(self) -> None:
         machine_warning = dpapi_warning_for_state("dpapi-protect", "local_machine", False)
         self.assertIsNotNone(machine_warning)
@@ -39,6 +46,27 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_build_encrypt_command_from_tab_state(self) -> None:
         argv = build_hse2_command_from_tab_state(HSE2GuiTabState(action="encrypt-config", config_path="encrypt.json"))
         self.assertEqual(argv, ["hse2-encrypt-config", "--config", "encrypt.json"])
+
+    def test_build_archive_create_command_from_tab_state(self) -> None:
+        argv = build_hse2_command_from_tab_state(
+            HSE2GuiTabState(
+                action="archive-create",
+                root_path="source",
+                output_path="archive.hse2",
+                keyfile_path="recovery.key",
+                archive_format_version="3",
+                archive_chunk_size=4096,
+                archive_pad_last_chunk=True,
+            )
+        )
+        self.assertEqual(
+            argv,
+            [
+                "hse2-create", "--root", "source", "--output", "archive.hse2",
+                "--format-version", "3", "--chunk-size", "4096", "--keyfile", "recovery.key",
+                "--pad-last-chunk",
+            ],
+        )
 
     def test_build_validate_command_from_tab_state(self) -> None:
         argv = build_hse2_command_from_tab_state(
@@ -121,6 +149,16 @@ class HSE2GuiTabTests(unittest.TestCase):
         self.assertEqual(visible_hse2_gui_field_keys("encrypt-config"), frozenset({"config_path"}))
         self.assertEqual(visible_hse2_gui_field_keys("decrypt-config"), frozenset({"config_path"}))
         self.assertEqual(visible_hse2_gui_field_keys("rotate-keyfile"), frozenset({"config_path"}))
+
+    def test_archive_create_shows_all_archive_and_factor_controls(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("archive-create"),
+            frozenset({
+                "root_path", "output_path", "password_file", "keyfile_path", "archive_profile",
+                "archive_format_version", "archive_chunk_size", "new_wrapper_dpapi", "force",
+                "archive_pad_last_chunk", "paranoid_warning", "dpapi_warning",
+            }),
+        )
 
     def test_visible_fields_for_validate_action(self) -> None:
         self.assertEqual(

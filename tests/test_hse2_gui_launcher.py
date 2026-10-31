@@ -13,6 +13,7 @@ import unittest
 from high_security_encryptor import hse2_gui_launcher
 from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
 from high_security_encryptor.hse2_create_cli import main as create_main
+from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state
 from high_security_encryptor.hse2_quickstart_gui_tab import HSE2QuickstartTab, build_hse2_quickstart_tab
 
 
@@ -124,6 +125,37 @@ class HSE2GuiLauncherTests(unittest.TestCase):
             self.assertEqual(result.exit_code, 0)
             self.assertTrue(backup.exists())
             self.assertTrue(json.loads(result.stdout)["header_backup_written"])
+
+    def test_archive_create_is_dispatched_through_gui_helper_and_inspectable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            source = base / "source"
+            source.mkdir()
+            (source / "payload.txt").write_bytes(b"gui archive wizard")
+            keyfile = base / "recovery.key"
+            keyfile.write_bytes(b"k" * 32)
+            container = base / "archive.hse2"
+            argv = build_hse2_command_from_tab_state(
+                HSE2GuiTabState(
+                    action="archive-create",
+                    root_path=str(source),
+                    output_path=str(container),
+                    keyfile_path=str(keyfile),
+                    archive_format_version="3",
+                    archive_chunk_size=64,
+                    archive_pad_last_chunk=True,
+                )
+            )
+
+            create_result = _invoke_hse2_gui_command(argv)
+            inspect_result = _invoke_hse2_gui_command(["hse2-inspect", "--input", str(container)])
+
+            self.assertEqual(create_result.exit_code, 0, create_result.stderr)
+            self.assertTrue(container.exists())
+            self.assertEqual(inspect_result.exit_code, 0, inspect_result.stderr)
+            inspect_payload = json.loads(inspect_result.stdout)
+            self.assertEqual(inspect_payload["format_version"], 3)
+            self.assertEqual(inspect_payload["payload_layout"]["padding_mode"], "last-chunk-to-chunk-size")
 
     def test_wrapper_remove_summary_reports_remaining_count(self) -> None:
         summary = _build_hse2_result_summary(

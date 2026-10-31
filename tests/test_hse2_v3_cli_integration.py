@@ -349,7 +349,7 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
             self.assertEqual(code, 0, stderr)
             self.assertTrue(opened["container_opened"])
 
-    def test_entrypoints_and_gui_do_not_advertise_unimplemented_archive_controls(self) -> None:
+    def test_entrypoints_and_gui_advertise_only_implemented_archive_controls(self) -> None:
         pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
         scripts = pyproject["project"]["scripts"]
         for command in (
@@ -360,7 +360,7 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
             "high-security-encryptor-hse2-header-backup",
         ):
             self.assertIn(command, scripts)
-        self.assertNotIn("archive-create", HSE2_GUI_ACTIONS)
+        self.assertIn("archive-create", HSE2_GUI_ACTIONS)
         self.assertNotIn("archive-open", HSE2_GUI_ACTIONS)
         self.assertIn("wrapper-add", HSE2_GUI_ACTIONS)
         self.assertIn("wrapper-rewrap", HSE2_GUI_ACTIONS)
