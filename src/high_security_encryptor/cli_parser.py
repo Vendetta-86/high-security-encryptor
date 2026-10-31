@@ -34,6 +34,7 @@ def build_cli_parser(
     hse1_to_hse2_handler: Handler | None = None,
     hse2_validate_handler: Handler | None = None,
     hse2_inspect_handler: Handler | None = None,
+    hse2_wrapper_add_handler: Handler | None = None,
     hse2_plan_archive_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
     hse2_keyfile_inspect_handler: Handler | None = None,
@@ -66,7 +67,7 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if hse2_keyfile_inspect_handler is not None or hse2_inspect_handler is not None:
+    if hse2_keyfile_inspect_handler is not None or hse2_inspect_handler is not None or hse2_wrapper_add_handler is not None:
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
         if hse2_inspect_handler is not None:
@@ -82,6 +83,13 @@ def build_cli_parser(
             inspect_parser = keyfile_subparsers.add_parser("inspect", help="Check keyfile size and print its SHA-256 fingerprint.")
             inspect_parser.add_argument("--input", required=True, help="Path to the keyfile to inspect.")
             inspect_parser.set_defaults(handler=hse2_keyfile_inspect_handler)
+        if hse2_wrapper_add_handler is not None:
+            wrapper_parser = hse2_subparsers.add_parser("wrapper", help="Manage HSE2 unlock wrappers.")
+            wrapper_subparsers = wrapper_parser.add_subparsers(dest="wrapper_command", required=True)
+            for command, wrapper_type in (("add-password", "password"), ("add-keyfile", "keyfile"), ("add-dpapi", "dpapi")):
+                add_parser = wrapper_subparsers.add_parser(command, help=f"Add a {wrapper_type} wrapper to an HSE2 container.")
+                _add_hse2_wrapper_add_args(add_parser, wrapper_type=wrapper_type)
+                add_parser.set_defaults(handler=hse2_wrapper_add_handler)
 
     if dpapi_protect_handler is not None:
         dpapi_parser = subparsers.add_parser("dpapi-protect", help="WINDOWS ONLY: Protect a local binary file with DPAPI; scope changes portability and who on this computer may decrypt it.")
@@ -200,6 +208,29 @@ def build_cli_parser(
 def _add_hse2_file_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--input", required=True, help="Input file path.")
     parser.add_argument("--output", required=True, help="Output file path.")
+
+
+def _add_hse2_wrapper_add_args(parser: argparse.ArgumentParser, *, wrapper_type: str) -> None:
+    parser.add_argument("--input", required=True, help="Source .hse2 container path.")
+    parser.add_argument("--output", required=True, help="Output .hse2 container path.")
+    parser.add_argument("--wrapper-id", required=True, help="Unique identifier for the new wrapper.")
+    parser.add_argument("--password-file", help="Existing password used to unlock the source container.")
+    parser.add_argument("--keyfile", help="Existing keyfile used to unlock the source container.")
+    parser.add_argument("--dpapi", action="store_true", help="Allow Windows DPAPI to unlock the source container.")
+    parser.add_argument("--new-profile", default=KDF_PROFILE_HARDENED, choices=[KDF_PROFILE_COMPATIBLE, KDF_PROFILE_HARDENED, KDF_PROFILE_PARANOID])
+    parser.add_argument("--new-label")
+    parser.add_argument("--overwrite", action="store_true")
+    if wrapper_type == "password":
+        parser.add_argument("--new-password-file", required=True, help="New wrapper password file.")
+        parser.add_argument("--new-keyfile", help="Optional second factor for the new password wrapper.")
+    elif wrapper_type == "keyfile":
+        parser.add_argument("--new-keyfile", required=True, help="New wrapper keyfile.")
+        parser.add_argument("--new-password-file", help="Optional second factor for the new keyfile wrapper.")
+    else:
+        parser.set_defaults(new_password_file=None, new_keyfile=None, new_dpapi=True)
+    if wrapper_type != "dpapi":
+        parser.set_defaults(new_dpapi=False)
+    parser.set_defaults(hse2_wrapper_type=wrapper_type)
 
 
 def _add_hse2_secret_arg(parser: argparse.ArgumentParser, name: str, help_text: str) -> None:

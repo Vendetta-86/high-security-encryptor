@@ -43,6 +43,7 @@ from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig, H
 from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
+from .hse2.keyfile_safety import keyfile_colocation_warning
 from .hse2_rewrap import rewrap_hse2_file
 from .hse2_streaming import decrypt_streaming_hse2, encrypt_streaming_hse2
 from .hse2_validation_config import HSE2ValidationConfig
@@ -50,6 +51,7 @@ from .hse2_validation_report import build_hse2_validation_report
 from .integrity import IntegrityValidationError
 from .keyfile_generation import generate_keyfile
 from .hse2.keyfile_inspect import inspect_hse2_keyfile
+from .hse2_wrapper_cli import run_add as run_hse2_wrapper_add
 from .password_sources import PasswordSourceError, SecretSpec, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
 from .streaming_format import IntegrityError
@@ -91,6 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse1_to_hse2_handler=_handle_hse1_to_hse2,
         hse2_validate_handler=_handle_hse2_validate,
         hse2_inspect_handler=_handle_hse2_inspect,
+        hse2_wrapper_add_handler=_handle_hse2_wrapper_add,
         generate_keyfile_handler=_handle_generate_keyfile,
         hse2_keyfile_inspect_handler=_handle_hse2_keyfile_inspect,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
@@ -272,6 +275,20 @@ def _handle_generate_keyfile(args: argparse.Namespace) -> dict[str, Any]:
 
 def _handle_hse2_keyfile_inspect(args: argparse.Namespace) -> dict[str, Any]:
     return inspect_hse2_keyfile(args.input).to_dict()
+
+
+def _handle_hse2_wrapper_add(args: argparse.Namespace) -> dict[str, Any]:
+    warning = keyfile_colocation_warning(
+        (args.keyfile, args.new_keyfile),
+        (args.input, args.output),
+    )
+    if warning:
+        print(f"hse2-wrapper: warning: {warning}", file=sys.stderr)
+    summary = run_hse2_wrapper_add(args)
+    if args.new_dpapi:
+        summary["dpapi_recovery_warning"] = DPAPI_WRAPPER_PORTABILITY_WARNING
+        print(f"hse2-wrapper: DPAPI recovery warning: {DPAPI_WRAPPER_PORTABILITY_WARNING}", file=sys.stderr)
+    return summary
 
 
 def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:

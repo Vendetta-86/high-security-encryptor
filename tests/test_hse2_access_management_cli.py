@@ -2,10 +2,12 @@ import contextlib
 from dataclasses import replace
 import io
 import json
+import os
 import tempfile
 from pathlib import Path
 import unittest
 
+from high_security_encryptor.cli import main as root_main
 from high_security_encryptor.hse2 import (
     HSE2UnlockFactors,
     attach_header_auth_tag,
@@ -24,6 +26,97 @@ TEST_WRAPPER_PASSWORD = "extra-password"  # pragma: allowlist secret
 
 
 class HSE2AccessManagementCliTests(unittest.TestCase):
+    def test_unified_cli_adds_password_wrapper(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            fixture = _create_fixture(base)
+            new_password_file = base / "new-password.txt"
+            new_password_file.write_text("unified-cli-password", encoding="utf-8")
+            output = base / "password-wrapper.hse2"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                rejected_exit = root_main([
+                    "hse2", "wrapper", "add-password",
+                    "--input", str(fixture.container),
+                    "--output", str(output),
+                    "--wrapper-id", "password-unified-paranoid",
+                    "--keyfile", str(fixture.keyfile),
+                    "--new-password-file", str(new_password_file),
+                    "--new-profile", "paranoid",
+                ])
+
+            self.assertNotEqual(rejected_exit, 0)
+            self.assertIn("paranoid password wrappers require --keyfile", stderr.getvalue())
+            self.assertFalse(output.exists())
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = root_main([
+                    "hse2", "wrapper", "add-password",
+                    "--input", str(fixture.container),
+                    "--output", str(output),
+                    "--wrapper-id", "password-unified",
+                    "--keyfile", str(fixture.keyfile),
+                    "--new-password-file", str(new_password_file),
+                    "--new-profile", "compatible",
+                ])
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(stdout.getvalue())
+            self.assertTrue(payload["container_written"])
+            wrappers = _list_wrappers(output)
+            self.assertEqual(wrappers["wrapper_count"], 2)
+            self.assertEqual(wrappers["wrappers"][1]["type"], "password")
+
+    def test_unified_cli_adds_keyfile_wrapper(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            fixture = _create_fixture(base)
+            new_keyfile = base / "new.key"
+            new_keyfile.write_bytes(b"n" * 32)
+            output = base / "keyfile-wrapper.hse2"
+            stdout = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout):
+                exit_code = root_main([
+                    "hse2", "wrapper", "add-keyfile",
+                    "--input", str(fixture.container),
+                    "--output", str(output),
+                    "--wrapper-id", "keyfile-unified",
+                    "--keyfile", str(fixture.keyfile),
+                    "--new-keyfile", str(new_keyfile),
+                ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(json.loads(stdout.getvalue())["container_written"])
+            wrappers = _list_wrappers(output)
+            self.assertEqual(wrappers["wrapper_count"], 2)
+            self.assertEqual(wrappers["wrappers"][1]["type"], "keyfile")
+
+    @unittest.skipUnless(os.name == "nt", "Windows DPAPI is required")
+    def test_unified_cli_adds_dpapi_wrapper(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            fixture = _create_fixture(base)
+            output = base / "dpapi-wrapper.hse2"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = root_main([
+                    "hse2", "wrapper", "add-dpapi",
+                    "--input", str(fixture.container),
+                    "--output", str(output),
+                    "--wrapper-id", "dpapi-unified",
+                    "--keyfile", str(fixture.keyfile),
+                ])
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("DPAPI recovery warning", stderr.getvalue())
+            wrappers = _list_wrappers(output)
+            self.assertEqual(wrappers["wrappers"][1]["type"], "dpapi")
+
     def test_wrapper_cli_lists_safe_wrapper_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fixture = _create_fixture(Path(temp_dir))

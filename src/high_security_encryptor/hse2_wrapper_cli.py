@@ -12,7 +12,7 @@ from .dpapi_guidance import DPAPI_WRAPPER_PORTABILITY_WARNING
 from .hse2 import HSE2ModelError
 from .hse2.access_management import add_hse2_wrapper, list_hse2_wrappers, remove_hse2_wrapper, rewrap_hse2_wrapper
 from .hse2.keyfile_safety import keyfile_colocation_warning
-from .hse2.workflows import read_keyfile_bytes, read_secret_text_file
+from .hse2.workflows import read_keyfile_bytes, read_secret_text_file, validate_hse2_wrapper_policy
 
 HSE2_CONTAINER_SUFFIX = ".hse2"
 
@@ -80,7 +80,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "remove":
             summary = _run_remove(args)
         elif args.command == "add":
-            summary = _run_add(args)
+            summary = run_add(args)
         elif args.command == "rewrap":
             summary = _run_rewrap(args)
         else:  # pragma: no cover - argparse enforces command choices
@@ -127,15 +127,25 @@ def _run_remove(args: argparse.Namespace) -> dict[str, Any]:
     ).to_dict()
 
 
-def _run_add(args: argparse.Namespace) -> dict[str, Any]:
+def run_add(args: argparse.Namespace) -> dict[str, Any]:
+    """Add a wrapper using the shared CLI namespace contract."""
+
     input_path = Path(args.input)
     output_path = Path(args.output)
     _validate_container_path(input_path, field_name="input")
     _validate_container_path(output_path, field_name="output")
+    new_password = read_secret_text_file(args.new_password_file) if args.new_password_file else None
+    new_keyfile_bytes = read_keyfile_bytes(args.new_keyfile) if args.new_keyfile else None
+    validate_hse2_wrapper_policy(
+        profile_name=args.new_profile,
+        has_password=bool(new_password),
+        has_keyfile=new_keyfile_bytes is not None,
+        use_dpapi=bool(args.new_dpapi),
+    )
     add_hse2_wrapper(
         input_path, output_path, wrapper_id=args.wrapper_id,
-        new_password=read_secret_text_file(args.new_password_file) if args.new_password_file else None,
-        new_keyfile_bytes=read_keyfile_bytes(args.new_keyfile) if args.new_keyfile else None,
+        new_password=new_password,
+        new_keyfile_bytes=new_keyfile_bytes,
         unlock_password=read_secret_text_file(args.password_file) if args.password_file else None,
         unlock_keyfile_bytes=read_keyfile_bytes(args.keyfile) if args.keyfile else None,
         allow_dpapi=bool(args.dpapi), new_wrapper_dpapi=bool(args.new_dpapi),
