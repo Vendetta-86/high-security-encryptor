@@ -394,7 +394,7 @@ python -m pip_audit . --progress-spinner off
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
 | `v0.6.0-alpha.8` | [!] | tag `5935f76` 的 Windows EXE 构建与 Actions 工件上传已通过；之后发现 GUI 错误短语路径缺少可见反馈，`ecea734` 已修复。旧工件不应发布，保留作为历史候选记录。 |
-| `v0.6.0-alpha.9` | [~] | 包版本与发布说明已更新，包含 GUI 错误反馈修复；固定源 CI 已通过，但 alpha.9 精确 tag 构建/工件检查仍待完成。候选记录见 `docs/releases/v0.6.0-alpha.9.md`。 |
+| `v0.6.0-alpha.9` | [~] | 精确 tag 构建、下载工件摘要/内容校验、10 个 EXE 完整性和打包 CLI/GUI smoke 已通过；维护者批准为 alpha 预发布。GitHub Release 尚待发布工作流完成。候选记录见 `docs/releases/v0.6.0-alpha.9.md`。 |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
@@ -425,12 +425,13 @@ python -m pip_audit . --progress-spinner off
 17. [x] 补齐 GUI 向导
 18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
-20. [~] 打包 release（alpha.9 固定源 CI 已通过；精确 tag 工件检查和发布审批待完成）
+20. [~] 打包 release（alpha.9 精确 tag 构建及工件检查已通过；维护者已批准 alpha 预发布，GitHub Release 发布工作流待完成）
 21. [x] 评估 decoy / duress 是否进入下一版本：暂不进入 `v0.7.0`；缺少可审查的威胁模型和格式设计，现有计划不能支持可否认性承诺
 
 ---
 
 ## 18. 每次开发完成后的标记规范
+- 2026-10-31：alpha.9 精确 tag Windows EXE run [41206741423](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41206741423) 构建、打包和上传全通过；本机下载工件 SHA-256 `21bbf64eb8b86264077ce5b8b7eb506cae7f9c6277188912a0027f782b03ef46`，内嵌 16 项 release ZIP SHA-256 `37ce094869ac7bbdd0c38bca93674a93abeea698d4e8b241f60af0e088b0e769`，含 10 个 EXE。8 个 CLI `--help`、主 GUI `--smoke-test`、打包 HSE2 GUI v3 fixture 元数据检查全部通过。维护者批准 alpha 预发布；GitHub Release 尚未创建，第三方互操作/认证仍未完成且未作相应声明。详见 `docs/releases/v0.6.0-alpha.9.md` 和 `docs/progress/20261031-alpha8-prep-status.md`。Commit: 待提交
 
 以后每完成一步，都在本文件中做三件事：
 

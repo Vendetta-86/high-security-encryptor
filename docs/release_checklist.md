@@ -11,7 +11,7 @@ Use this checklist before tagging or publishing a release.
 
 ## Local Verification
 
-The current alpha.9 candidate adds visible handling for HSE2 GUI plan-validation errors. Local full-suite, dependency, syntax, and secret-scan checks passed; Windows Python 3.11/3.12/3.13 CI passed for commit `ecea734`. The older alpha.8 tag artifact predates this fix and must not be substituted for the new candidate. See `docs/releases/v0.6.0-alpha.9.md` and `docs/progress/20261031-alpha8-prep-status.md` for validation evidence and artifact history.
+The alpha.9 candidate adds visible handling for HSE2 GUI plan-validation errors. Local full-suite, dependency, syntax, and secret-scan checks passed; source CI passed for commit `8d1668b`, and exact-tag Windows packaging and downloaded-artifact verification passed for `v0.6.0-alpha.9`. The Actions artifact SHA-256 is `21bbf64eb8b86264077ce5b8b7eb506cae7f9c6277188912a0027f782b03ef46`; the embedded release asset ZIP SHA-256 is `37ce094869ac7bbdd0c38bca93674a93abeea698d4e8b241f60af0e088b0e769`. See `docs/releases/v0.6.0-alpha.9.md` and `docs/progress/20261031-alpha8-prep-status.md` for evidence and artifact history.
 
 Run:
 
