@@ -185,7 +185,7 @@ class HSE2CreateCliTests(unittest.TestCase):
             self.assertEqual(payload["header_backup_export_argv"][-1], str(backup_path))
             self.assertIn("header backup recommended", stderr.getvalue())
             self.assertIn(str(backup_path), stderr.getvalue())
-            self.assertIn("cannot replace the password or keyfile", stderr.getvalue())
+            self.assertIn("cannot recover or replace any unlock factor", stderr.getvalue())
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(header_backup_main(payload["header_backup_export_argv"][1:]), 0)
             self.assertTrue(backup_path.exists())

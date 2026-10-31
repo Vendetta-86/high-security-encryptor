@@ -8,10 +8,56 @@ import unittest
 from high_security_encryptor.hse2 import is_dpapi_available
 from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2_open_cli import main as open_main
+from high_security_encryptor.hse2_wrapper_cli import main as wrapper_main
+from high_security_encryptor.hse2.access_management import list_hse2_wrappers
 
 
 @unittest.skipUnless(is_dpapi_available(), "Windows DPAPI is only available on Windows")
 class HSE2DpapiCliTests(unittest.TestCase):
+    def test_dpapi_wrapper_add_keeps_independent_password_wrapper_on_windows(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            root = base / "root"
+            root.mkdir()
+            (root / "payload.txt").write_bytes(b"DPAPI wrapper integration payload")
+            password_file = base / "password.txt"
+            password_file.write_text("independent recovery password\n", encoding="utf-8")
+            archive = base / "archive.hse2"
+            added = base / "added.hse2"
+
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(create_main([
+                    "--root", str(root), "--output", str(archive),
+                    "--password-file", str(password_file), "--profile", "compatible",
+                ]), 0)
+            add_stdout = io.StringIO()
+            add_stderr = io.StringIO()
+            with contextlib.redirect_stdout(add_stdout), contextlib.redirect_stderr(add_stderr):
+                self.assertEqual(wrapper_main([
+                    "add", "--input", str(archive), "--output", str(added),
+                    "--wrapper-id", "dpapi-recovery", "--new-dpapi",
+                    "--password-file", str(password_file), "--compact",
+                ]), 0)
+            self.assertIn("DPAPI recovery warning", add_stderr.getvalue())
+            add_summary = json.loads(add_stdout.getvalue())
+            self.assertIn("DPAPI wrapper is tied", add_summary["dpapi_recovery_warning"])
+            self.assertEqual({wrapper.type for wrapper in list_hse2_wrappers(added).wrappers}, {"password", "dpapi"})
+
+            dpapi_open = base / "opened-dpapi"
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(open_main([
+                    "--input", str(added), "--output-dir", str(dpapi_open), "--dpapi",
+                ]), 0)
+            self.assertEqual((dpapi_open / "root" / "payload.txt").read_bytes(), b"DPAPI wrapper integration payload")
+
+            removed = base / "removed.hse2"
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(wrapper_main([
+                    "remove", "--input", str(added), "--output", str(removed),
+                    "--wrapper-id", "dpapi-recovery", "--password-file", str(password_file),
+                ]), 0)
+            self.assertEqual({wrapper.type for wrapper in list_hse2_wrappers(removed).wrappers}, {"password"})
+
     def test_dpapi_create_open_round_trip(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
@@ -24,7 +70,8 @@ class HSE2DpapiCliTests(unittest.TestCase):
             restored = base / "restored"
 
             create_stdout = io.StringIO()
-            with contextlib.redirect_stdout(create_stdout):
+            create_stderr = io.StringIO()
+            with contextlib.redirect_stdout(create_stdout), contextlib.redirect_stderr(create_stderr):
                 create_exit = create_main([
                     "--root",
                     str(root),
@@ -38,6 +85,8 @@ class HSE2DpapiCliTests(unittest.TestCase):
             create_payload = json.loads(create_stdout.getvalue())
             self.assertTrue(create_payload["container_written"])
             self.assertEqual(create_payload["wrapper_type"], "dpapi")
+            self.assertIn("Keep an independent password or keyfile wrapper", create_payload["dpapi_recovery_warning"])
+            self.assertIn("DPAPI recovery warning", create_stderr.getvalue())
 
             open_stdout = io.StringIO()
             with contextlib.redirect_stdout(open_stdout):

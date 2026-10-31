@@ -70,6 +70,10 @@ high-security-encryptor-hse2-open \
   --dpapi
 ```
 
+HSE2 DPAPI wrappers use the current Windows user scope. Account or device changes, Windows reinstall, or moving the archive may make this wrapper unusable. Create a separate password or keyfile wrapper for recovery; successful create/add/rewrap commands print this warning. Do not treat a header backup as a replacement for that recovery factor.
+
+The standalone `dpapi-protect` command also supports `--scope local_machine` for protected keyfile blobs. Windows documents that any user on the protecting computer can decrypt a blob created with this scope, so use it only when shared local-machine access is intended. The GUI and CLI display this warning when the scope is selected. See [Microsoft's CryptProtectData documentation](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata).
+
 DPAPI mode is intentionally explicit. The conservative CLI workflow creates one wrapper at a time, so `--dpapi` is not combined with password or keyfile wrapper material by these commands.
 
 ## Inspect Container Metadata

@@ -50,6 +50,12 @@ consumes. For example:
 - `wrapper-rewrap` shows separate old and new wrapper factors, a localized KDF profile selector, and a performance warning when paranoid password wrapping is selected;
 - `access-destroy` shows input/output paths, overwrite, the exact confirmation field, and the warning phrase.
 
+Selecting `local_machine` for `dpapi-protect` displays a prominent warning that
+any user on that computer may decrypt the blob. Selecting DPAPI as a new wrapper
+in `wrapper-add` or `wrapper-rewrap` displays a portability warning and repeats
+it in the confirmation dialog, recommending an independent password or keyfile
+wrapper for recovery.
+
 The wrapper/access/inspect workflows use these fields:
 
 - `.hse2` input container path;

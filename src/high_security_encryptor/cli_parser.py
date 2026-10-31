@@ -76,7 +76,7 @@ def build_cli_parser(
         inspect_parser.set_defaults(handler=hse2_keyfile_inspect_handler)
 
     if dpapi_protect_handler is not None:
-        dpapi_parser = subparsers.add_parser("dpapi-protect", help="WINDOWS ONLY: Protect a local binary file with Windows DPAPI.")
+        dpapi_parser = subparsers.add_parser("dpapi-protect", help="WINDOWS ONLY: Protect a local binary file with DPAPI; scope changes portability and who on this computer may decrypt it.")
         dpapi_parser.add_argument("--input", required=True, help="Input binary file to protect.")
         dpapi_parser.add_argument("--output", required=True, help="Output DPAPI blob file.")
         dpapi_parser.add_argument("--scope", choices=["current_user", "local_machine"], default="current_user", help="DPAPI protection scope. Defaults to current_user.")

@@ -73,7 +73,7 @@
 | Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
-| Phase 7 | [~] | DPAPI 正式化 | create 阶段已有 DPAPI wrapper；add/remove/跨机风险文档仍需补齐 |
+| Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [~] | 元数据最小化 | encrypted manifest/store_original_paths=false 已落地；随机名/padding 仍需补齐 |
 | Phase 10 | [~] | GUI / CLI 完整闭环 | helper CLI 与 HSE2 GUI 可用；统一子命令树和完整向导仍需补齐 |
@@ -222,16 +222,16 @@
 
 - [x] 新增 `dpapi` wrapper 类型
 - [x] 支持 current-user scope / Windows DPAPI 可用性检查
-- [~] 支持 local-machine scope 时给出风险提示
-- [ ] 支持添加 DPAPI wrapper
-- [~] 支持移除 DPAPI wrapper（可通过通用 wrapper remove 移除，缺 add-dpapi 正式流）
-- [~] DPAPI 不作为唯一恢复方式（需 GUI/文档强提示）
-- [ ] GUI 强制提示：重装系统 / 换用户 / 换电脑可能失效
+- [x] 支持 local-machine scope 时给出风险提示（CLI 与 GUI 明确同机任意用户可解密）
+- [x] 支持添加 DPAPI wrapper（wrapper add / rewrap CLI 与 GUI）
+- [x] 支持移除 DPAPI wrapper（通用 wrapper remove；Windows 集成测试验证保留的密码 wrapper）
+- [x] DPAPI 不作为唯一恢复方式（create/add/rewrap CLI 与 GUI 强提示独立密码或 keyfile wrapper）
+- [x] GUI 强制提示：重装系统 / 换用户 / 换电脑可能失效
 
 ### 完成标准
 
 - [x] 当前 Windows 用户可通过 DPAPI wrapper 解锁（create/open 路径支持）
-- [ ] 移动到其他机器后 DPAPI wrapper 不可用（需测试或文档化）
+- [x] DPAPI wrapper 不可移植风险已文档化（Windows 通常绑定同一用户和计算机；另有 roaming profile 例外）
 - [x] password + keyfile 仍可作为跨机器恢复方式
 
 ---
@@ -450,3 +450,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：完成 keyfile 同目录风险提示：create/open/wrapper CLI 检查 keyfile 与归档目录共址并将警告写入 stderr，GUI 提示明确避免共址；路径/CLI 定向测试 5/5 通过，全量测试 615 项通过、6 项跳过。`git diff --check` 通过。Commit: `17c467d2264afd196528294ffa63ffe82417ca70`
 - 2026-10-31：完成 Phase 5 header backup 提示：create 成功后在 stderr 输出可复制的 export 命令，JSON 附推荐 `.hse2.header` 路径和 argv；GUI 顶部增加常驻醒目提示，说明 header backup 不能恢复或替代密码、keyfile、DPAPI 解锁条件。测试会实际执行建议 argv 并确认备份文件生成；HSE2 定向 397 项通过、2 项跳过；全量 616 项通过、6 项跳过。Commit: `9c19ced`
 - 2026-10-31：完成 Phase 6 header backup wrapper 恢复场景：修复 restore 在 header 长度变化后仍使用备份旧 offset 的问题；有效当前 header 用于定位现有 body，恢复后继续校验备份 frame offset、body 长度及 SHA-256，损坏 header 仍回退备份 offset。新增 v2/v3 测试：备份、access destroy、恢复旧 wrapper、验证 body 完全一致并以原 keyfile 解密。HSE2 定向 398 项通过、2 项跳过；全量 617 项通过、6 项跳过。Commit: `00054a6`
+- 2026-10-31：完成 Phase 7 DPAPI 风险正式化：create/add/rewrap CLI 明示 DPAPI wrapper 的账户/设备可移植性限制并建议保留独立密码或 keyfile；GUI 对新 DPAPI wrapper 显示醒目提示并在确认框重申，对 `local_machine` scope 显示同机其他用户可解密的风险。补充微软官方行为说明和 roaming-profile 例外。Windows 本机实测 DPAPI create/open、wrapper add、DPAPI 解锁、保留密码 fallback 后移除 DPAPI、local_machine blob 保护/解保护；Tk 界面动态警示可见性通过。全量 620 项通过、6 项跳过。Commit: 待提交

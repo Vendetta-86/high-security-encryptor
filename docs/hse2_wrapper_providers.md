@@ -133,4 +133,6 @@ For non-keyfile providers, use the general HSE2 rewrap commands.
 - Protect wrapper files with OS filesystem permissions.
 - Do not commit raw secrets, keyfiles, DPAPI blobs, or literal wrapper values.
 - DPAPI blobs are tied to the protecting Windows user or machine scope.
+- HSE2 `dpapi` wrappers specifically use the current-user scope and are not portable recovery factors; retain an independent password or keyfile wrapper. Windows notes that DPAPI data is usually decryptable only by the same user on the same computer, with roaming-profile exceptions.
+- `dpapi-protect --scope local_machine` uses Windows `CRYPTPROTECT_LOCAL_MACHINE`; any user on that computer can decrypt that blob. Use this scope only when that sharing is intended. See [Microsoft's CryptProtectData documentation](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata).
 - Keep old keyfiles until all rotated files have been validated and backed up.

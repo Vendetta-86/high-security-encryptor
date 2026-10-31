@@ -57,8 +57,25 @@ class WindowsDPAPITests(unittest.TestCase):
             self.assertEqual(summary["output"], str(blob))
             self.assertEqual(summary["input_size_bytes"], 32)
             self.assertEqual(summary["scope"], "current_user")
+            self.assertTrue(summary["recovery_warnings"])
             self.assertFalse(summary["overwritten"])
             self.assertNotIn("items", summary)
+
+    def test_dpapi_local_machine_scope_reports_shared_machine_risk_on_windows(self) -> None:
+        if not is_windows():
+            self.skipTest("Windows DPAPI is only available on Windows")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "material.bin"
+            blob = root / "material-machine.dpapi"
+            source.write_bytes(b"machine scope test")
+
+            summary = _run_cli_json([
+                "dpapi-protect", "--input", str(source), "--output", str(blob), "--scope", "local_machine",
+            ])
+            self.assertEqual(summary["scope"], "local_machine")
+            self.assertTrue(any("任何用户都可能解密" in warning for warning in summary["recovery_warnings"]))
+            self.assertEqual(unprotect_dpapi_file(blob), source.read_bytes())
 
     def test_dpapi_provider_resolves_blob_on_windows(self) -> None:
         if not is_windows():

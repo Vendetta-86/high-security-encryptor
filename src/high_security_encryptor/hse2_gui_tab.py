@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable
 
+from .dpapi_guidance import DPAPI_LOCAL_MACHINE_SCOPE_WARNING, DPAPI_WRAPPER_PORTABILITY_WARNING
 from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
 from .hse2_gui_actions import HSE2_GUI_ACTION_LABELS, build_hse2_gui_command
 
@@ -34,12 +35,12 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "inspect": frozenset({"input_path"}),
     "rotate-keyfile": frozenset({"config_path"}),
     "generate-keyfile": frozenset({"output_path", "size", "force", "paranoid_warning"}),
-    "dpapi-protect": frozenset({"input_path", "output_path", "scope", "force"}),
+    "dpapi-protect": frozenset({"input_path", "output_path", "scope", "force", "dpapi_warning"}),
     "wrapper-list": frozenset({"input_path"}),
     "wrapper-add": frozenset({
         "input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "new_password_file",
         "new_keyfile_path", "new_kdf_profile", "new_label", "allow_dpapi", "new_wrapper_dpapi", "force",
-        "paranoid_warning",
+        "paranoid_warning", "dpapi_warning",
     }),
     "wrapper-remove": frozenset(
         {"input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "allow_dpapi", "force", "paranoid_warning"}
@@ -48,6 +49,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
         "input_path", "output_path", "wrapper_id", "new_wrapper_id", "password_file", "keyfile_path",
         "new_password_file", "new_keyfile_path", "new_kdf_profile", "new_label", "allow_dpapi",
         "new_wrapper_dpapi", "force", "paranoid_warning",
+        "dpapi_warning",
     }),
     "access-destroy": frozenset(
         {"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force", "paranoid_warning"}
@@ -94,6 +96,15 @@ def should_show_paranoid_profile_warning(action: str, new_profile: str, new_pass
         and hse2_kdf_profile_key_from_display(new_profile) == "paranoid"
         and bool(new_password_file.strip())
     )
+
+
+def dpapi_warning_for_state(action: str, scope: str, new_wrapper_dpapi: bool) -> str | None:
+    normalized_action = hse2_gui_action_key_from_display(action)
+    if normalized_action == "dpapi-protect" and scope == "local_machine":
+        return DPAPI_LOCAL_MACHINE_SCOPE_WARNING
+    if normalized_action in {"wrapper-add", "wrapper-rewrap"} and new_wrapper_dpapi:
+        return DPAPI_WRAPPER_PORTABILITY_WARNING
+    return None
 
 
 @dataclass(frozen=True)
@@ -223,6 +234,8 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.action.trace_add("write", self._on_action_changed)
         self.new_kdf_profile.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.new_password_file.trace_add("write", lambda *_args: self._apply_action_visibility())
+        self.scope.trace_add("write", lambda *_args: self._apply_action_visibility())
+        self.new_wrapper_dpapi.trace_add("write", lambda *_args: self._apply_action_visibility())
         self._apply_action_visibility()
 
     def state(self) -> HSE2GuiTabState:
@@ -284,18 +297,29 @@ class HSE2ExperimentalTab(ttk.Frame):
             font=("TkDefaultFont", 9, "bold"),
         ).grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
-        _add_choice_row(self, 2, "操作", self.action_label, hse2_gui_action_display_values())
-        self._field_widgets["config_path"] = _add_path_row(self, 3, "配置文件", self.config_path, self._browse_config)
+        dpapi_warning = ttk.Label(
+            self,
+            text="",
+            wraplength=780,
+            justify=tk.LEFT,
+            foreground="#9b1c1c",
+            font=("TkDefaultFont", 9, "bold"),
+        )
+        self._field_widgets["dpapi_warning"] = (dpapi_warning,)
+        dpapi_warning.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+
+        _add_choice_row(self, 3, "操作", self.action_label, hse2_gui_action_display_values())
+        self._field_widgets["config_path"] = _add_path_row(self, 4, "配置文件", self.config_path, self._browse_config)
         self._field_widgets["input_path"] = _add_path_row(
             self,
-            4,
+            5,
             "输入文件 / .hse2 容器",
             self.input_path,
             self._browse_input,
         )
         self._field_widgets["output_path"] = _add_path_row(
             self,
-            5,
+            6,
             "输出文件",
             self.output_path,
             self._browse_output,
@@ -303,22 +327,22 @@ class HSE2ExperimentalTab(ttk.Frame):
         )
         self._field_widgets["validation_report_output"] = _add_path_row(
             self,
-            6,
+            7,
             "校验报告保存到",
             self.validation_report_output,
             self._browse_validation_report,
             save=True,
         )
-        self._field_widgets["size"] = _add_spin_row(self, 7, "keyfile 大小", self.size)
-        self._field_widgets["scope"] = _add_choice_row(self, 8, "DPAPI scope", self.scope, ("current_user", "local_machine"))
-        self._field_widgets["wrapper_id"] = _add_text_row(self, 9, "wrapper id", self.wrapper_id)
-        self._field_widgets["password_file"] = _add_path_row(self, 10, "密码文件", self.password_file, self._browse_password_file)
-        self._field_widgets["keyfile_path"] = _add_path_row(self, 11, "keyfile", self.keyfile_path, self._browse_keyfile)
-        self._field_widgets["new_wrapper_id"] = _add_text_row(self, 12, "新 wrapper id（留空则沿用原 ID）", self.new_wrapper_id)
-        self._field_widgets["new_password_file"] = _add_path_row(self, 13, "新密码文件", self.new_password_file, self._browse_new_password_file)
-        self._field_widgets["new_keyfile_path"] = _add_path_row(self, 14, "新 keyfile", self.new_keyfile_path, self._browse_new_keyfile)
-        self._field_widgets["new_kdf_profile"] = _add_choice_row(self, 15, "新密码安全等级", self.new_kdf_profile, hse2_kdf_profile_display_values())
-        self._field_widgets["new_label"] = _add_text_row(self, 16, "新 wrapper 标签", self.new_label)
+        self._field_widgets["size"] = _add_spin_row(self, 8, "keyfile 大小", self.size)
+        self._field_widgets["scope"] = _add_choice_row(self, 9, "DPAPI scope", self.scope, ("current_user", "local_machine"))
+        self._field_widgets["wrapper_id"] = _add_text_row(self, 10, "wrapper id", self.wrapper_id)
+        self._field_widgets["password_file"] = _add_path_row(self, 11, "密码文件", self.password_file, self._browse_password_file)
+        self._field_widgets["keyfile_path"] = _add_path_row(self, 12, "keyfile", self.keyfile_path, self._browse_keyfile)
+        self._field_widgets["new_wrapper_id"] = _add_text_row(self, 13, "新 wrapper id（留空则沿用原 ID）", self.new_wrapper_id)
+        self._field_widgets["new_password_file"] = _add_path_row(self, 14, "新密码文件", self.new_password_file, self._browse_new_password_file)
+        self._field_widgets["new_keyfile_path"] = _add_path_row(self, 15, "新 keyfile", self.new_keyfile_path, self._browse_new_keyfile)
+        self._field_widgets["new_kdf_profile"] = _add_choice_row(self, 16, "新密码安全等级", self.new_kdf_profile, hse2_kdf_profile_display_values())
+        self._field_widgets["new_label"] = _add_text_row(self, 17, "新 wrapper 标签", self.new_label)
         warning = ttk.Label(
             self,
             text="keyfile 丢失后无法解锁依赖它的容器。请保留独立离线备份，并确认能读取备份；不要把 keyfile 与 .hse2 容器放在同一目录。极高安全会明显增加密码 wrapper 创建、重新包装和解锁所需时间及内存；资源有限时请选择推荐档。",
@@ -326,10 +350,10 @@ class HSE2ExperimentalTab(ttk.Frame):
             justify=tk.LEFT,
         )
         self._field_widgets["paranoid_warning"] = (warning,)
-        warning.grid(row=17, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        warning.grid(row=18, column=0, columnspan=3, sticky="ew", pady=(4, 0))
         self._field_widgets["access_confirmation_phrase"] = _add_text_row(
             self,
-            18,
+            19,
             "永久禁用访问确认短语",
             self.access_confirmation_phrase,
         )
@@ -340,11 +364,11 @@ class HSE2ExperimentalTab(ttk.Frame):
             wraplength=780,
             justify=tk.LEFT,
         )
-        danger_label.grid(row=19, column=0, columnspan=3, sticky="ew", pady=(6, 0))
+        danger_label.grid(row=20, column=0, columnspan=3, sticky="ew", pady=(6, 0))
         self._field_widgets["danger_text"] = (danger_label,)
 
         self._options_frame = ttk.Frame(self)
-        self._options_frame.grid(row=20, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        self._options_frame.grid(row=21, column=0, columnspan=3, sticky="w", pady=(8, 0))
         self._option_widgets = {
             "force": ttk.Checkbutton(self._options_frame, text="允许覆盖输出文件", variable=self.force),
             "validation_summary_only": ttk.Checkbutton(
@@ -366,7 +390,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         }
 
         ttk.Button(self, text="运行 HSE2 实验操作", command=self.run_selected_action).grid(
-            row=21,
+            row=22,
             column=0,
             sticky="w",
             pady=(14, 0),
@@ -413,6 +437,14 @@ class HSE2ExperimentalTab(ttk.Frame):
                 for widget in self._field_widgets["paranoid_warning"]:
                     widget.grid_remove()
 
+        dpapi_warning = dpapi_warning_for_state(action, self.scope.get(), bool(self.new_wrapper_dpapi.get()))
+        for widget in self._field_widgets["dpapi_warning"]:
+            if "dpapi_warning" in visible_fields and dpapi_warning:
+                widget.configure(text=dpapi_warning)
+                widget.grid()
+            else:
+                widget.grid_remove()
+
         if self._options_frame is None:
             return
         any_visible_option = False
@@ -435,14 +467,26 @@ class HSE2ExperimentalTab(ttk.Frame):
                 "该操作会写出一个移除指定 wrapper 的新 HSE2 容器。请确认仍保留可用访问方式；若保留的方式依赖 keyfile，请确认已有独立离线备份且可读取。是否继续？",
             )
         if action == "wrapper-rewrap":
+            portability_warning = (
+                f"\n\n{DPAPI_WRAPPER_PORTABILITY_WARNING}"
+                if self.new_wrapper_dpapi.get()
+                else ""
+            )
             return messagebox.askyesno(
                 "确认更换 wrapper",
-                "该操作会用新访问因子替换指定 wrapper，并写出新的 HSE2 容器。请确认新密码/keyfile/DPAPI 可用、已保留旧容器；keyfile 请另存可读取的离线备份，丢失可能导致容器无法恢复。是否继续？",
+                "该操作会用新访问因子替换指定 wrapper，并写出新的 HSE2 容器。请确认新密码/keyfile/DPAPI 可用、已保留旧容器；keyfile 请另存可读取的离线备份，丢失可能导致容器无法恢复。"
+                f"{portability_warning}\n\n是否继续？",
             )
         if action == "wrapper-add":
+            portability_warning = (
+                f"\n\n{DPAPI_WRAPPER_PORTABILITY_WARNING}"
+                if self.new_wrapper_dpapi.get()
+                else ""
+            )
             return messagebox.askyesno(
                 "确认添加 wrapper",
-                "该操作会使用现有解锁因子验证容器，并写出包含新 wrapper 的 HSE2 副本。请确认新访问因子已安全保存；若使用 keyfile，请保留独立、可读取的离线备份。是否继续？",
+                "该操作会使用现有解锁因子验证容器，并写出包含新 wrapper 的 HSE2 副本。请确认新访问因子已安全保存；若使用 keyfile，请保留独立、可读取的离线备份。"
+                f"{portability_warning}\n\n是否继续？",
             )
         if action == "access-destroy":
             return messagebox.askyesno(

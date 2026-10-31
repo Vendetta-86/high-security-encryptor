@@ -8,6 +8,7 @@ from high_security_encryptor.hse2_gui_tab import (
     HEADER_BACKUP_RECOVERY_WARNING,
     HSE2GuiTabState,
     build_hse2_command_from_tab_state,
+    dpapi_warning_for_state,
     hse2_gui_action_display_label,
     hse2_gui_action_display_values,
     hse2_gui_action_key_from_display,
@@ -22,6 +23,17 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_header_backup_warning_says_it_cannot_replace_unlock_factors(self) -> None:
         self.assertIn("不能恢复或替代", HEADER_BACKUP_RECOVERY_WARNING)
         self.assertIn("密码、keyfile 或 DPAPI", HEADER_BACKUP_RECOVERY_WARNING)
+
+    def test_dpapi_warnings_cover_machine_scope_and_wrapper_portability(self) -> None:
+        machine_warning = dpapi_warning_for_state("dpapi-protect", "local_machine", False)
+        self.assertIsNotNone(machine_warning)
+        self.assertIn("任何用户都可能解密", machine_warning)
+        self.assertIsNone(dpapi_warning_for_state("dpapi-protect", "current_user", False))
+
+        wrapper_warning = dpapi_warning_for_state("wrapper-add", "current_user", True)
+        self.assertIsNotNone(wrapper_warning)
+        self.assertIn("Keep an independent password or keyfile wrapper", wrapper_warning)
+        self.assertIsNone(dpapi_warning_for_state("wrapper-add", "current_user", False))
 
     def test_build_encrypt_command_from_tab_state(self) -> None:
         argv = build_hse2_command_from_tab_state(HSE2GuiTabState(action="encrypt-config", config_path="encrypt.json"))
@@ -137,7 +149,7 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_visible_fields_for_dpapi_protect(self) -> None:
         self.assertEqual(
             visible_hse2_gui_field_keys("dpapi-protect"),
-            frozenset({"input_path", "output_path", "scope", "force"}),
+            frozenset({"input_path", "output_path", "scope", "force", "dpapi_warning"}),
         )
 
     def test_visible_fields_for_wrapper_remove(self) -> None:
@@ -169,7 +181,7 @@ class HSE2GuiTabTests(unittest.TestCase):
             frozenset({
                 "input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "new_password_file",
                 "new_keyfile_path", "new_kdf_profile", "new_label", "allow_dpapi", "new_wrapper_dpapi", "force",
-                "paranoid_warning",
+                "paranoid_warning", "dpapi_warning",
             }),
         )
         argv = build_hse2_command_from_tab_state(
@@ -208,6 +220,7 @@ class HSE2GuiTabTests(unittest.TestCase):
                 "input_path", "output_path", "wrapper_id", "new_wrapper_id", "password_file", "keyfile_path",
                 "new_password_file", "new_keyfile_path", "new_kdf_profile", "new_label", "allow_dpapi",
                 "new_wrapper_dpapi", "force", "paranoid_warning",
+                "dpapi_warning",
             }),
         )
 

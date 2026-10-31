@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .dpapi_guidance import DPAPI_WRAPPER_PORTABILITY_WARNING
 from .hse2 import HSE2ModelError, build_archive_assembly_plan, build_archive_entries_from_roots
 from .hse2.keyfile_safety import keyfile_colocation_warning
 from .hse2.workflows import (
@@ -115,12 +116,16 @@ def main(argv: list[str] | None = None) -> int:
                 "--output",
                 str(backup_path),
             ]
+            if args.dpapi:
+                summary["dpapi_recovery_warning"] = DPAPI_WRAPPER_PORTABILITY_WARNING
             print(
                 "hse2-create: header backup recommended; export it now with: "
                 f'high-security-encryptor-hse2-header-backup export --input "{output_path}" '
-                f'--output "{backup_path}". It restores header metadata only and cannot replace the password or keyfile.',
+                f'--output "{backup_path}". It restores header metadata only and cannot recover or replace any unlock factor.',
                 file=sys.stderr,
             )
+            if args.dpapi:
+                print(f"hse2-create: DPAPI recovery warning: {DPAPI_WRAPPER_PORTABILITY_WARNING}", file=sys.stderr)
     except (HSE2ModelError, OSError, ValueError) as exc:
         print(f"hse2-create: {exc}", file=sys.stderr)
         return 2

@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .dpapi_guidance import DPAPI_LOCAL_MACHINE_SCOPE_WARNING, DPAPI_WRAPPER_PORTABILITY_WARNING
 from .batch_bundle_workflow import encrypt_batch_bundle
 from .batch_decryption import decrypt_batch_files
 from .batch_workflow import encrypt_batch_files
@@ -280,7 +281,14 @@ def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:
         scope=args.scope,
         force=bool(args.force),
     )
-    return result.as_dict()
+    summary = result.as_dict()
+    warnings = [DPAPI_WRAPPER_PORTABILITY_WARNING]
+    if args.scope == "local_machine":
+        warnings.append(DPAPI_LOCAL_MACHINE_SCOPE_WARNING)
+    summary["recovery_warnings"] = warnings
+    for warning in warnings:
+        print(f"dpapi-protect: warning: {warning}", file=sys.stderr)
+    return summary
 
 
 def _handle_hse2_rotate_keyfile(args: argparse.Namespace) -> dict[str, Any]:

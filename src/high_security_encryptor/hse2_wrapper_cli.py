@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .dpapi_guidance import DPAPI_WRAPPER_PORTABILITY_WARNING
 from .hse2 import HSE2ModelError
 from .hse2.access_management import add_hse2_wrapper, list_hse2_wrappers, remove_hse2_wrapper, rewrap_hse2_wrapper
 from .hse2.keyfile_safety import keyfile_colocation_warning
@@ -40,7 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument("--wrapper-id", required=True)
     add_parser.add_argument("--new-password-file")
     add_parser.add_argument("--new-keyfile")
-    add_parser.add_argument("--new-dpapi", action="store_true")
+    add_parser.add_argument("--new-dpapi", action="store_true", help="Use a Windows user-bound DPAPI wrapper; keep an independent recovery wrapper.")
     add_parser.add_argument("--new-profile", default="hardened", choices=["compatible", "hardened", "paranoid"])
     add_parser.add_argument("--new-label")
     add_parser.add_argument("--password-file")
@@ -56,7 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
     rewrap_parser.add_argument("--new-wrapper-id", help="Replacement wrapper id. Defaults to --wrapper-id.")
     rewrap_parser.add_argument("--new-password-file")
     rewrap_parser.add_argument("--new-keyfile")
-    rewrap_parser.add_argument("--new-dpapi", action="store_true")
+    rewrap_parser.add_argument("--new-dpapi", action="store_true", help="Use a Windows user-bound DPAPI wrapper; keep an independent recovery wrapper.")
     rewrap_parser.add_argument("--new-profile", default="hardened", choices=["compatible", "hardened", "paranoid"])
     rewrap_parser.add_argument("--new-label")
     rewrap_parser.add_argument("--password-file", help="Existing password used to authenticate the source.")
@@ -87,6 +88,9 @@ def main(argv: list[str] | None = None) -> int:
     except (HSE2ModelError, OSError, ValueError) as exc:
         print(f"hse2-wrapper: {exc}", file=sys.stderr)
         return 2
+    if args.command in {"add", "rewrap"} and args.new_dpapi:
+        summary["dpapi_recovery_warning"] = DPAPI_WRAPPER_PORTABILITY_WARNING
+        print(f"hse2-wrapper: DPAPI recovery warning: {DPAPI_WRAPPER_PORTABILITY_WARNING}", file=sys.stderr)
     print(_format_json(summary, compact=bool(args.compact)))
     return 0
 
