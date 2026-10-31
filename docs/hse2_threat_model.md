@@ -24,6 +24,10 @@ HSE2 aims to defend against:
 - local online guessing through existing CLI failure handling and explicit unlock material requirements;
 - mistaken quickstart use by generating a minimal workspace with local files and copyable commands.
 
+## AES-GCM Payload Use
+
+The current archive creation workflows generate a fresh DEK for each container and use independent random 96-bit IVs for payload chunks. HSE2 limits a container to at most 2^32 payload chunks in both v2 and v3, following the per-key invocation limit for RBG-based IVs in NIST SP 800-38D section 8.3. Do not reuse a payload DEK across independently created containers; the format's per-container chunk count cannot account for invocations made in another container or by external code. Manifest and key-wrapping operations use their separately scoped keys.
+
 ## Out of Scope
 
 HSE2 does not currently defend against:
