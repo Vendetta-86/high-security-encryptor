@@ -4,29 +4,36 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to build and upload.
+        description: Optional release tag label for the zip; when publishing, it must match the selected tag ref.
+        required: false
+        type: string
+        default: ""
+      publish_release:
+        description: Create or update a public GitHub Release after a successful build.
         required: true
-        default: v0.6.0-alpha.8
+        type: boolean
+        default: false
   push:
     tags:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     name: Build Windows executable
     runs-on: windows-latest
+    outputs:
+      asset_name: ${{ steps.package.outputs.asset_name }}
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Check out release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_TAG }}
+          ref: ${{ github.ref }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -158,8 +165,12 @@ jobs:
           dist\hse-windows-x64\high-security-encryptor-hse2-access.exe --help
 
       - name: Package executable
+        id: package
         shell: pwsh
         run: |
+          if ($env:RELEASE_TAG -notmatch '^[0-9A-Za-z][0-9A-Za-z._-]*$') {
+            throw "Invalid release tag or asset label: $env:RELEASE_TAG"
+          }
           $assetName = "high-security-encryptor-$env:RELEASE_TAG-windows-x64.zip"
           $staging = "dist\release\high-security-encryptor"
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
@@ -184,6 +195,7 @@ jobs:
           Compress-Archive -Path "$staging\*" -DestinationPath "dist\$assetName" -Force
           "ASSET_NAME=$assetName" >> $env:GITHUB_ENV
           "ASSET_PATH=dist\$assetName" >> $env:GITHUB_ENV
+          "asset_name=$assetName" >> $env:GITHUB_OUTPUT
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -191,11 +203,36 @@ jobs:
           name: ${{ env.ASSET_NAME }}
           path: ${{ env.ASSET_PATH }}
 
-      - name: Upload release asset
-        shell: pwsh
+
+  publish:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
+    name: Publish approved Windows release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+      ASSET_NAME: ${{ needs.build.outputs.asset_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Require the selected ref to match the release tag
+        shell: bash
         run: |
-          gh release view "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create "$env:RELEASE_TAG" --repo "$env:GITHUB_REPOSITORY" --title "$env:RELEASE_TAG" --notes "Windows executable build for $env:RELEASE_TAG."
-          }
-          gh release upload "$env:RELEASE_TAG" "$env:ASSET_PATH" --repo "$env:GITHUB_REPOSITORY" --clobber
+          if [[ "$GITHUB_REF_TYPE" != "tag" || "$RELEASE_TAG" != "$GITHUB_REF_NAME" ]]; then
+            echo "Publishing requires workflow_dispatch on the exact release tag ref." >&2
+            exit 1
+          fi
+
+      - name: Download verified build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.asset_name }}
+          path: dist
+
+      - name: Upload release asset
+        shell: bash
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes "Windows executable build for $RELEASE_TAG."
+          gh release upload "$RELEASE_TAG" "dist/$ASSET_NAME" --repo "$GITHUB_REPOSITORY" --clobber

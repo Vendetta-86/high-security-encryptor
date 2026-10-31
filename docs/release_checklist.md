@@ -186,8 +186,8 @@ The CI gate includes:
 
 For releases that include a Windows executable:
 
-- Confirm the `Windows EXE` workflow passes for the release tag.
-- Confirm the workflow uploads `high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`.
+- Confirm a build-only `Windows EXE` workflow run for the release tag succeeds and its workflow artifact contains `high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`.
+- Publish only after maintainer approval by dispatching `Windows EXE` from the exact release tag with `publish_release=true`; confirm the Release asset upload succeeds.
 - Download and extract the zip.
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.

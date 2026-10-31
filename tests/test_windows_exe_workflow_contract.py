@@ -22,6 +22,19 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
         self.assertGreaterEqual(documentation.count(HELPER_NAME), 4)
         self.assertIn(f"{HELPER_NAME} =", pyproject)
 
+    def test_release_upload_requires_explicit_dispatch_on_matching_tag(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "windows-exe.yml").read_text(encoding="utf-8")
+        build_job, publish_job = workflow.split("\n  publish:\n", maxsplit=1)
+
+        self.assertIn("contents: read", workflow)
+        self.assertIn("type: boolean\n        default: false", workflow)
+        self.assertIn("^[0-9A-Za-z][0-9A-Za-z._-]*$", build_job)
+        self.assertNotIn("gh release", build_job)
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.publish_release", publish_job)
+        self.assertIn("contents: write", publish_job)
+        self.assertIn('"$GITHUB_REF_TYPE" != "tag" || "$RELEASE_TAG" != "$GITHUB_REF_NAME"', publish_job)
+        self.assertIn("actions/download-artifact@v4", publish_job)
+
 
 if __name__ == "__main__":
     unittest.main()

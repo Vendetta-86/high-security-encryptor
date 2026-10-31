@@ -35,6 +35,8 @@ high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip
 
 The Python package version for this release line is `0.6.0a8`.
 
+The `Windows EXE` workflow is safe to run as a build-only check: `publish_release` defaults to `false`, and push-to-tag runs only upload a workflow artifact. To publish, dispatch the workflow from the exact release tag and set `publish_release` to `true`; the publish job verifies the selected ref and tag match, downloads the successfully built artifact, and then creates or updates the GitHub Release. A manual dispatch from a branch cannot publish.
+
 The zip should contain:
 
 - `high-security-encryptor.exe`
@@ -54,7 +56,8 @@ The zip should contain:
 
 Before publishing or announcing the Windows zip:
 
-- confirm the workflow ran against the intended tag;
+- confirm the build-only workflow artifact was produced from the intended tag and contains the expected zip;
+- for publication, dispatch the workflow from that exact tag with `publish_release=true`; verify the Release asset after the publish job completes;
 - confirm all executables listed above are present;
 - run `high-security-encryptor.exe --help`;
 - run `high-security-encryptor-gui.exe --smoke-test`;
