@@ -323,7 +323,7 @@
 - [x] DPAPI 本机绑定选项
 - [x] header backup 导出提示和 GUI 导出入口（创建后提醒；备份与容器分开保存）
 - [x] 新建归档默认执行创建后认证校验，可在 GUI 关闭；失败会明确报告且不写出明文
-- [~] 打开前完整认证校验已支持且默认关闭；单独元数据 inspect 的前置串联仍待接入
+- [~] GUI 可单独完整校验现有归档，打开前可选完整校验；元数据 inspect 的预览/确认串联仍待接入
 - [x] wrapper 管理界面
 - [x] destroy-access 独立危险操作界面
 - [x] wrapper/access JSON 结果可读摘要
@@ -466,4 +466,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 GUI 归档打开向导：新增 `archive-open` action 及 GUI helper 调度，可选择容器、恢复目录、password-file/keyfile/DPAPI 与覆盖；DPAPI 使用时出现可移植性提示。集成测试通过 GUI dispatcher 创建并恢复 v3 归档，逐字节比对解密输出；Tk 控件与 DPAPI 条件警告检查通过。定向 77 项通过，全量 641 项通过（6 项跳过），compileall 与 `git diff --check` 通过。另在 Windows 主 GUI 中点击“打开 HSE2 实验工具”，确认 HSE2 窗口显示。Commit: `1949411`
 - 2026-10-31：Phase 11 创建后归档认证校验：新增 v2/v3 `validate_hse2_archive`，验证 header HMAC、manifest AEAD、完整 payload AEAD 与布局，不写出明文；v3 按 chunk 流式验证。GUI 创建向导默认勾选，可关闭；CLI 失败会返回独立非零状态并明确说明归档已写出。验证涵盖 v2/v3 padding、空文件、错误 key 与损坏末块 tag；GUI dispatcher 检查报告成功及 `plaintext_written=false`。定向 90 项通过；全量 643 项通过（6 项跳过），Tk 默认选项检查、compileall 与 `git diff --check` 通过。Commit: `f7661a3`
 - 2026-10-31：Phase 11 打开前认证校验：`hse2-open --validate-before-open` 和 GUI 可选项会先认证 header、manifest 和全部 payload tags，再执行恢复；失败时输出目录不会创建，GUI 默认关闭以避免重复读大文件。损坏 tag/无输出目录回归、GUI dispatcher v3 create/validate/open、定向 74 项及全量 643 项（6 项跳过）通过；Tk 选项显隐、compileall 与 `git diff --check` 通过。Commit: `dc073bb`
+- 2026-10-31：Phase 11 单独归档校验入口：新增 unified `hse2 validate-archive`、focused `high-security-encryptor-hse2-archive-validate` 和 GUI action，报告 header/manifest/payload 全部认证且未写明文。v3 unified CLI 与 GUI dispatcher 集成通过；定向 84 项、全量 648 项通过（6 项跳过），Tk 输入控件检查、compileall 与 `git diff --check` 通过。Commit: `69953c0`
 

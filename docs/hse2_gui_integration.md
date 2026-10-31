@@ -17,6 +17,7 @@ Supported actions:
 - `inspect` -> `hse2-inspect --input ...`
 - `archive-create` -> `hse2-create --root ... --output ... --format-version ... --chunk-size ...`, with password-file/keyfile/DPAPI access, localized password profile, optional final-chunk padding, and overwrite control
 - `archive-open` -> `hse2-open --input ... --output-dir ...`, with password-file/keyfile/DPAPI unlock and overwrite control
+- `archive-validate` -> `hse2-archive-validate --input ...`, with password-file/keyfile/DPAPI unlock and no plaintext output
 - `header-backup-export` -> `hse2-header-backup export --input ... --output ... [--overwrite]`
 - `rotate-keyfile` -> `hse2-rotate-keyfile --config ...`
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
@@ -63,6 +64,7 @@ consumes. For example:
   overwrite and post-create validation controls;
 - `archive-open` shows a source container, restore folder, password file,
   keyfile, DPAPI unlock allowance, overwrite, and optional pre-open validation controls;
+- `archive-validate` shows a source container, password file, keyfile, and DPAPI allowance;
 - `header-backup-export` shows the source container, backup output path, and overwrite option;
 - `generate-keyfile` shows output path, size, and overwrite;
 - `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;

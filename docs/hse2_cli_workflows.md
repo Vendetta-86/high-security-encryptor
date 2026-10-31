@@ -38,6 +38,16 @@ high-security-encryptor-hse2-open \
 
 Add `--validate-before-open` to authenticate the complete archive before restoring files. If authentication fails, the CLI returns an error before creating the output directory. This reads the archive twice and is optional; the normal open path still authenticates each chunk as it restores it.
 
+Validate an existing v2/v3 archive without restoring it:
+
+```bash
+high-security-encryptor hse2 validate-archive \
+  --input <ARCHIVE_PATH> \
+  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
+```
+
+The equivalent focused entry point is `high-security-encryptor-hse2-archive-validate`. It authenticates the header, encrypted manifest, and every payload tag, and reports that no plaintext was written.
+
 For passphrase-file backed workflows, pass a UTF-8 file containing the passphrase. One trailing newline is stripped by the CLI:
 
 ```bash
