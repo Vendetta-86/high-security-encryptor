@@ -6,6 +6,16 @@ The path values below are placeholders. Replace angle-bracketed values with loca
 
 ## Create and Open
 
+Inspect an HSE2 keyfile before using it:
+
+```bash
+high-security-encryptor hse2 keyfile inspect --input <KEYFILE_PATH>
+```
+
+The JSON result includes the byte length, the 32-byte minimum, HSE2 suitability, and a SHA-256 fingerprint. The command streams the file in bounded blocks and never prints keyfile contents. The fingerprint can identify the same keyfile across records, so treat it as metadata.
+
+Create, open, and wrapper-management commands warn on stderr if a keyfile and an input/output `.hse2` archive share a directory. Keep the keyfile in a separate secure location so copying the archive directory does not copy both factors.
+
 Create a portable keyfile-backed archive:
 
 ```bash

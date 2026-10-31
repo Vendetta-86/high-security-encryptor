@@ -9,7 +9,13 @@ from pathlib import Path
 from typing import Any
 
 from .hse2 import HSE2ModelError, build_archive_assembly_plan, build_archive_entries_from_roots
-from .hse2.workflows import create_hse2_archive, read_keyfile_bytes, read_secret_text_file
+from .hse2.keyfile_safety import keyfile_colocation_warning
+from .hse2.workflows import (
+    create_hse2_archive,
+    read_keyfile_bytes,
+    read_secret_text_file,
+    validate_hse2_wrapper_policy,
+)
 
 DEFAULT_CREATE_CHUNK_SIZE = 1024 * 1024
 HSE2_CONTAINER_SUFFIX = ".hse2"
@@ -77,6 +83,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         output_path = Path(args.output)
         _validate_output_path(output_path)
+        warning = keyfile_colocation_warning((args.keyfile,), (output_path,))
+        if warning:
+            print(f"hse2-create: warning: {warning}", file=sys.stderr)
         roots = tuple(Path(root) for root in args.root)
         if args.dry_run:
             summary = _build_dry_run_summary(args=args, roots=roots, output_path=output_path)
@@ -103,6 +112,12 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _build_dry_run_summary(*, args: argparse.Namespace, roots: tuple[Path, ...], output_path: Path) -> dict[str, Any]:
+    validate_hse2_wrapper_policy(
+        profile_name=args.profile,
+        has_password=bool(args.password_file),
+        has_keyfile=bool(args.keyfile),
+        use_dpapi=bool(args.dpapi),
+    )
     entries = build_archive_entries_from_roots(roots)
     summary = build_archive_assembly_plan(entries, chunk_size=int(args.chunk_size))
     summary["command"] = "hse2-create"

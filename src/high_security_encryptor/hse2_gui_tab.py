@@ -33,7 +33,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     ),
     "inspect": frozenset({"input_path"}),
     "rotate-keyfile": frozenset({"config_path"}),
-    "generate-keyfile": frozenset({"output_path", "size", "force"}),
+    "generate-keyfile": frozenset({"output_path", "size", "force", "paranoid_warning"}),
     "dpapi-protect": frozenset({"input_path", "output_path", "scope", "force"}),
     "wrapper-list": frozenset({"input_path"}),
     "wrapper-add": frozenset({
@@ -42,7 +42,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
         "paranoid_warning",
     }),
     "wrapper-remove": frozenset(
-        {"input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "allow_dpapi", "force"}
+        {"input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "allow_dpapi", "force", "paranoid_warning"}
     ),
     "wrapper-rewrap": frozenset({
         "input_path", "output_path", "wrapper_id", "new_wrapper_id", "password_file", "keyfile_path",
@@ -50,7 +50,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
         "new_wrapper_dpapi", "force", "paranoid_warning",
     }),
     "access-destroy": frozenset(
-        {"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force"}
+        {"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force", "paranoid_warning"}
     ),
 }
 
@@ -305,7 +305,12 @@ class HSE2ExperimentalTab(ttk.Frame):
         self._field_widgets["new_keyfile_path"] = _add_path_row(self, 13, "新 keyfile", self.new_keyfile_path, self._browse_new_keyfile)
         self._field_widgets["new_kdf_profile"] = _add_choice_row(self, 14, "新密码安全等级", self.new_kdf_profile, hse2_kdf_profile_display_values())
         self._field_widgets["new_label"] = _add_text_row(self, 15, "新 wrapper 标签", self.new_label)
-        warning = ttk.Label(self, text="极高安全会明显增加密码 wrapper 创建、重新包装和解锁所需时间及内存；资源有限时请选择推荐档。", wraplength=780, justify=tk.LEFT)
+        warning = ttk.Label(
+            self,
+            text="keyfile 丢失后无法解锁依赖它的容器。请保留独立离线备份，并确认能读取备份；不要把 keyfile 与 .hse2 容器放在同一目录。极高安全会明显增加密码 wrapper 创建、重新包装和解锁所需时间及内存；资源有限时请选择推荐档。",
+            wraplength=780,
+            justify=tk.LEFT,
+        )
         self._field_widgets["paranoid_warning"] = (warning,)
         warning.grid(row=16, column=0, columnspan=3, sticky="ew", pady=(4, 0))
         self._field_widgets["access_confirmation_phrase"] = _add_text_row(
@@ -382,7 +387,12 @@ class HSE2ExperimentalTab(ttk.Frame):
                     widget.grid_remove()
 
         if "paranoid_warning" in visible_fields:
-            if should_show_paranoid_profile_warning(action, self.new_kdf_profile.get(), self.new_password_file.get()):
+            always_show_keyfile_risk = action in {
+                "generate-keyfile", "wrapper-add", "wrapper-remove", "wrapper-rewrap", "access-destroy"
+            }
+            if always_show_keyfile_risk or should_show_paranoid_profile_warning(
+                action, self.new_kdf_profile.get(), self.new_password_file.get()
+            ):
                 for widget in self._field_widgets["paranoid_warning"]:
                     widget.grid()
             else:
@@ -408,17 +418,17 @@ class HSE2ExperimentalTab(ttk.Frame):
         if action == "wrapper-remove":
             return messagebox.askyesno(
                 "确认移除 wrapper",
-                "该操作会写出一个移除指定 wrapper 的新 HSE2 容器。请确认已保留可用访问方式。是否继续？",
+                "该操作会写出一个移除指定 wrapper 的新 HSE2 容器。请确认仍保留可用访问方式；若保留的方式依赖 keyfile，请确认已有独立离线备份且可读取。是否继续？",
             )
         if action == "wrapper-rewrap":
             return messagebox.askyesno(
                 "确认更换 wrapper",
-                "该操作会用新访问因子替换指定 wrapper，并写出新的 HSE2 容器。请确认新密码/keyfile/DPAPI 可用且已保留旧容器。是否继续？",
+                "该操作会用新访问因子替换指定 wrapper，并写出新的 HSE2 容器。请确认新密码/keyfile/DPAPI 可用、已保留旧容器；keyfile 请另存可读取的离线备份，丢失可能导致容器无法恢复。是否继续？",
             )
         if action == "wrapper-add":
             return messagebox.askyesno(
                 "确认添加 wrapper",
-                "该操作会使用现有解锁因子验证容器，并写出包含新 wrapper 的 HSE2 副本。请确认新访问因子已安全保存。是否继续？",
+                "该操作会使用现有解锁因子验证容器，并写出包含新 wrapper 的 HSE2 副本。请确认新访问因子已安全保存；若使用 keyfile，请保留独立、可读取的离线备份。是否继续？",
             )
         if action == "access-destroy":
             return messagebox.askyesno(

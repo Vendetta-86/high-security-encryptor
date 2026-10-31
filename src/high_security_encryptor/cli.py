@@ -48,6 +48,7 @@ from .hse2_validation_config import HSE2ValidationConfig
 from .hse2_validation_report import build_hse2_validation_report
 from .integrity import IntegrityValidationError
 from .keyfile_generation import generate_keyfile
+from .hse2.keyfile_inspect import inspect_hse2_keyfile
 from .password_sources import PasswordSourceError, SecretSpec, create_default_password_resolver
 from .runtime_password_plan import RuntimePasswordPlan
 from .streaming_format import IntegrityError
@@ -90,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_validate_handler=_handle_hse2_validate,
         hse2_inspect_handler=_handle_hse2_inspect,
         generate_keyfile_handler=_handle_generate_keyfile,
+        hse2_keyfile_inspect_handler=_handle_hse2_keyfile_inspect,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
         dpapi_protect_handler=_handle_dpapi_protect,
     )
@@ -265,6 +267,10 @@ def _handle_decrypt_batch(args: argparse.Namespace) -> dict[str, Any]:
 def _handle_generate_keyfile(args: argparse.Namespace) -> dict[str, Any]:
     result = generate_keyfile(args.output, size_bytes=int(args.size), force=bool(args.force))
     return result.as_dict()
+
+
+def _handle_hse2_keyfile_inspect(args: argparse.Namespace) -> dict[str, Any]:
+    return inspect_hse2_keyfile(args.input).to_dict()
 
 
 def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:

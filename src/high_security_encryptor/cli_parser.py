@@ -36,6 +36,7 @@ def build_cli_parser(
     hse2_inspect_handler: Handler | None = None,
     hse2_plan_archive_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
+    hse2_keyfile_inspect_handler: Handler | None = None,
     hse2_rotate_keyfile_handler: Handler | None = None,
     dpapi_protect_handler: Handler | None = None,
 ) -> argparse.ArgumentParser:
@@ -64,6 +65,15 @@ def build_cli_parser(
         keyfile_parser.add_argument("--size", type=int, default=DEFAULT_GENERATED_KEYFILE_BYTES, help=f"Keyfile size in bytes. Defaults to {DEFAULT_GENERATED_KEYFILE_BYTES}.")
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
+
+    if hse2_keyfile_inspect_handler is not None:
+        hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
+        hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
+        keyfile_parser = hse2_subparsers.add_parser("keyfile", help="Inspect HSE2 keyfile material.")
+        keyfile_subparsers = keyfile_parser.add_subparsers(dest="keyfile_command", required=True)
+        inspect_parser = keyfile_subparsers.add_parser("inspect", help="Check keyfile size and print its SHA-256 fingerprint.")
+        inspect_parser.add_argument("--input", required=True, help="Path to the keyfile to inspect.")
+        inspect_parser.set_defaults(handler=hse2_keyfile_inspect_handler)
 
     if dpapi_protect_handler is not None:
         dpapi_parser = subparsers.add_parser("dpapi-protect", help="WINDOWS ONLY: Protect a local binary file with Windows DPAPI.")

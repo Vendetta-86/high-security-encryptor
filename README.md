@@ -86,6 +86,8 @@ The archive-create CLI defaults to the compatible v2 container format. Opt into 
 Create and open a keyfile-backed archive:
 
 ```bash
+high-security-encryptor hse2 keyfile inspect --input <KEYFILE_PATH>
+
 high-security-encryptor-hse2-create \
   --root <ROOT_PATH> \
   --output <ARCHIVE_PATH> \
@@ -97,6 +99,8 @@ high-security-encryptor-hse2-open \
   --output-dir <RESTORE_DIR> \
   --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
+
+The inspect command reports the keyfile byte length, whether it meets HSE2's 32-byte minimum, and a SHA-256 fingerprint. It reads in bounded blocks and never prints keyfile contents. Treat the fingerprint as identifying metadata, not as a secret or a backup. Create/open/wrapper CLI commands warn on stderr when a keyfile and `.hse2` archive share a directory.
 
 Create and open a current-user Windows DPAPI-backed archive:
 

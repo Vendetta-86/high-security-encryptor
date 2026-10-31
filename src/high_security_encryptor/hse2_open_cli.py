@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .hse2 import HSE2ModelError
+from .hse2.keyfile_safety import keyfile_colocation_warning
 from .hse2.workflows import open_hse2_archive, read_keyfile_bytes, read_secret_text_file
 
 HSE2_CONTAINER_SUFFIX = ".hse2"
@@ -49,6 +50,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         input_path = Path(args.input)
         _validate_input_path(input_path)
+        warning = keyfile_colocation_warning((args.keyfile,), (input_path,))
+        if warning:
+            print(f"hse2-open: warning: {warning}", file=sys.stderr)
         password = read_secret_text_file(args.password_file) if args.password_file else None
         keyfile_bytes = read_keyfile_bytes(args.keyfile) if args.keyfile else None
         result = open_hse2_archive(

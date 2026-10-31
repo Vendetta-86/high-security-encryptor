@@ -124,7 +124,10 @@ class HSE2GuiTabTests(unittest.TestCase):
         self.assertEqual(visible_hse2_gui_field_keys("检查 HSE2 元数据"), frozenset({"input_path"}))
 
     def test_visible_fields_for_keyfile_generation(self) -> None:
-        self.assertEqual(visible_hse2_gui_field_keys("generate-keyfile"), frozenset({"output_path", "size", "force"}))
+        self.assertEqual(
+            visible_hse2_gui_field_keys("generate-keyfile"),
+            frozenset({"output_path", "size", "force", "paranoid_warning"}),
+        )
 
     def test_visible_fields_for_dpapi_protect(self) -> None:
         self.assertEqual(
@@ -136,14 +139,14 @@ class HSE2GuiTabTests(unittest.TestCase):
         self.assertEqual(
             visible_hse2_gui_field_keys("wrapper-remove"),
             frozenset(
-                {"input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "allow_dpapi", "force"}
+                {"input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "allow_dpapi", "force", "paranoid_warning"}
             ),
         )
 
     def test_visible_fields_for_access_destroy(self) -> None:
         self.assertEqual(
             visible_hse2_gui_field_keys("access-destroy"),
-            frozenset({"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force"}),
+            frozenset({"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force", "paranoid_warning"}),
         )
 
     def test_wrapper_rewrap_uses_chinese_kdf_profiles_and_paranoid_warning(self) -> None:

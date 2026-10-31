@@ -12,7 +12,7 @@ HSE2 workflows protect these assets:
 - keyfiles generated or selected by the user;
 - header backups used for recovery.
 
-The most sensitive user-managed material is the wrapper material needed to open a container. In a keyfile workflow, losing the keyfile can make the container unrecoverable. Exposing the keyfile to another party can allow that party to open the container if they also have the `.hse2` file.
+The most sensitive user-managed material is the wrapper material needed to open a container. In a keyfile workflow, losing the keyfile can make the container unrecoverable; the application cannot recreate it from the archive or password. Keep an independent offline copy, verify that the copy can be read, and keep it separate from the archive. Do not store the keyfile in the same directory as its `.hse2` container: copying that directory would copy both factors. Exposing the keyfile to another party can allow that party to open the container if they also have the `.hse2` file.
 
 ## In Scope
 

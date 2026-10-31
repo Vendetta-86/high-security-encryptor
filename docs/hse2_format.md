@@ -205,7 +205,7 @@ Initial Argon2id profiles:
 | `hardened` | 256 MiB | 262144 | 3 | 4 | Default high-security mode. |
 | `paranoid` | 1 GiB | 1048576 | 4 | 4 | High-value low-frequency archives. |
 
-`hardened` should be the default for new HSE2 encryption. `paranoid` should strongly recommend, or eventually require, `password_keyfile` rather than password-only unlocking.
+`hardened` is the default for new HSE2 encryption. Password-backed `paranoid` archive creation requires both a password and a keyfile; password-only creation is rejected. Keyfile-only and explicit DPAPI wrappers remain available as separate wrapper choices. The create CLI applies this policy to both normal creation and dry-run planning.
 
 ## Manifest
 

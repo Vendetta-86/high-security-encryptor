@@ -10,6 +10,7 @@ from typing import Any
 
 from .hse2 import HSE2ModelError
 from .hse2.access_management import add_hse2_wrapper, list_hse2_wrappers, remove_hse2_wrapper, rewrap_hse2_wrapper
+from .hse2.keyfile_safety import keyfile_colocation_warning
 from .hse2.workflows import read_keyfile_bytes, read_secret_text_file
 
 HSE2_CONTAINER_SUFFIX = ".hse2"
@@ -70,6 +71,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
     try:
+        warning = _keyfile_colocation_warning_for_args(args)
+        if warning:
+            print(f"hse2-wrapper: warning: {warning}", file=sys.stderr)
         if args.command == "list":
             summary = _run_list(args)
         elif args.command == "remove":
@@ -85,6 +89,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(_format_json(summary, compact=bool(args.compact)))
     return 0
+
+
+def _keyfile_colocation_warning_for_args(args: argparse.Namespace) -> str | None:
+    if args.command == "list":
+        return None
+    keyfiles = [getattr(args, "keyfile", None), getattr(args, "new_keyfile", None)]
+    containers = [args.input, args.output]
+    return keyfile_colocation_warning(keyfiles, containers)
 
 
 def _run_list(args: argparse.Namespace) -> dict[str, Any]:

@@ -104,6 +104,12 @@ def create_hse2_archive(
         raise HSE2ModelError("container_format_version must be 2 or 3")
     if container_format_version == 3 and chunk_size > V3_MAX_CHUNK_SIZE:
         raise HSE2ModelError("v3 chunk_size must not exceed 16 MiB")
+    validate_hse2_wrapper_policy(
+        profile_name=profile_name,
+        has_password=bool(password),
+        has_keyfile=keyfile_bytes is not None,
+        use_dpapi=use_dpapi,
+    )
     if not password and keyfile_bytes is None and not use_dpapi:
         raise HSE2ModelError("hse2-create requires --password-file, --keyfile, --dpapi, or a valid combination")
     if use_dpapi and (password or keyfile_bytes is not None):
@@ -257,6 +263,19 @@ def open_hse2_archive(
         file_count=len(manifest["payload_ranges"]),
         payload_chunk_count=chunk_count,
     )
+
+
+def validate_hse2_wrapper_policy(
+    *,
+    profile_name: str,
+    has_password: bool,
+    has_keyfile: bool,
+    use_dpapi: bool,
+) -> None:
+    """Require a second factor for password-backed paranoid archives."""
+
+    if profile_name == "paranoid" and has_password and not has_keyfile and not use_dpapi:
+        raise HSE2ModelError("paranoid password wrappers require --keyfile; use password + keyfile or a separate wrapper")
 
 
 def read_secret_text_file(path: str | os.PathLike[str]) -> str:

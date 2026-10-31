@@ -70,7 +70,7 @@
 | Phase 1 | [~] | HSE2 格式冻结 | magic/version/header codec 已实现；正式格式文档未合并 |
 | Phase 2 | [~] | DEK + Wrapper 架构 | DEK/MEK 与 wrapper 架构已实现；rewrap/正式文档仍需补齐 |
 | Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
-| Phase 4 | [~] | Keyfile 双因子 | keyfile 与 password+keyfile wrapper 已实现；inspect/强风险提示未完成 |
+| Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
 | Phase 5 | [~] | Header Backup | export/restore CLI 与测试已实现；GUI 提示未完成 |
 | Phase 6 | [~] | Destroy Access | wrapper list/remove/access destroy CLI+GUI 已完成；backup 恢复场景仍需补测 |
 | Phase 7 | [~] | DPAPI 正式化 | create 阶段已有 DPAPI wrapper；add/remove/跨机风险文档仍需补齐 |
@@ -157,19 +157,19 @@
 ### 待完成清单
 
 - [x] 新增 keyfile 生成命令 / GUI action
-- [ ] 新增 keyfile inspect 命令
+- [x] 新增 keyfile inspect 命令（定向 helper/CLI 测试 4/4 通过）
 - [x] 支持 password + keyfile 联合派生 KEK
 - [x] 支持 keyfile-only wrapper，但 GUI 默认不推荐
-- [ ] `paranoid` 模式强制要求 keyfile 或等价外部 wrapper
-- [~] keyfile 丢失风险提示（文档与 GUI 仍需强化）
-- [ ] keyfile 与 `.hse2` 同目录时给出警告
+- [x] `paranoid` 模式强制要求 keyfile 或等价外部 wrapper（定向 policy/workflow/dry-run 测试 5/5 通过）
+- [x] keyfile 丢失风险提示（威胁模型、GUI 常驻提示与 wrapper 确认已补；GUI tab 测试 25/25 通过并完成界面目视检查）
+- [x] keyfile 与 `.hse2` 同目录时给出警告（create/open/wrapper CLI 与 GUI 提示已补；全量测试通过）
 
 ### 完成标准
 
 - [x] 缺少 keyfile 时无法离线验证密码 / 解锁失败
 - [x] 错 keyfile 明确失败
 - [x] keyfile 生成使用安全随机数
-- [~] GUI 完成 keyfile 生成 / 选择 / 风险提示闭环
+- [x] GUI 完成 keyfile 生成 / 选择 / 风险提示闭环（现有生成/选择操作配合离线备份警告；GUI tab 25/25 通过并完成目视检查）
 
 ---
 
@@ -292,7 +292,7 @@
 - [x] `high-security-encryptor-hse2-access destroy`
 - [x] `high-security-encryptor-hse2-gui`
 - [ ] `high-security-encryptor hse2 inspect`
-- [ ] `high-security-encryptor hse2 keyfile inspect`
+- [x] `high-security-encryptor hse2 keyfile inspect`（定向 helper/CLI 测试 4/4 通过）
 - [ ] `high-security-encryptor hse2 wrapper add-password`
 - [ ] `high-security-encryptor hse2 wrapper add-keyfile`
 - [ ] `high-security-encryptor hse2 wrapper add-dpapi`
@@ -444,3 +444,7 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：新增 HSE2 wrapper 原子 rewrap API/CLI，可替换最后一个 wrapper 或保留其他 wrapper，一次写出新认证 header 并流式复制 v2/v3 body；新增旧/新因子和失败回滚测试并更新 CLI 文档。HSE2 定向 154/154、全量 593 项通过（6 项跳过）。Commit: 未提交
 - 2026-10-31：HSE2 实验 GUI 新增 wrapper rewrap 操作、原/新因子输入、标签和 DPAPI 选项；密码 wrapper 提供兼容旧设备/推荐高安全/极高安全中文档位，极高安全在新密码文件已设置时展示耗时与内存提示，并在执行前确认。GUI 定向 42 项、全量 597 项通过（6 项跳过）；Windows 界面已目视检查，未使用真实容器执行 rewrap。Commit: 未提交
 - 2026-10-31：HSE2 实验 GUI 新增 wrapper add 流程，复用现有容器验证因子并单独采集新 wrapper 因子，支持中文 KDF 档位、密码+keyfile 与 DPAPI；增加执行前确认并更新 README、GUI 集成和 CLI 工作流文档。GUI 定向 44 项、全量 599 项通过（6 项跳过），Windows GUI 中 add/rewrap 表单已目视检查。Commit: 未提交
+- 2026-10-31：完成 Phase 4 keyfile inspect：新增 `high-security-encryptor hse2 keyfile inspect`、128 KiB 有界 SHA-256 读取、HSE2 32-byte 适配状态与文档；`tests.test_hse2_keyfile_inspect` 4/4 通过。Commit: 待汇总提交
+- 2026-10-31：完成 paranoid wrapper 因子策略：password-backed paranoid create 需要 keyfile；workflow 与 dry-run 共用策略校验，keyfile-only/独立 DPAPI 仍可用。定向测试 `tests.test_hse2_paranoid_wrapper_policy` 5/5 通过。Commit: 待汇总提交
+- 2026-10-31：完成 keyfile 丢失风险提示：威胁模型说明不可从归档或密码恢复 keyfile，要求独立离线备份并验证可读；GUI 在生成 keyfile 与 wrapper 管理/移除/销毁相关操作显示提示并增强确认文案。`tests.test_hse2_gui_tab` 25/25 通过，Windows GUI 中生成和 wrapper-add 表单提示目视确认。Commit: 待汇总提交
+- 2026-10-31：完成 keyfile 同目录风险提示：create/open/wrapper CLI 检查 keyfile 与归档目录共址并将警告写入 stderr，GUI 提示明确避免共址；路径/CLI 定向测试 5/5 通过，全量测试 615 项通过、6 项跳过。`git diff --check` 通过。Commit: 待提交
