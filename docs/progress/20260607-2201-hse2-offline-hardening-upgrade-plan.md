@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：Phase 11 GUI/CLI 闭环及 Phase 12 本地质量门已完成；alpha.8 Windows 包、端到端 EXE 往返和 GUI 元数据检查已通过。提交 `6699036` 的 GitHub Actions CI（三个 Windows Python 矩阵）全部成功；当前待发布前维护者审查。Phase 8 维持 no-go，尚未打 tag 或发布。
+- **当前状态**：Phase 10–12 和 alpha.8 本地/远端 CI 验收已完成；最新路线图提交 `4cd844c` 的 Windows Python 3.11/3.12/3.13 CI 全部成功。v0.6.0-alpha.8 尚待维护者发布审查；Phase 8 维持 no-go。HSE2 稳定格式冻结仍需第三方 v3 双向互操作证据及独立格式/密码学审查。尚未打 tag 或发布。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -54,11 +54,11 @@
 | [x] | 批量处理基础 | 已有 batch / sidecar 工作流方向 |
 | [x] | Argon2id KDF 路线 | 已有 compatible / hardened / paranoid profiles |
 | [x] | HSE2 实验基础 | HSE2 create/open/header backup/wrapper/access/GUI 已形成 alpha 闭环 |
-| [~] | DPAPI wrapper | create 阶段已有 DPAPI wrapper，仍需 add/remove 与风险提示正式化 |
+| [x] | DPAPI wrapper | create/add/remove 已实现；current-user/local-machine、独立恢复 wrapper 与可移植性边界均已说明 |
 | [x] | Keyfile 操作 | HSE2 create/open 支持 keyfile wrapper，GUI 有 keyfile 字段 |
-| [~] | no-password-table 工作流 | keyfile-only 已可用，paranoid 策略仍需强制化 |
-| [~] | brute-force guard | 本地尝试限制不等于离线抗破解；仍需文档化边界 |
-| [~] | 文档基础 | CLI/GUI 文档已更新；正式 `docs/hse2_format.md` 仍缺 |
+| [x] | no-password-table 工作流 | keyfile-only 已可用；paranoid 密码 wrapper 强制 keyfile 的策略已实现并覆盖 |
+| [x] | brute-force guard | decrypt-batch 本地失败次数限速已实现并测试；README、HSE2 格式文档和威胁模型均明确它不阻止离线猜测 |
+| [x] | 文档基础 | 格式、framing、CLI、GUI、威胁模型和迁移文档均已存在；stable freeze 审查单独保留为未完成门槛 |
 
 ---
 
@@ -67,8 +67,8 @@
 | 阶段 | 状态 | 名称 | 当前判断 |
 |---|---|---|---|
 | Phase 0 | [x] | 升级计划建立 | 本进度文档已建立 |
-| Phase 1 | [~] | HSE2 格式冻结 | magic/version/header codec 已实现；正式格式文档未合并 |
-| Phase 2 | [~] | DEK + Wrapper 架构 | DEK/MEK 与 wrapper 架构已实现；rewrap/正式文档仍需补齐 |
+| Phase 1 | [~] | HSE2 格式冻结 | v2/v3 格式及 framing 文档、实现均已存在；第三方 v3 双向互操作和独立格式审查仍待完成 |
+| Phase 2 | [~] | DEK + Wrapper 架构 | DEK/MEK、wrapper add/remove/rewrap 及文档已实现；稳定兼容契约需随 Phase 1 审查冻结 |
 | Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
 | Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
@@ -78,7 +78,7 @@
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
 | Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；本机 GUI 检查 alpha.8 打包版元数据预览成功 |
-| Phase 12 | [x] | 测试计划 | 全量自动化回归、Windows build/EXE 往返、依赖审计、本地流式基准及提交 `6699036` 的 Windows Python 3.11/3.12/3.13 CI 已通过；发布前维护者审查待完成 |
+| Phase 12 | [x] | 测试计划 | 全量自动化回归、Windows build/EXE 往返、依赖审计、本地流式基准及提交 `4cd844c` 的 Windows Python 3.11/3.12/3.13 CI 已通过；alpha.8 发布审查待完成 |
 
 ---
 
@@ -404,7 +404,7 @@ python -m pip_audit . --progress-spinner off
 ## 17. 推荐开发顺序
 
 1. [x] 建立本进度计划文档
-2. [ ] 写 `docs/hse2_format.md`
+2. [x] 写 `docs/hse2_format.md`（稳定格式冻结仍需 Phase 1 审查门槛）
 3. [x] 新建 `hse2/` 模块骨架
 4. [x] 实现 header 读写和认证
 5. [x] 实现 DEK / MEK 生成
@@ -416,11 +416,11 @@ python -m pip_audit . --progress-spinner off
 11. [x] 实现 header backup / restore
 12. [x] 实现 wrapper list / remove
 13. [x] 实现 access destroy
-14. [~] 实现 DPAPI wrapper 正式接入
-15. [~] 实现 manifest 加密和元数据最小化
-16. [~] 补齐 CLI help 和错误码
-17. [~] 补齐 GUI 向导
-18. [~] 补齐测试
+14. [x] 实现 DPAPI wrapper 正式接入
+15. [x] 实现 manifest 加密和元数据最小化
+16. [x] 补齐 CLI help 和错误码
+17. [x] 补齐 GUI 向导
+18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
 20. [~] 打包 release
 21. [x] 评估 decoy / duress 是否进入下一版本：暂不进入 `v0.7.0`；缺少可审查的威胁模型和格式设计，现有计划不能支持可否认性承诺
@@ -484,4 +484,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：完成 Phase 8 实现前设计审查，新增 [`docs/hse2_decoy_design_review.md`](../hse2_decoy_design_review.md)，盘点 header wrapper/布局/大小/备份/日志等可观察面，评估可见 wrapper、双视图固定大小流和应用层 alternate-content 三种路径，并定义八项实现前审查门槛。结论仍为 no-go：不修改当前 v2/v3 格式，也不宣称可否认性。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：alpha.8 本机候选验证：全量 unittest 666 通过、6 跳过；compileall、pre-commit、pip-audit 通过；Windows 11 x64/Python 3.13.15 上构建 10 个 EXE，CLI smoke 全过，打包 EXE 完成 v3 create/inspect/validate/open 且恢复内容逐字节一致；打包 GUI 对临时 v3 容器执行“检查 HSE2 元数据”并返回退出码 0。生成 16 项 ZIP（133,992,289 bytes）。当前提交 CI 和维护者审查仍待完成；没有创建 tag 或 GitHub Release。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：alpha.8 CI 通过：GitHub Actions run [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016) 对提交 `6699036` 的 Windows Python 3.11、3.12、3.13 三个 job 全部成功。CI 通过不代表发布审批；仍待维护者审查，无 tag/Release。Commit: 本提交（SHA 见 Git 历史）
+- 2026-10-31：alpha.8 路线图复核：Phase 1/2 保留为 stable freeze 与第三方互操作审查门槛；DPAPI、paranoid keyfile 策略、brute-force guard 在线/离线边界、格式文档、CLI、GUI、测试等旧 checklist 勾选已按现有实现、文档和验收证据校准。最新状态文档提交 `4cd844c` 的 CI run [41178454944](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178454944) 三个 Windows Python job 全部成功。Commit: 本提交（SHA 见 Git 历史）
 
