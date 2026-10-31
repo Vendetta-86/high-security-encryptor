@@ -16,6 +16,11 @@ class HSE2ModelError(ValueError):
     """Raised when an HSE2 model contains invalid format data."""
 
 
+# Payload AES-GCM uses independently random 96-bit IVs under one DEK.
+# SP 800-38D section 8.3 limits RBG-based IV invocations per key to 2^32.
+HSE2_MAX_PAYLOAD_CHUNKS = 1 << 32
+
+
 def canonical_json_bytes(value: dict[str, Any]) -> bytes:
     """Serialize a JSON-compatible mapping deterministically.
 
@@ -142,9 +147,13 @@ class PayloadLayout:
     padding_mode: str = "none"
 
     def __post_init__(self) -> None:
+        if type(self.chunk_count) is not int:
+            raise HSE2ModelError("chunk_count must be an integer")
         for field_name in ("chunk_count", "payload_offset", "footer_offset"):
             if getattr(self, field_name) < 0:
                 raise HSE2ModelError(f"{field_name} must be non-negative")
+        if self.chunk_count > HSE2_MAX_PAYLOAD_CHUNKS:
+            raise HSE2ModelError("chunk_count exceeds the AES-GCM per-key payload limit")
         if not isinstance(self.padding_mode, str) or self.padding_mode not in {"none", "last-chunk-to-chunk-size"}:
             raise HSE2ModelError(f"unsupported payload padding mode: {self.padding_mode}")
 

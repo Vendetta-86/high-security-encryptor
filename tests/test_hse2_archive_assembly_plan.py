@@ -59,6 +59,12 @@ class HSE2ArchiveAssemblyPlanTests(unittest.TestCase):
         with self.assertRaises(HSE2ModelError):
             build_archive_payload_plan(entries, chunk_size=0)
 
+    def test_payload_plan_rejects_more_than_aes_gcm_per_key_limit(self) -> None:
+        entries = (HSE2ArchiveEntry("file.bin", "file", size=(1 << 32) + 1),)
+
+        with self.assertRaisesRegex(HSE2ModelError, "AES-GCM per-key payload chunk limit"):
+            build_archive_payload_plan(entries, chunk_size=1)
+
 
 if __name__ == "__main__":
     unittest.main()

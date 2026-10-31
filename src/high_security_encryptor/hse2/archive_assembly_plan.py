@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .archive_manifest import HSE2ArchiveEntry, build_archive_manifest
-from .models import HSE2ModelError
+from .models import HSE2_MAX_PAYLOAD_CHUNKS, HSE2ModelError
 
 
 @dataclass(frozen=True)
@@ -63,6 +63,8 @@ def build_archive_payload_plan(
             continue
         size = int(item["size"])
         chunk_count = _chunk_count_for_size(size, chunk_size)
+        if next_chunk + chunk_count > HSE2_MAX_PAYLOAD_CHUNKS:
+            raise HSE2ModelError("archive exceeds the AES-GCM per-key payload chunk limit")
         ranges.append(
             HSE2ArchivePayloadRange(
                 path=str(item["path"]),

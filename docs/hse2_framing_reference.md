@@ -357,7 +357,7 @@ offset  size  field
 28+N    16    AES-GCM tag
 ```
 
-Exactly `payload_layout.chunk_count` chunks follow the manifest. Each `index` must equal the next expected index. `chunk_size` is 1 byte through 16 MiB. The authenticated header's `payload_layout.payload_offset` and `footer_offset` must both be zero; they are reserved in v3 and are not seek positions. After the declared chunks, the reader requires exact EOF; no footer or trailing data is allowed.
+Exactly `payload_layout.chunk_count` chunks follow the manifest. Each `index` must equal the next expected index. `chunk_size` is 1 byte through 16 MiB. `chunk_count` must not exceed 2^32, the per-DEK payload AES-GCM invocation limit for random 96-bit IVs (NIST SP 800-38D section 8.3). The same payload limit applies to v2. The authenticated header's `payload_layout.payload_offset` and `footer_offset` must both be zero; they are reserved in v3 and are not seek positions. After the declared chunks, the reader requires exact EOF; no footer or trailing data is allowed.
 
 V3 payload AAD remains `HSE2:payload-chunk:v1:{global-index}`. This preserves the existing chunk AEAD definition. The authenticated chunk count, contiguous record indices, manifest ranges, GCM tags, and exact EOF jointly detect missing, reordered, altered, and extra records.
 

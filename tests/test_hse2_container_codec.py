@@ -105,6 +105,11 @@ class HSE2ContainerCodecTests(unittest.TestCase):
                 with self.assertRaisesRegex(HSE2ModelError, f"{field} must be an integer"):
                     hse2_header_from_dict(data)
 
+    def test_payload_layout_enforces_aes_gcm_per_key_invocation_limit(self) -> None:
+        self.assertEqual(PayloadLayout(chunk_count=1 << 32).chunk_count, 1 << 32)
+        with self.assertRaisesRegex(HSE2ModelError, "AES-GCM per-key payload limit"):
+            PayloadLayout(chunk_count=(1 << 32) + 1)
+
 
 if __name__ == "__main__":
     unittest.main()

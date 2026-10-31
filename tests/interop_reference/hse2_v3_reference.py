@@ -161,7 +161,7 @@ def read_archive(path: str | os.PathLike[str], keyfile: bytes) -> dict[str, byte
         manifest = json.loads(mc.decrypt_and_verify(ciphertext, tag).decode("utf-8"))
         layout = header["payload_layout"]
         chunk_size = header["cipher_suite"]["chunk_size"]
-        if layout["payload_offset"] != 0 or layout["footer_offset"] != 0 or layout["chunk_count"] > 2**64 - 1:
+        if layout["payload_offset"] != 0 or layout["footer_offset"] != 0 or layout["chunk_count"] > 2**32:
             raise ValueError("invalid payload layout")
         plain_chunks = []
         for expected in range(layout["chunk_count"]):
