@@ -90,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, password_override: str | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
     if args.dry_run and args.validate_after_create:
         print("hse2-create: --validate-after-create cannot be used with --dry-run", file=sys.stderr)
@@ -105,7 +105,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.dry_run:
             summary = _build_dry_run_summary(args=args, roots=roots, output_path=output_path)
         else:
-            password = read_secret_text_file(args.password_file) if args.password_file else None
+            if password_override is not None and args.password_file:
+                raise ValueError("password override cannot be combined with --password-file")
+            password = password_override if password_override is not None else (
+                read_secret_text_file(args.password_file) if args.password_file else None
+            )
             keyfile_bytes = read_keyfile_bytes(args.keyfile) if args.keyfile else None
             result = create_hse2_archive(
                 roots=roots,

@@ -48,6 +48,45 @@ class HSE2GuiActionTests(unittest.TestCase):
                 archive_profile="paranoid",
             )
 
+    def test_typed_archive_password_is_kept_out_of_argv_and_repr(self) -> None:
+        secret = "not-in-argv-or-repr"
+        plan = build_hse2_gui_command(
+            action="archive-create", root_path="source", output_path="archive.hse2",
+            archive_password=secret, archive_password_confirmation=secret,
+        )
+        self.assertEqual(plan.secret_input, secret)
+        self.assertNotIn(secret, " ".join(plan.argv))
+        self.assertNotIn(secret, repr(plan))
+
+    def test_typed_archive_password_requires_matching_confirmation(self) -> None:
+        with self.assertRaisesRegex(ValueError, "两次输入"):
+            build_hse2_gui_command(
+                action="archive-create", root_path="source", output_path="archive.hse2",
+                archive_password="first", archive_password_confirmation="second",
+            )
+
+    def test_typed_archive_password_conflicts_with_password_file_and_dpapi(self) -> None:
+        with self.assertRaisesRegex(ValueError, "密码输入框或密码文件"):
+            build_hse2_gui_command(
+                action="archive-create", root_path="source", output_path="archive.hse2",
+                password_file="password.txt", archive_password="secret",
+                archive_password_confirmation="secret",
+            )
+        with self.assertRaisesRegex(ValueError, "DPAPI wrapper"):
+            build_hse2_gui_command(
+                action="archive-create", root_path="source", output_path="archive.hse2",
+                new_wrapper_dpapi=True, archive_password="secret",
+                archive_password_confirmation="secret",
+            )
+
+    def test_typed_paranoid_password_requires_keyfile(self) -> None:
+        with self.assertRaisesRegex(ValueError, "需要同时提供 keyfile"):
+            build_hse2_gui_command(
+                action="archive-create", root_path="source", output_path="archive.hse2",
+                archive_profile="paranoid", archive_password="secret",
+                archive_password_confirmation="secret",
+            )
+
     def test_archive_open_action_keeps_factors_out_of_argv_and_requires_unlock_method(self) -> None:
         plan = build_hse2_gui_command(
             action="archive-open", input_path="archive.hse2", output_path="restored",

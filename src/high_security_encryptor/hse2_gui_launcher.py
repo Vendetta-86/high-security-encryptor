@@ -15,6 +15,7 @@ from .hse2_access_cli import main as hse2_access_main
 from .hse2_create_cli import main as hse2_create_main
 from .hse2_open_cli import main as hse2_open_main
 from .hse2_archive_validate_cli import main as hse2_archive_validate_main
+from .hse2_gui_actions import HSE2GuiCommandPlan
 from .hse2_gui_tab import build_hse2_experimental_tab
 from .hse2_header_backup_cli import main as hse2_header_backup_main
 from .hse2_inspect_cli import main as hse2_inspect_main
@@ -98,17 +99,18 @@ class HSE2ExperimentalApp(ttk.Frame):
         finally:
             self._is_busy = False
 
-    def _run_hse2_command(self, argv: list[str]) -> None:
+    def _run_hse2_command(self, plan: HSE2GuiCommandPlan) -> None:
         if self._is_busy:
             messagebox.showinfo("正在执行", "已有任务正在执行，请等待完成。")
             return
         self._is_busy = True
+        argv = list(plan.argv)
         self._append_log(f"$ high-security-encryptor {_quote_argv(argv)}\n")
-        self.after(10, lambda: self._execute(argv))
+        self.after(10, lambda: self._execute(plan))
 
-    def _execute(self, argv: list[str]) -> None:
+    def _execute(self, plan: HSE2GuiCommandPlan) -> None:
         try:
-            result = _invoke_hse2_gui_command(argv)
+            result = _invoke_hse2_gui_command(plan)
             if result.stdout:
                 self._append_log(result.stdout)
                 summary = _build_hse2_result_summary(result.stdout)
@@ -130,12 +132,28 @@ class HSE2ExperimentalApp(ttk.Frame):
         self.log.see(tk.END)
 
 
-def _invoke_hse2_gui_command(argv: list[str]) -> GuiCommandResult:
+def _invoke_hse2_gui_command(command: list[str] | HSE2GuiCommandPlan) -> GuiCommandResult:
     """Dispatch GUI-built HSE2 commands to the correct in-process CLI entrypoint."""
 
+    plan = command if isinstance(command, HSE2GuiCommandPlan) else None
+    argv = list(plan.argv) if plan is not None else command
     if argv and argv[0] in HSE2_STANDALONE_HELPER_COMMANDS:
+        if plan is not None and plan.secret_input is not None and argv[0] == "hse2-create":
+            return _invoke_create_with_password(argv[1:], plan.secret_input)
         return _invoke_standalone_helper(HSE2_STANDALONE_HELPER_COMMANDS[argv[0]], argv[1:])
     return invoke_cli_command(argv)
+
+
+def _invoke_create_with_password(argv: list[str], password: str) -> GuiCommandResult:
+    stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
+    with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
+        exit_code = hse2_create_main(argv, password_override=password)
+    return GuiCommandResult(
+        exit_code=exit_code,
+        stdout=stdout_buffer.getvalue(),
+        stderr=stderr_buffer.getvalue(),
+    )
 
 
 def _invoke_standalone_helper(main_func: StandaloneCliMain, argv: list[str]) -> GuiCommandResult:

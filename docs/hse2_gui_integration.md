@@ -41,12 +41,17 @@ metadata only. It cannot replace or recover the password, keyfile, or DPAPI
 access conditions needed to unlock a container. The `archive-create` action
 creates an archive from a selected folder through the existing create CLI. It
 offers v2/v3 format, chunk size, password profile, optional padding, and
-password-file/keyfile/DPAPI factors; plaintext passwords are never placed in
-argv. Creation enables post-create authenticated validation by default; it
+password-file/keyfile/DPAPI factors. For password-backed creation, users may
+enter a password twice in masked fields instead of selecting a password file.
+The in-memory command plan keeps this password out of argv and its repr; the
+launcher sends it directly to the existing create helper without writing a
+temporary secret file, and the tab clears both fields after dispatch. Passwords
+are still ordinary Python strings in process memory while the operation runs.
+Creation enables post-create authenticated validation by default; it
 checks the header, encrypted manifest, and every payload authentication tag
 without writing plaintext. A validation failure is reported distinctly and
 the already-created archive remains on disk. A paranoid password wrapper
-requires a keyfile. Password confirmation remains follow-up wizard work. The `archive-open`
+requires a keyfile. The `archive-open`
 action restores a selected container into a destination folder and keeps all
 unlock factors as file paths or explicit DPAPI allowance. An optional pre-open
 validation authenticates the full archive before creating the restore directory;
@@ -59,7 +64,8 @@ consumes. For example:
 - config actions show only the config path;
 - `validate` shows the config path plus validation report/summary options;
 - `inspect` shows only the `.hse2` input container path;
-- `archive-create` shows a source folder, output path, password file, keyfile,
+- `archive-create` shows a source folder, output path, optional masked password
+  and confirmation, password file, keyfile,
   password profile, format version, chunk size, optional padding, DPAPI, and
   overwrite and post-create validation controls;
 - `archive-open` shows a source container, restore folder, password file,

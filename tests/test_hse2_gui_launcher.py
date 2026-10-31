@@ -13,7 +13,7 @@ import unittest
 from high_security_encryptor import hse2_gui_launcher
 from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
 from high_security_encryptor.hse2_create_cli import main as create_main
-from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state
+from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state, build_hse2_plan_from_tab_state
 from high_security_encryptor.hse2_quickstart_gui_tab import HSE2QuickstartTab, build_hse2_quickstart_tab
 
 
@@ -176,6 +176,37 @@ class HSE2GuiLauncherTests(unittest.TestCase):
             self.assertEqual(inspect_payload["payload_layout"]["padding_mode"], "last-chunk-to-chunk-size")
             self.assertEqual(validate_result.exit_code, 0, validate_result.stderr)
             self.assertTrue(json.loads(validate_result.stdout)["payload_authenticated"])
+
+    def test_typed_password_create_stays_out_of_argv_logs_and_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            source = base / "source"
+            source.mkdir()
+            expected = b"created with in-memory GUI password"
+            (source / "payload.txt").write_bytes(expected)
+            container = base / "typed-password.hse2"
+            password = "typed-password-secret"
+            plan = build_hse2_plan_from_tab_state(
+                HSE2GuiTabState(
+                    action="archive-create", root_path=str(source), output_path=str(container),
+                    archive_password=password, archive_password_confirmation=password,
+                )
+            )
+            self.assertNotIn(password, " ".join(plan.argv))
+            self.assertNotIn(password, repr(plan))
+
+            create_result = _invoke_hse2_gui_command(plan)
+            self.assertEqual(create_result.exit_code, 0, create_result.stderr)
+            self.assertNotIn(password, create_result.stdout)
+            self.assertNotIn(password, create_result.stderr)
+            self.assertTrue(container.exists())
+
+            restored = base / "restored"
+            from high_security_encryptor.hse2.workflows import open_hse2_archive
+            open_hse2_archive(input_path=container, output_dir=restored, password=password)
+            restored_files = list(restored.rglob("payload.txt"))
+            self.assertEqual(len(restored_files), 1)
+            self.assertEqual(restored_files[0].read_bytes(), expected)
 
     def test_wrapper_remove_summary_reports_remaining_count(self) -> None:
         summary = _build_hse2_result_summary(

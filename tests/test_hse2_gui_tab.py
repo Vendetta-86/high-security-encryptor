@@ -27,6 +27,7 @@ class HSE2GuiTabTests(unittest.TestCase):
 
     def test_archive_create_warnings_cover_paranoid_factor_and_dpapi_scope(self) -> None:
         self.assertTrue(should_show_paranoid_profile_warning("archive-create", "paranoid", "password.txt"))
+        self.assertTrue(should_show_paranoid_profile_warning("archive-create", "paranoid", "", has_typed_password=True))
         self.assertFalse(should_show_paranoid_profile_warning("archive-create", "hardened", "password.txt"))
         warning = dpapi_warning_for_state("archive-create", "current_user", True)
         self.assertIsNotNone(warning)
@@ -179,6 +180,7 @@ class HSE2GuiTabTests(unittest.TestCase):
                 "root_path", "output_path", "password_file", "keyfile_path", "archive_profile",
                 "archive_format_version", "archive_chunk_size", "new_wrapper_dpapi", "force",
                 "archive_pad_last_chunk", "archive_validate_after_create", "paranoid_warning", "dpapi_warning",
+                "archive_password", "archive_password_confirmation",
             }),
         )
 
@@ -327,6 +329,23 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_missing_required_field_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             build_hse2_command_from_tab_state(HSE2GuiTabState(action="encrypt-config"))
+
+    def test_typed_password_plan_keeps_secret_separate_from_argv_and_repr(self) -> None:
+        from high_security_encryptor.hse2_gui_tab import build_hse2_plan_from_tab_state
+
+        secret = "tab-secret-value"
+        plan = build_hse2_plan_from_tab_state(
+            HSE2GuiTabState(
+                action="archive-create", root_path="source", output_path="archive.hse2",
+                archive_password=secret, archive_password_confirmation=secret,
+            )
+        )
+        self.assertEqual(plan.secret_input, secret)
+        self.assertNotIn(secret, " ".join(plan.argv))
+        self.assertNotIn(secret, repr(plan))
+        self.assertNotIn(secret, repr(HSE2GuiTabState(
+            action="archive-create", archive_password=secret, archive_password_confirmation=secret,
+        )))
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ large Tkinter application.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -15,10 +15,10 @@ from typing import Callable
 
 from .dpapi_guidance import DPAPI_LOCAL_MACHINE_SCOPE_WARNING, DPAPI_WRAPPER_PORTABILITY_WARNING
 from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
-from .hse2_gui_actions import HSE2_GUI_ACTION_LABELS, build_hse2_gui_command
+from .hse2_gui_actions import HSE2_GUI_ACTION_LABELS, HSE2GuiCommandPlan, build_hse2_gui_command
 
 
-RunCommand = Callable[[list[str]], None]
+RunCommand = Callable[[HSE2GuiCommandPlan], None]
 FieldWidgets = tuple[tk.Widget, ...]
 
 
@@ -29,6 +29,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
         "root_path", "output_path", "password_file", "keyfile_path", "archive_profile", "archive_format_version",
         "archive_chunk_size", "new_wrapper_dpapi", "force", "archive_pad_last_chunk", "paranoid_warning", "dpapi_warning",
         "archive_validate_after_create",
+        "archive_password", "archive_password_confirmation",
     }),
     "archive-open": frozenset({
         "input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force",
@@ -107,11 +108,13 @@ def hse2_kdf_profile_key_from_display(value: str) -> str:
     raise ValueError("请选择有效的 HSE2 密码 wrapper 安全等级。")
 
 
-def should_show_paranoid_profile_warning(action: str, new_profile: str, new_password_file: str) -> bool:
+def should_show_paranoid_profile_warning(
+    action: str, new_profile: str, new_password_file: str, *, has_typed_password: bool = False
+) -> bool:
     return (
         hse2_gui_action_key_from_display(action) in {"archive-create", "wrapper-add", "wrapper-rewrap"}
         and hse2_kdf_profile_key_from_display(new_profile) == "paranoid"
-        and bool(new_password_file.strip())
+        and (bool(new_password_file.strip()) or has_typed_password)
     )
 
 
@@ -155,6 +158,8 @@ class HSE2GuiTabState:
     archive_pad_last_chunk: bool = False
     archive_validate_after_create: bool = False
     archive_validate_before_open: bool = False
+    archive_password: str = field(default="", repr=False)
+    archive_password_confirmation: str = field(default="", repr=False)
     access_confirmation_phrase: str = ""
 
 
@@ -192,6 +197,12 @@ def visible_hse2_gui_field_keys(action: str) -> frozenset[str]:
 def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
     """Convert HSE2 tab state into a CLI argument list."""
 
+    return list(build_hse2_plan_from_tab_state(state).argv)
+
+
+def build_hse2_plan_from_tab_state(state: HSE2GuiTabState) -> HSE2GuiCommandPlan:
+    """Build a command plan while keeping typed credentials outside argv."""
+
     plan = build_hse2_gui_command(
         action=hse2_gui_action_key_from_display(state.action),
         config_path=state.config_path,
@@ -220,9 +231,11 @@ def build_hse2_command_from_tab_state(state: HSE2GuiTabState) -> list[str]:
         archive_pad_last_chunk=state.archive_pad_last_chunk,
         archive_validate_after_create=state.archive_validate_after_create,
         archive_validate_before_open=state.archive_validate_before_open,
+        archive_password=state.archive_password,
+        archive_password_confirmation=state.archive_password_confirmation,
         access_confirmation_phrase=state.access_confirmation_phrase,
     )
-    return list(plan.argv)
+    return plan
 
 
 class HSE2ExperimentalTab(ttk.Frame):
@@ -247,6 +260,8 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.validation_exit_code_on_failure = tk.BooleanVar(value=False)
         self.wrapper_id = tk.StringVar()
         self.password_file = tk.StringVar()
+        self.archive_password = tk.StringVar()
+        self.archive_password_confirmation = tk.StringVar()
         self.keyfile_path = tk.StringVar()
         self.allow_dpapi = tk.BooleanVar(value=False)
         self.new_wrapper_id = tk.StringVar()
@@ -296,6 +311,8 @@ class HSE2ExperimentalTab(ttk.Frame):
             validation_exit_code_on_failure=bool(self.validation_exit_code_on_failure.get()),
             wrapper_id=self.wrapper_id.get(),
             password_file=self.password_file.get(),
+            archive_password=self.archive_password.get(),
+            archive_password_confirmation=self.archive_password_confirmation.get(),
             keyfile_path=self.keyfile_path.get(),
             allow_dpapi=bool(self.allow_dpapi.get()),
             new_wrapper_id=self.new_wrapper_id.get(),
@@ -316,12 +333,20 @@ class HSE2ExperimentalTab(ttk.Frame):
 
         return build_hse2_command_from_tab_state(self.state())
 
+    def build_plan(self) -> HSE2GuiCommandPlan:
+        return build_hse2_plan_from_tab_state(self.state())
+
     def run_selected_action(self) -> None:
         """Build and run the selected HSE2 action through the injected GUI runner."""
 
         if not self._confirm_destructive_action():
             return
-        self._run_command(self.build_command())
+        plan = self.build_plan()
+        try:
+            self._run_command(plan)
+        finally:
+            self.archive_password.set("")
+            self.archive_password_confirmation.set("")
 
     def _build_widgets(self) -> None:
         ttk.Label(
@@ -423,9 +448,13 @@ class HSE2ExperimentalTab(ttk.Frame):
         self._field_widgets["archive_chunk_size"] = _add_spin_row(
             self, 25, "Payload chunk 大小（字节）", self.archive_chunk_size
         )
+        self._field_widgets["archive_password"] = _add_secret_row(self, 26, "归档密码（可选）", self.archive_password)
+        self._field_widgets["archive_password_confirmation"] = _add_secret_row(
+            self, 27, "确认归档密码", self.archive_password_confirmation
+        )
 
         self._options_frame = ttk.Frame(self)
-        self._options_frame.grid(row=26, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        self._options_frame.grid(row=28, column=0, columnspan=3, sticky="w", pady=(8, 0))
         self._option_widgets = {
             "force": ttk.Checkbutton(self._options_frame, text="允许覆盖输出文件", variable=self.force),
             "validation_summary_only": ttk.Checkbutton(
@@ -456,7 +485,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         }
 
         ttk.Button(self, text="运行 HSE2 实验操作", command=self.run_selected_action).grid(
-            row=27,
+            row=29,
             column=0,
             sticky="w",
             pady=(14, 0),
@@ -501,6 +530,7 @@ class HSE2ExperimentalTab(ttk.Frame):
                 action,
                 self.archive_profile.get() if action == "archive-create" else self.new_kdf_profile.get(),
                 self.password_file.get() if action == "archive-create" else self.new_password_file.get(),
+                has_typed_password=action == "archive-create" and bool(self.archive_password.get()),
             ):
                 for widget in self._field_widgets["paranoid_warning"]:
                     widget.grid()
@@ -645,6 +675,14 @@ def _add_text_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVa
     label_widget = ttk.Label(parent, text=label)
     label_widget.grid(row=row, column=0, sticky="w", pady=4)
     entry_widget = ttk.Entry(parent, textvariable=variable)
+    entry_widget.grid(row=row, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=4)
+    return (label_widget, entry_widget)
+
+
+def _add_secret_row(parent: ttk.Frame, row: int, label: str, variable: tk.StringVar) -> FieldWidgets:
+    label_widget = ttk.Label(parent, text=label)
+    label_widget.grid(row=row, column=0, sticky="w", pady=4)
+    entry_widget = ttk.Entry(parent, textvariable=variable, show="*")
     entry_widget.grid(row=row, column=1, columnspan=2, sticky="ew", padx=(8, 0), pady=4)
     return (label_widget, entry_widget)
 

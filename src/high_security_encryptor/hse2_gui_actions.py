@@ -7,7 +7,7 @@ then pass the returned argv to the existing GUI CLI runner.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
 
@@ -59,6 +59,7 @@ class HSE2GuiCommandPlan:
     argv: tuple[str, ...]
     description: str
     experimental: bool = True
+    secret_input: str | None = field(default=None, repr=False, compare=False)
 
 
 def build_hse2_gui_command(
@@ -90,6 +91,8 @@ def build_hse2_gui_command(
     archive_pad_last_chunk: bool = False,
     archive_validate_after_create: bool = False,
     archive_validate_before_open: bool = False,
+    archive_password: str = "",
+    archive_password_confirmation: str = "",
     access_confirmation_phrase: str = "",
 ) -> HSE2GuiCommandPlan:
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
@@ -108,11 +111,18 @@ def build_hse2_gui_command(
             raise ValueError("HSE2 chunk size must be between 1 byte and 16 MiB.")
         password_path = password_file.strip()
         keyfile = keyfile_path.strip()
-        if new_wrapper_dpapi and (password_path or keyfile):
+        typed_password = archive_password
+        if bool(typed_password) != bool(archive_password_confirmation):
+            raise ValueError("请填写归档密码和确认密码。")
+        if typed_password and typed_password != archive_password_confirmation:
+            raise ValueError("两次输入的归档密码不一致。")
+        if typed_password and password_path:
+            raise ValueError("请使用密码输入框或密码文件其中一种方式。")
+        if new_wrapper_dpapi and (typed_password or password_path or keyfile):
             raise ValueError("新归档 DPAPI wrapper 不能同时使用密码或 keyfile。")
-        if not new_wrapper_dpapi and not password_path and not keyfile:
+        if not new_wrapper_dpapi and not typed_password and not password_path and not keyfile:
             raise ValueError("请选择密码文件、keyfile 或 Windows DPAPI 作为归档解锁方式。")
-        if archive_profile == "paranoid" and password_path and not keyfile:
+        if archive_profile == "paranoid" and (password_path or typed_password) and not keyfile:
             raise ValueError("极高安全密码 wrapper 需要同时提供 keyfile。")
         args = [
             "hse2-create",
@@ -123,6 +133,8 @@ def build_hse2_gui_command(
         ]
         if password_path:
             args.extend(["--password-file", password_path, "--profile", archive_profile])
+        elif typed_password:
+            args.extend(["--profile", archive_profile])
         if keyfile:
             args.extend(["--keyfile", keyfile])
         if new_wrapper_dpapi:
@@ -339,10 +351,12 @@ def build_hse2_gui_command(
         argv = tuple(args)
     else:  # pragma: no cover - guarded by _require_action.
         raise ValueError(f"unsupported HSE2 GUI action: {action}")
+    secret_input = typed_password or None if normalized_action == "archive-create" else None
     return HSE2GuiCommandPlan(
         action=normalized_action,
         argv=argv,
         description=HSE2_GUI_ACTION_LABELS[normalized_action],
+        secret_input=secret_input,
     )
 
 
