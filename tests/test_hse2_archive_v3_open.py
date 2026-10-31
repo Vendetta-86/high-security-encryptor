@@ -27,16 +27,27 @@ class HSE2ArchiveV3OpenTests(unittest.TestCase):
     def test_restore_preflight_rejects_case_colliding_targets_on_windows(self) -> None:
         if os.name != "nt":
             self.skipTest("Windows path normalization is not active on this platform")
-        manifest = {
-            "entries": [
+        cases = (
+            (
                 {"path": "Readme.txt", "kind": "file"},
                 {"path": "README.TXT", "kind": "file"},
-            ]
-        }
+            ),
+            (
+                {"path": "A", "kind": "file"},
+                {"path": "a/child.txt", "kind": "file"},
+            ),
+            (
+                {"path": "a/child.txt", "kind": "file"},
+                {"path": "A", "kind": "file"},
+            ),
+        )
         with tempfile.TemporaryDirectory() as temp_dir:
             output_dir = Path(temp_dir) / "restored"
-            with self.assertRaisesRegex(HSE2ModelError, "same restore target"):
-                _preflight_restore_targets(manifest, output_dir, overwrite=True)
+            for entries in cases:
+                with self.subTest(entries=entries), self.assertRaisesRegex(
+                    HSE2ModelError, "restore target|restore path"
+                ):
+                    _preflight_restore_targets({"entries": list(entries)}, output_dir, overwrite=True)
 
     def _create_v3(self, roots: tuple[Path, ...], output: Path, *, overwrite: bool = False) -> None:
         create_hse2_archive(

@@ -720,20 +720,28 @@ def _preflight_restore_targets(
         raise HSE2ModelError(f"output path is not a directory: {output_dir}")
     resolved_root = output_dir.resolve()
     targets: dict[str, Path] = {}
-    target_keys: set[str] = set()
+    restore_path_kind_key = object()
+    restore_path_trie: dict[object, Any] = {}
     for entry in manifest["entries"]:
         path_key = _manifest_path_key(entry)
         relative_path = _safe_manifest_path(path_key)
         target = output_dir.joinpath(*relative_path.parts)
         try:
             resolved_target = target.resolve()
-            resolved_target.relative_to(resolved_root)
+            resolved_relative = resolved_target.relative_to(resolved_root)
         except (OSError, ValueError) as exc:
             raise HSE2ModelError("unsafe archive path resolves outside output directory") from exc
-        target_key = os.path.normcase(os.path.normpath(os.fspath(resolved_target)))
-        if target_key in target_keys:
+        node = restore_path_trie
+        normalized_parts = tuple(os.path.normcase(part) for part in resolved_relative.parts)
+        for part in normalized_parts:
+            if node.get(restore_path_kind_key) == "file":
+                raise HSE2ModelError("archive file target conflicts with a child restore path")
+            node = node.setdefault(part, {})
+        if restore_path_kind_key in node:
             raise HSE2ModelError("archive entries resolve to the same restore target")
-        target_keys.add(target_key)
+        if entry["kind"] == "file" and any(key is not restore_path_kind_key for key in node):
+            raise HSE2ModelError("archive file target conflicts with a child restore path")
+        node[restore_path_kind_key] = entry["kind"]
         targets[path_key] = target
         if entry["kind"] == "directory" and target.exists() and not target.is_dir():
             raise HSE2ModelError(f"target is not a directory: {target}")

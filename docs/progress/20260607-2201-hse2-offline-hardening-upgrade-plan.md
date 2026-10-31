@@ -369,7 +369,7 @@
 - [x] 删除全部 wrapper 后不可解密
 - [x] manifest 被篡改后认证失败
 - [x] payload 被篡改后认证失败
-- [x] manifest 非规范 POSIX 路径拒绝；Windows 恢复预检拒绝经 Windows 路径规范化后映射到同一目标的多个条目
+- [x] manifest 非规范 POSIX 路径拒绝；Windows 恢复预检拒绝大小写归一化后的同目标及文件/子路径冲突
 - [x] KDF 参数被篡改后认证失败
 - [x] 大文件 streaming 内存增长受限：Windows benchmark 对比 8 MiB/128 MiB create/open，Python heap 增长均为 0 MiB，working-set 增长分别为 -0.17/-0.13 MiB，均低于 32 MiB 预算
 - [x] 文件夹加密不落地未加密中间归档：create 从源文件分块加密并直接写 HSE2 容器；创建/恢复集成回归通过
@@ -494,5 +494,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：扩展 test-only HSE2 v3 参考写入器/读取器，继续保持不导入 `high_security_encryptor`；现覆盖 keyfile、password、password+keyfile 三种 wrapper 的双向对照，password wrapper 限于 compatible Argon2id profile，并验证错误密码与错误 keyfile 会拒绝。测试发现并修复参考 reader 将 wrapper AAD 固定为 keyfile 的缺陷。全量 unittest 674 通过、4 跳过，compileall、pre-commit 与 `git diff --check` 通过。该本地独立代码路径仍复用 Argon2/AES 原语库，不能替代第三方互操作或格式审查。Commit: 待提交
 - 2026-10-31：路线图版本表校准：v0.6.3 DPAPI/GUI 向导及 v0.6.4 manifest 加密/元数据最小化均已在当前源码实现并由测试覆盖，但这些版本尚未单独打包、打 tag 或发布；状态由“未开始”改为“实现已具备、发布未完成”。未创建 release artifact 或 tag。Commit: 待提交
 - 2026-10-31：M1.7 互操作门槛文档校准：test-only 参考实现已在提交 `fc27860` 覆盖 keyfile、password、password+keyfile 三类 wrapper 双向对照，定向 5 项测试通过；更新测试包和 M1 进度记录，将“本地独立代码路径通过”与“第三方互操作/格式审查待完成”分开表述。文档单测、pre-commit 与 `git diff --check` 通过。Commit: 待提交
-- 2026-10-31：Phase 12 restore-path hardening：HSE2 manifest 创建及恢复现在拒绝会被 POSIX 路径解析静默归一化的非规范路径；Windows 恢复预检拒绝经 Windows 路径规范化后落到同一目标的多个条目，防止大小写路径冲突造成覆盖歧义。新增 manifest 与 v3 open 回归；定向 26 项、全量 677 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。格式 framing 文档已同步。Windows CI 将复核本提交。Commit: 待提交
+- 2026-10-31：Phase 12 restore-path hardening：HSE2 manifest 创建及恢复现在拒绝会被 POSIX 路径解析静默归一化的非规范路径；Windows 恢复预检以路径前缀树拒绝大小写归一化后的同目标及文件/子路径冲突，避免条目顺序决定覆盖结果，同时令额外索引随路径段数线性增长。新增 manifest 与 v3 open 回归；定向 26 项、最终全量 677 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。格式 framing 文档已同步。Commit: 本提交（SHA 见 Git 历史）
 
