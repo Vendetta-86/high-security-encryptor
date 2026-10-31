@@ -32,7 +32,7 @@ This release-prep line follows the published `v0.6.0-alpha.7`. It packages the c
 - Rebuilt all ten executables from the expanded fix; CLI smoke checks and packaged v3 create/inspect/validate/open round trip passed again, with byte-identical restored content.
 - Refreshed local ZIP: `dist/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 133,995,227 bytes, 16 entries (10 EXEs plus documentation/examples); contents checked.
 
-Candidate commit `6699036294fa5f9a7c6dc3aac4c972a0e041c74e`, roadmap commit `141c056240cb7fc117461e204cc665f75e7c244e`, and initial parser fix `45e7e4cec5ce2bd598d6df02ed5d9bb7aaec3546` passed runs [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016), [41179913657](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41179913657), and [41180527122](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180527122), respectively, on Windows Python 3.11, 3.12, and 3.13. The additional integer-boundary hardening and rebuilt artifacts documented above are newer and still require a fresh remote CI run. These CI results do not substitute for maintainer release review. The following commands are the reproducible local release gate when validating a clean candidate:
+Candidate commit `6699036294fa5f9a7c6dc3aac4c972a0e041c74e`, roadmap commit `141c056240cb7fc117461e204cc665f75e7c244e`, initial parser fix `45e7e4cec5ce2bd598d6df02ed5d9bb7aaec3546`, and expanded integer-boundary fix `258607f2e6c209fd6de4940a9a436a4f794bb045` passed runs [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016), [41179913657](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41179913657), [41180527122](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180527122), and [41180988674](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180988674), respectively, on Windows Python 3.11, 3.12, and 3.13. The latest remote CI does not substitute for maintainer release review. The following commands are the reproducible local release gate when validating a clean candidate:
 
 ```powershell
 python -m compileall -q src tests build_tools
@@ -50,4 +50,4 @@ The project venv used during prep is `work\hse2-test-venv`. Build and smoke each
 
 ## Status
 
-Local Windows candidate validation is complete, including a rebuild with the additional integer-boundary hardening; fresh CI for that addition and maintainer release review are outstanding. No tag or release has been created.
+Local Windows candidate validation and CI for the expanded integer-boundary hardening are complete; maintainer release review remains outstanding. No tag or release has been created.

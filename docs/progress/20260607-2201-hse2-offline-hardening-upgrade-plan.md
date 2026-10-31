@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：Phase 10–12 和 alpha.8 候选主体已完成；Windows Python 3.11/3.12/3.13 CI 已通过至提交 `45e7e4c`。追加的严格 JSON 整数字段校验已在本地通过全量测试并完成 Windows EXE 重建；该追加修复提交及其 CI 尚待同步验证。v0.6.0-alpha.8 尚待维护者发布审查；Phase 8 维持 no-go。HSE2 稳定格式冻结仍需第三方 v3 双向互操作证据及独立格式/密码学审查。尚未打 tag 或发布。
+- **当前状态**：Phase 10–12 和 alpha.8 候选主体已完成；严格 JSON 整数字段校验已通过本机全量测试、Windows EXE 重建及提交 `258607f` 的 Windows Python 3.11/3.12/3.13 CI。v0.6.0-alpha.8 尚待维护者发布审查；Phase 8 维持 no-go。HSE2 稳定格式冻结仍需第三方 v3 双向互操作证据及独立格式/密码学审查。尚未打 tag 或发布。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -391,7 +391,7 @@ python -m pip_audit . --progress-spinner off
 |---|---|---|
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
-| `v0.6.0-alpha.8` | [~] | 本机 release candidate post-fix 验证完成：669 tests (6 skipped)、质量门、10 个 Windows EXE、v3 EXE 往返、打包 GUI 元数据检查；提交 `45e7e4c` 的三版本 Windows CI 已通过，追加修复 commit 的 CI 和维护者审查待完成。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
+| `v0.6.0-alpha.8` | [~] | 本机 release candidate post-fix 验证完成：669 tests (6 skipped)、质量门、10 个 Windows EXE、v3 EXE 往返、打包 GUI 元数据检查；提交 `258607f` 的三版本 Windows CI 已通过；待维护者审查。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
@@ -486,5 +486,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：alpha.8 CI 通过：GitHub Actions run [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016) 对提交 `6699036` 的 Windows Python 3.11、3.12、3.13 三个 job 全部成功。CI 通过不代表发布审批；仍待维护者审查，无 tag/Release。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：alpha.8 路线图复核：Phase 1/2 保留为 stable freeze 与第三方互操作审查门槛；DPAPI、paranoid keyfile 策略、brute-force guard 在线/离线边界、格式文档、CLI、GUI、测试等旧 checklist 勾选已按现有实现、文档和验收证据校准。最新状态文档提交 `4cd844c` 的 CI run [41178454944](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178454944) 三个 Windows Python job 全部成功。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：提交 `45e7e4c` 修复 HSE2 JSON 头部整数验证接受 `true` 的解析边界：`_required_int` 现要求精确 `int` 类型，并为 `cipher_suite.chunk_size`、`payload_layout.chunk_count` 增加回归测试。全量 unittest 667 通过、6 跳过，compileall、detect-secrets pre-commit 通过；提交的三版本 CI run [41180527122](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180527122) 全部成功。
-- 2026-10-31：追加拒绝 header-backup 元数据、payload chunk index 和 archive manifest 整数字段中的 JSON 布尔值；新增直接及 v3 恢复回归。全量 unittest 669 通过、6 跳过，compileall、detect-secrets pre-commit 通过；十个 Windows EXE 重建，CLI smoke、EXE v3 往返和打包 GUI 元数据检查通过；本机 ZIP 16 项、133,995,227 bytes。该追加修复的远端 CI 待推送后验证。Commit: 本次修复
+- 2026-10-31：提交 `258607f` 追加拒绝 header-backup 元数据、payload chunk index 和 archive manifest 整数字段中的 JSON 布尔值；新增直接及 v3 恢复回归。全量 unittest 669 通过、6 跳过，compileall、detect-secrets pre-commit 通过；十个 Windows EXE 重建，CLI smoke、EXE v3 往返和打包 GUI 元数据检查通过；本机 ZIP 16 项、133,995,227 bytes；CI run [41180988674](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180988674) 的 Windows Python 3.11/3.12/3.13 jobs 全部成功。
 

@@ -11,7 +11,7 @@ Use this checklist before tagging or publishing a release.
 
 ## Local Verification
 
-The alpha.8 local candidate has passed the full suite after strict JSON integer validation across HSE2 headers, header-backup metadata, payload chunk indices, and archive manifests (669 passed, 6 skipped), compileall, pre-commit, dependency audit, ten-executable Windows build, packaged CLI smoke checks, a v3 executable round trip, and packaged GUI metadata inspection. Initial parser fix commit `45e7e4c` passed [GitHub Actions CI](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180527122) on Windows Python 3.11, 3.12, and 3.13. CI for the additional integer-boundary hardening and maintainer review remain release gates. See `docs/progress/20261031-alpha8-prep-status.md` for exact environment and artifact details.
+The alpha.8 local candidate has passed the full suite after strict JSON integer validation across HSE2 headers, header-backup metadata, payload chunk indices, and archive manifests (669 passed, 6 skipped), compileall, pre-commit, dependency audit, ten-executable Windows build, packaged CLI smoke checks, a v3 executable round trip, and packaged GUI metadata inspection. Expanded parser fix commit `258607f` passed [GitHub Actions CI](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180988674) on Windows Python 3.11, 3.12, and 3.13. Maintainer review remains a release gate. See `docs/progress/20261031-alpha8-prep-status.md` for exact environment and artifact details.
 
 Run:
 
