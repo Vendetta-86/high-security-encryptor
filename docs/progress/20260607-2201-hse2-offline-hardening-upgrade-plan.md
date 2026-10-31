@@ -393,7 +393,7 @@ python -m pip_audit . --progress-spinner off
 |---|---|---|
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
-| `v0.6.0-alpha.8` | [~] | 本机候选验证与干净克隆 release gate 完成：最新代码全量 679 passed/6 skipped、质量门、10 个 Windows EXE、v3/DPAPI 往返与打包 GUI 检查、16 项候选 ZIP；候选已获有条件维护者批准。tag 专属 Windows EXE 工作流及公开发布仍待执行。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
+| `v0.6.0-alpha.8` | [~] | tag `5935f76` 的 Windows EXE 构建与 Actions 工件上传已通过；之后 GUI 错误短语路径发现问题并已在 `ecea734` 修复，故 alpha.8 工件未包含该修复，不应发布。应从含修复且通过 CI 的提交重切候选并重跑 release gate。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
@@ -424,7 +424,7 @@ python -m pip_audit . --progress-spinner off
 17. [x] 补齐 GUI 向导
 18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
-20. [~] 打包 release
+20. [~] 打包 release（alpha.8 tag 构建已过；修复后的候选 tag/工件及公开 Release 仍待完成）
 21. [x] 评估 decoy / duress 是否进入下一版本：暂不进入 `v0.7.0`；缺少可审查的威胁模型和格式设计，现有计划不能支持可否认性承诺
 
 ---

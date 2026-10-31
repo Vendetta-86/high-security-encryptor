@@ -164,6 +164,7 @@ Confirm:
 - wrapper remove shows wrapper id plus optional password/keyfile/DPAPI fields;
 - access destroy shows a destructive confirmation before execution;
 - access destroy refuses an incorrect confirmation phrase;
+- access destroy presents a visible validation error for an incorrect phrase and does not create the output archive;
 - access destroy shows the exact confirmation phrase field and warning phrase;
 - raw JSON output remains visible in the log;
 - wrapper/access/inspect readable summaries appear below supported JSON payloads.

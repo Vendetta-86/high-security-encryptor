@@ -31,9 +31,12 @@ class HSE2GuiTabTests(unittest.TestCase):
             def set(self, value: str) -> None:
                 self.value = value
 
+        def build_invalid_plan() -> None:
+            raise ValueError("永久禁用访问确认短语不匹配。")
+
         tab = SimpleNamespace(
             _confirm_destructive_action=lambda: True,
-            build_plan=lambda: (_ for _ in ()).throw(ValueError("永久禁用访问确认短语不匹配。")),
+            build_plan=build_invalid_plan,
             _run_command=lambda _plan: self.fail("runner must not run when plan validation fails"),
             archive_password=Variable("secret"),
             archive_password_confirmation=Variable("secret"),
