@@ -41,6 +41,8 @@ v2: fixed preamble | authenticated header | JSON body (manifest + all chunks)
 v3: fixed preamble | authenticated header | MNF3 record | CHK3 records (exact EOF)
 ```
 
+Archive paths and file names are stored only inside the encrypted manifest. There are no plaintext per-file names in the payload records, so random internal aliases would not add at-rest filename privacy. The header's `filename_policy: "encrypted"` records this behavior; the authenticated header and ciphertext still expose aggregate layout such as total chunk count and container size.
+
 Version 2 is retained for compatibility and remains the default output format. Its JSON body is materialized by existing v2 workflows, so memory use can grow with archive size. Version 3 is the binary streaming format; create selects it with `--format-version 3`, and open detects the version from the preamble. Do not reinterpret, migrate, or rewrite an existing v2 container as v3 implicitly.
 
 ## Fixed preamble
@@ -67,7 +69,9 @@ MNF3 | ciphertext_length:u64 | nonce:12 bytes | ciphertext:N | tag:16 bytes
 CHK3 | index:u64 | ciphertext_length:u32 | nonce:12 bytes | ciphertext:N | tag:16 bytes
 ```
 
-The manifest ciphertext is limited to 64 MiB; each chunk is limited to 16 MiB and to the authenticated `cipher_suite.chunk_size`. The header is limited to 1 MiB. `chunk_size` is 1 byte through 16 MiB. `payload_layout.payload_offset` and `footer_offset` are reserved and must be zero in v3. Payload chunk AAD remains `HSE2:payload-chunk:v1:{global-index}`. The manifest is authenticated with AES-256-GCM, and its existing domain-separated AAD remains unchanged.
+The manifest ciphertext is limited to 64 MiB; each chunk is limited to 16 MiB and to the authenticated `cipher_suite.chunk_size`. The header is limited to 1 MiB. `chunk_size` is 1 byte through 16 MiB. `payload_layout.payload_offset` and `footer_offset` are reserved and must be zero in v3. Unpadded payload chunk AAD remains `HSE2:payload-chunk:v1:{global-index}`. The manifest is authenticated with AES-256-GCM, and its existing domain-separated AAD remains unchanged.
+
+`payload_layout.padding_mode` is omitted for the default `none` mode. The opt-in `last-chunk-to-chunk-size` mode encrypts each non-empty file's final chunk at exactly `chunk_size` bytes, filling any remainder with cryptographically random bytes. Its original length remains in the encrypted manifest; open authenticates each padded chunk and writes only the declared original bytes. Padded chunks use a separate AAD context, and the mode is covered by the header authentication tag. This hides each file's exact size within a chunk-size interval, while total chunk count and approximate container size remain visible. It can add up to one chunk of storage per non-empty file. Readers that do not support the mode fail authentication rather than silently restoring padded bytes.
 
 V3 readers authenticate the header before reading the manifest or payload. They validate the manifest and safe output paths before creating restored files, then decrypt to per-file staging outputs and atomically commit complete files. A later chunk failure may leave previously completed files in place; whole-directory all-or-nothing restore is not promised.
 
@@ -109,6 +113,9 @@ Recommended top-level shape:
   }
 }
 ```
+
+When the opt-in padding mode is enabled, `payload_layout` also contains
+`"padding_mode": "last-chunk-to-chunk-size"`.
 
 The header authentication tag must cover all security-critical header fields, including KDF parameters, wrapper metadata, cipher selections, manifest policy, payload layout, and nonce/salt fields that influence decryption.
 

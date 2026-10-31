@@ -75,7 +75,7 @@
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
-| Phase 9 | [~] | 元数据最小化 | encrypted manifest/store_original_paths=false 已落地；随机名/padding 仍需补齐 |
+| Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [~] | GUI / CLI 完整闭环 | helper CLI 与 HSE2 GUI 可用；统一子命令树和完整向导仍需补齐 |
 | Phase 11 | [~] | 测试与发布 | v0.6.0-alpha.3 release-prep 已建立，待 CI/本地验收与发布 |
 
@@ -263,19 +263,20 @@
 ### 待完成清单
 
 - [x] 默认加密 manifest
-- [~] 支持随机化内部文件名（当前策略为 encrypted，仍需确认随机命名策略）
+- [x] 文件名仅存在于加密 manifest；payload 记录不含明文文件名，因此随机别名不增加静态隐私
 - [x] 支持不保存绝对路径
 - [x] 支持不保存 Windows 用户名 / 盘符
 - [x] 支持相对路径恢复
-- [~] 支持 bundle-folder 单容器输出（HSE2 archive 已可输出单容器，仍需正式命令名）
-- [ ] 可选文件大小 padding
+- [x] 文件夹通过 HSE2 create 输出为单个 `.hse2` 容器
+- [x] 可选文件大小 padding（`--pad-last-chunk`，默认关闭）
 
 ### 完成标准
 
-- [~] `.hse2` 外部无法直接看到原文件名（manifest 加密已完成，内部命名策略需复核）
+- [x] `.hse2` 外部无法直接看到原文件名（v2/v3 原始容器字节检查通过）
 - [x] manifest 篡改会认证失败
 - [x] 解密后能恢复相对目录结构
-- [ ] paranoid 模式默认启用 manifest 加密和随机化名称
+- [x] 创建默认启用 manifest 加密与 encrypted filename policy；随机别名不适用，因为文件名从未以明文写入 payload
+- [x] padding 保持显式可选；它会隐藏更精确的文件大小，但增加最多每个非空文件一个 chunk 的空间
 
 ---
 
@@ -451,3 +452,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：完成 Phase 5 header backup 提示：create 成功后在 stderr 输出可复制的 export 命令，JSON 附推荐 `.hse2.header` 路径和 argv；GUI 顶部增加常驻醒目提示，说明 header backup 不能恢复或替代密码、keyfile、DPAPI 解锁条件。测试会实际执行建议 argv 并确认备份文件生成；HSE2 定向 397 项通过、2 项跳过；全量 616 项通过、6 项跳过。Commit: `9c19ced`
 - 2026-10-31：完成 Phase 6 header backup wrapper 恢复场景：修复 restore 在 header 长度变化后仍使用备份旧 offset 的问题；有效当前 header 用于定位现有 body，恢复后继续校验备份 frame offset、body 长度及 SHA-256，损坏 header 仍回退备份 offset。新增 v2/v3 测试：备份、access destroy、恢复旧 wrapper、验证 body 完全一致并以原 keyfile 解密。HSE2 定向 398 项通过、2 项跳过；全量 617 项通过、6 项跳过。Commit: `00054a6`
 - 2026-10-31：完成 Phase 7 DPAPI 风险正式化：create/add/rewrap CLI 明示 DPAPI wrapper 的账户/设备可移植性限制并建议保留独立密码或 keyfile；GUI 对新 DPAPI wrapper 显示醒目提示并在确认框重申，对 `local_machine` scope 显示同机其他用户可解密的风险。补充微软官方行为说明和 roaming-profile 例外。Windows 本机实测 DPAPI create/open、wrapper add、DPAPI 解锁、保留密码 fallback 后移除 DPAPI、local_machine blob 保护/解保护；Tk 界面动态警示可见性通过。全量 620 项通过、6 项跳过。Commit: `2b0e525`
+- 2026-10-31：完成 Phase 9 元数据最小化：确认 v2/v3 文件名与相对路径只存在于加密 manifest，payload record 无明文路径，原始容器检查中 secret 文件名不可见；为 v2/v3 create/open 增加显式 `--pad-last-chunk`，以随机填充将每个非空文件末块加密到 chunk_size，manifest 保留原大小，解密只写回原始字节，padding mode 纳入认证 header 且使用独立 AAD。新增 CLI dry-run 与 v2/v3 create/open 集成回归，定向 9 项通过，全量 622 项通过（6 项跳过），`git diff --check` 通过。随机别名无额外 at-rest 隐私，故不引入冗余格式复杂度；padding 默认关闭。Commit: 待提交

@@ -50,6 +50,18 @@ high-security-encryptor-hse2-open \
 
 Password+keyfile wrappers are also supported by supplying both `--password-file` and `--keyfile` to create/open.
 
+To reduce exact per-file size leakage, opt in to padding each non-empty file's final encrypted chunk to the configured chunk size:
+
+```bash
+high-security-encryptor-hse2-create \
+  --root <ROOT_PATH> \
+  --output <ARCHIVE_PATH> \
+  --keyfile <KEYFILE_PATH> \
+  --pad-last-chunk
+```
+
+Padding adds up to one chunk of storage per non-empty file. The encrypted manifest preserves original sizes, so open restores exact files. Container size and total chunk count remain visible. The authenticated padding mode requires a reader that supports this option; older readers fail closed.
+
 ## Windows DPAPI Mode
 
 On Windows, create a current-user DPAPI-backed archive:
