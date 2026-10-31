@@ -41,8 +41,11 @@ access conditions needed to unlock a container. The `archive-create` action
 creates an archive from a selected folder through the existing create CLI. It
 offers v2/v3 format, chunk size, password profile, optional padding, and
 password-file/keyfile/DPAPI factors; plaintext passwords are never placed in
-argv. A paranoid password wrapper requires a keyfile. Password confirmation
-and post-create validation remain follow-up wizard work. The `archive-open`
+argv. Creation enables post-create authenticated validation by default; it
+checks the header, encrypted manifest, and every payload authentication tag
+without writing plaintext. A validation failure is reported distinctly and
+the already-created archive remains on disk. A paranoid password wrapper
+requires a keyfile. Password confirmation remains follow-up wizard work. The `archive-open`
 action restores a selected container into a destination folder and keeps all
 unlock factors as file paths or explicit DPAPI allowance.
 
@@ -55,7 +58,7 @@ consumes. For example:
 - `inspect` shows only the `.hse2` input container path;
 - `archive-create` shows a source folder, output path, password file, keyfile,
   password profile, format version, chunk size, optional padding, DPAPI, and
-  overwrite controls;
+  overwrite and post-create validation controls;
 - `archive-open` shows a source container, restore folder, password file,
   keyfile, DPAPI unlock allowance, and overwrite control;
 - `header-backup-export` shows the source container, backup output path, and overwrite option;

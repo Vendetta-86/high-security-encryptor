@@ -16,6 +16,8 @@ The JSON result includes the byte length, the 32-byte minimum, HSE2 suitability,
 
 Create, open, and wrapper-management commands warn on stderr if a keyfile and an input/output `.hse2` archive share a directory. Keep the keyfile in a separate secure location so copying the archive directory does not copy both factors.
 
+`high-security-encryptor-hse2-create --validate-after-create` reopens the completed v2/v3 archive, authenticates the header and encrypted manifest, and verifies every payload authentication tag without writing plaintext. It returns a nonzero status if validation fails; the already-created archive remains on disk. The GUI create action enables this check by default.
+
 Create a portable keyfile-backed archive:
 
 ```bash
