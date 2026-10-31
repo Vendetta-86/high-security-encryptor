@@ -36,6 +36,8 @@ high-security-encryptor-hse2-open \
   --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
 ```
 
+Add `--validate-before-open` to authenticate the complete archive before restoring files. If authentication fails, the CLI returns an error before creating the output directory. This reads the archive twice and is optional; the normal open path still authenticates each chunk as it restores it.
+
 For passphrase-file backed workflows, pass a UTF-8 file containing the passphrase. One trailing newline is stripped by the CLI:
 
 ```bash

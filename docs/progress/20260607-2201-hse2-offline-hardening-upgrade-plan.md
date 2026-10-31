@@ -323,7 +323,7 @@
 - [x] DPAPI 本机绑定选项
 - [x] header backup 导出提示和 GUI 导出入口（创建后提醒；备份与容器分开保存）
 - [x] 新建归档默认执行创建后认证校验，可在 GUI 关闭；失败会明确报告且不写出明文
-- [~] 解密前 inspect / validate 选项
+- [~] 打开前完整认证校验已支持且默认关闭；单独元数据 inspect 的前置串联仍待接入
 - [x] wrapper 管理界面
 - [x] destroy-access 独立危险操作界面
 - [x] wrapper/access JSON 结果可读摘要
@@ -331,7 +331,7 @@
 ### 完成标准
 
 - [~] 新手可通过 GUI 选择目录并创建 v2/v3 password-file + keyfile 归档；确认密码与完整恢复向导仍待补齐
-- [x] GUI 可用 password-file/keyfile/DPAPI 打开并恢复 v2/v3 归档；解密前 inspect/validate 串联仍待补齐
+- [x] GUI 可用 password-file/keyfile/DPAPI 打开并恢复 v2/v3 归档；可选的整包预校验失败时不创建输出目录
 - [~] GUI 不诱导用户只依赖 DPAPI
 - [x] GUI 对 destroy-access 有强确认和单独入口
 
@@ -465,4 +465,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 GUI 归档创建向导第一步：新增目录归档 GUI action，复用 `hse2-create`，可选择 password-file/keyfile/DPAPI、KDF profile、v2/v3、chunk size、末块 padding 与覆盖确认；密码不进入 argv，paranoid 密码策略要求 keyfile。为端到端路径补齐 v3 流式 inspect（仅读 framing/metadata，分块跳过密文，不解锁、不验证 AEAD）。修正 GUI 密码文件变更后 paranoid 提示不刷新的问题及旧的“GUI 不应展示 archive-create”断言。定向 77 项通过；Tk 控件及 paranoid/DPAPI 条件警告检查通过；全量 637 项通过（6 项跳过），compileall 与 `git diff --check` 通过。Commit: `742ed92`
 - 2026-10-31：Phase 11 GUI 归档打开向导：新增 `archive-open` action 及 GUI helper 调度，可选择容器、恢复目录、password-file/keyfile/DPAPI 与覆盖；DPAPI 使用时出现可移植性提示。集成测试通过 GUI dispatcher 创建并恢复 v3 归档，逐字节比对解密输出；Tk 控件与 DPAPI 条件警告检查通过。定向 77 项通过，全量 641 项通过（6 项跳过），compileall 与 `git diff --check` 通过。另在 Windows 主 GUI 中点击“打开 HSE2 实验工具”，确认 HSE2 窗口显示。Commit: `1949411`
 - 2026-10-31：Phase 11 创建后归档认证校验：新增 v2/v3 `validate_hse2_archive`，验证 header HMAC、manifest AEAD、完整 payload AEAD 与布局，不写出明文；v3 按 chunk 流式验证。GUI 创建向导默认勾选，可关闭；CLI 失败会返回独立非零状态并明确说明归档已写出。验证涵盖 v2/v3 padding、空文件、错误 key 与损坏末块 tag；GUI dispatcher 检查报告成功及 `plaintext_written=false`。定向 90 项通过；全量 643 项通过（6 项跳过），Tk 默认选项检查、compileall 与 `git diff --check` 通过。Commit: `f7661a3`
+- 2026-10-31：Phase 11 打开前认证校验：`hse2-open --validate-before-open` 和 GUI 可选项会先认证 header、manifest 和全部 payload tags，再执行恢复；失败时输出目录不会创建，GUI 默认关闭以避免重复读大文件。损坏 tag/无输出目录回归、GUI dispatcher v3 create/validate/open、定向 74 项及全量 643 项（6 项跳过）通过；Tk 选项显隐、compileall 与 `git diff --check` 通过。Commit: `dc073bb`
 

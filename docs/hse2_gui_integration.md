@@ -47,7 +47,9 @@ without writing plaintext. A validation failure is reported distinctly and
 the already-created archive remains on disk. A paranoid password wrapper
 requires a keyfile. Password confirmation remains follow-up wizard work. The `archive-open`
 action restores a selected container into a destination folder and keeps all
-unlock factors as file paths or explicit DPAPI allowance.
+unlock factors as file paths or explicit DPAPI allowance. An optional pre-open
+validation authenticates the full archive before creating the restore directory;
+it is off by default because it adds a complete archive read.
 
 The tab dynamically hides fields that are not relevant to the selected action.
 This keeps each operation focused on the values the underlying CLI actually
@@ -60,7 +62,7 @@ consumes. For example:
   password profile, format version, chunk size, optional padding, DPAPI, and
   overwrite and post-create validation controls;
 - `archive-open` shows a source container, restore folder, password file,
-  keyfile, DPAPI unlock allowance, and overwrite control;
+  keyfile, DPAPI unlock allowance, overwrite, and optional pre-open validation controls;
 - `header-backup-export` shows the source container, backup output path, and overwrite option;
 - `generate-keyfile` shows output path, size, and overwrite;
 - `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;
