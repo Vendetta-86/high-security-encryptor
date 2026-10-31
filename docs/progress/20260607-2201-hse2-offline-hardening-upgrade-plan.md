@@ -369,8 +369,8 @@
 - [x] manifest 被篡改后认证失败
 - [x] payload 被篡改后认证失败
 - [x] KDF 参数被篡改后认证失败
-- [~] 大文件 streaming 不爆内存（streaming chunk 实现已有，需更大 fixture）
-- [~] 文件夹加密不落地未加密中间归档
+- [x] 大文件 streaming 内存增长受限：Windows benchmark 对比 8 MiB/128 MiB create/open，Python heap 增长均为 0 MiB，working-set 增长分别为 -0.17/-0.13 MiB，均低于 32 MiB 预算
+- [x] 文件夹加密不落地未加密中间归档：create 从源文件分块加密并直接写 HSE2 容器；创建/恢复集成回归通过
 - [ ] 解密临时目录可通过环境变量指定
 
 ### 常规测试命令
@@ -470,5 +470,7 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 单独归档校验入口：新增 unified `hse2 validate-archive`、focused `high-security-encryptor-hse2-archive-validate` 和 GUI action，报告 header/manifest/payload 全部认证且未写明文。v3 unified CLI 与 GUI dispatcher 集成通过；定向 84 项、全量 648 项通过（6 项跳过），Tk 输入控件检查、compileall 与 `git diff --check` 通过。Commit: `69953c0`
 - 2026-10-31：Phase 11 GUI 密码输入确认：新建归档可在两个掩码输入框内输入并确认密码；CLI builder 校验匹配、互斥的 password-file/DPAPI 方式及 paranoid+keyfile 策略。密码只在内存命令计划中携带（repr 隐藏），不进 argv、日志或临时文件，提交后 GUI 清空输入框；GUI dispatcher 端到端创建并恢复比对成功。GUI 定向 78 项通过；全量 654 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `0098582`
 - 2026-10-31：Phase 11 打开前 inspect 预览确认：GUI 恢复动作先运行只读 inspect，展示输入容器、恢复目标、格式、容器大小、wrapper 类型、payload 块数及访问禁用标记；预览检查失败或用户取消都会阻止恢复。界面明确该预览不代表认证通过且不显示加密文件名，打开仍按原流程认证。定向 GUI 80 项、全量 656 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `1b76e27`
-- 2026-10-31：Phase 11 创建后直接密码打开/校验：归档创建、解密恢复和完整校验均支持掩码密码输入并直接传入原 CLI helper；创建必须确认两次，打开/校验单次输入。端到端 GUI dispatcher 创建后直接以输入密码恢复并完整认证，argv/stdout/stderr 均不含密码；Tk 检查确认三个动作字段均掩码且确认框只在创建时出现。定向 88 项通过；全量 658 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: 待提交
+- 2026-10-31：Phase 11 创建后直接密码打开/校验：归档创建、解密恢复和完整校验均支持掩码密码输入并直接传入原 CLI helper；创建必须确认两次，打开/校验单次输入。端到端 GUI dispatcher 创建后直接以输入密码恢复并完整认证，argv/stdout/stderr 均不含密码；Tk 检查确认三个动作字段均掩码且确认框只在创建时出现。定向 88 项通过；全量 658 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `ba4e25a`
+- 2026-10-31：Phase 12 Windows 流式内存基准：运行 `build_tools/benchmark_hse2_v3_memory.py --small-mib 8 --large-mib 128 --max-growth-mib 32`。create Python heap 7.67→7.67 MiB、working set 41.66→41.49 MiB；open heap 7.67→7.67 MiB、working set 41.59→41.46 MiB；增长预算通过。该结论仅适用于本机和本次 8/128 MiB 样本。Commit: 待提交
+- 2026-10-31：Phase 12 检查目录归档未落地明文中间归档：create 根据 manifest 分块读取源文件并立即加密，v3 将加密 payload 流直接交给容器 writer；现有 v2/v3 create/open 与 GUI dispatcher 往返集成覆盖此路径。`workflows.py` 未创建明文 staging archive。Commit: 待提交
 
