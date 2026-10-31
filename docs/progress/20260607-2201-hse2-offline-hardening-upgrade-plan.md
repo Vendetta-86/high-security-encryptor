@@ -240,7 +240,7 @@
 
 ### 状态
 
-`[!]` 高风险功能，建议延后到 HSE2 核心稳定后再做。
+`[!]` 已评估：暂不进入 `v0.7.0` 实现。当前格式与威胁模型没有定义可验证的 plausible-deniability 目标；双密码分别解锁真实/诱饵内容本身不足以隐藏诱饵区是否存在，也无法覆盖多次归档快照、文件大小变化、应用日志、备份和操作系统痕迹。进入实现前需另立格式提案，明确攻击者观察能力、外部可观察量、失败行为、兼容策略，并接受独立密码学审查。当前仅保留“绝不自动删除真实数据或 wrapper”的安全规则。
 
 ### 不做项
 
@@ -250,11 +250,11 @@
 
 ### 待完成清单
 
-- [ ] 新增 decoy manifest
-- [ ] 新增 decoy payload 区
-- [ ] 新增 duress wrapper 类型
-- [ ] 胁迫密码只解开 decoy MEK / DEK
-- [ ] GUI 明确标注“这不是完整可否认性保证”
+- [ ] 新增 decoy manifest（因格式与可观察性设计未审查，暂缓）
+- [ ] 新增 decoy payload 区（因格式与可观察性设计未审查，暂缓）
+- [ ] 新增 duress wrapper 类型（当前 header wrapper 类型可枚举，直接增加类型会公开暴露功能）
+- [ ] 胁迫密码只解开 decoy MEK / DEK（没有经过审查的隐藏真实/诱饵密钥派生设计）
+- [ ] GUI 明确标注“这不是完整可否认性保证”（尚无可安全发布的功能入口）
 
 ---
 
@@ -396,7 +396,7 @@ python -m pip_audit . --progress-spinner off
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
 | `v0.6.3` | [ ] | DPAPI 正式化、GUI 加密向导 |
 | `v0.6.4` | [ ] | 元数据最小化、manifest 加密默认化 |
-| `v0.7.0` | [!] | decoy / duress 诱饵模式，默认关闭 |
+| `v0.7.0` | [!] | decoy / duress 暂不实现；待独立格式提案与密码学审查 |
 
 ---
 
@@ -422,7 +422,7 @@ python -m pip_audit . --progress-spinner off
 18. [~] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
 20. [~] 打包 release
-21. [!] 评估 decoy / duress 是否进入下一版本
+21. [x] 评估 decoy / duress 是否进入下一版本：暂不进入 `v0.7.0`；缺少可审查的威胁模型和格式设计，现有计划不能支持可否认性承诺
 
 ---
 
@@ -479,4 +479,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 创建后 GUI 导航摘要：创建成功后摘要展示容器格式、wrapper 类型、payload 计数、创建后认证状态和建议 header backup 路径，并指向导出备份及归档恢复入口；明确 header backup 不替代密码/keyfile。定向 GUI 83 项、全量 660 项通过（6 项跳过）。Commit: 待提交
 - 2026-10-31：Phase 11 创建到恢复连续向导：创建成功且校验通过时询问是否继续；确认后切到 archive-open、自动填入归档路径、清空恢复目录，并只在 DPAPI wrapper 时启用 DPAPI 解锁。用户仍需确认访问因子/恢复目标，随后通过只读预览确认才运行恢复。创建失败或创建后认证失败不会启动下一步。GUI 定向 86 项、全量 663 项通过（6 项跳过），pre-commit、compileall、`git diff --check` 均通过。Commit: 待提交
 - 2026-10-31：路线图盘点：将原定测试文件名更新为仓库现有的格式、keyfile、DPAPI 与 manifest/metadata 覆盖文件，并确认 HSE1→HSE2 迁移文档已落地；没有重复创建空壳测试文件。Commit: 本提交（SHA 见 Git 历史）
+- 2026-10-31：评估 Phase 8 是否进入 `v0.7.0`：延后实现。正式隐藏卷工具的安全文档也明确列出多快照变化、系统日志和日常使用不一致等可否定性风险，并声明风险清单不保证穷尽；HSE2 当前计划缺少对这些观察面的格式级处理和独立密码学审查，不能安全地把“双密码解锁诱饵”作为可否认性功能发布。后续需先完成独立格式提案、攻击者模型与审查，再决定是否实现。参考：[VeraCrypt 隐藏卷安全要求](https://veracrypt.io/en/Security%20Requirements%20for%20Hidden%20Volumes.html)、[VeraCrypt 隐藏卷说明](https://veracrypt.io/en/Hidden%20Volume.html)。Commit: 本提交（SHA 见 Git 历史）
 
