@@ -65,6 +65,15 @@ class HSE2CliInspectTests(unittest.TestCase):
             self.assertEqual(payload["payload_chunk_count"], 1)
             self.assertEqual(payload["payload_layout"]["chunk_count"], 1)
 
+            unified_stdout = io.StringIO()
+            with contextlib.redirect_stdout(unified_stdout):
+                unified_exit = main(["hse2", "inspect", "--input", str(path)])
+
+            self.assertEqual(unified_exit, 0)
+            unified_payload = json.loads(unified_stdout.getvalue())
+            self.assertEqual(unified_payload["command"], "hse2-inspect")
+            self.assertEqual(unified_payload["payload_chunk_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

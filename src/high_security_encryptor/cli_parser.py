@@ -66,14 +66,22 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if hse2_keyfile_inspect_handler is not None:
+    if hse2_keyfile_inspect_handler is not None or hse2_inspect_handler is not None:
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
-        keyfile_parser = hse2_subparsers.add_parser("keyfile", help="Inspect HSE2 keyfile material.")
-        keyfile_subparsers = keyfile_parser.add_subparsers(dest="keyfile_command", required=True)
-        inspect_parser = keyfile_subparsers.add_parser("inspect", help="Check keyfile size and print its SHA-256 fingerprint.")
-        inspect_parser.add_argument("--input", required=True, help="Path to the keyfile to inspect.")
-        inspect_parser.set_defaults(handler=hse2_keyfile_inspect_handler)
+        if hse2_inspect_handler is not None:
+            archive_inspect_parser = hse2_subparsers.add_parser(
+                "inspect",
+                help="Inspect safe HSE2 container metadata without unlocking payload content.",
+            )
+            archive_inspect_parser.add_argument("--input", required=True, help="Input HSE2 container path.")
+            archive_inspect_parser.set_defaults(handler=hse2_inspect_handler)
+        if hse2_keyfile_inspect_handler is not None:
+            keyfile_parser = hse2_subparsers.add_parser("keyfile", help="Inspect HSE2 keyfile material.")
+            keyfile_subparsers = keyfile_parser.add_subparsers(dest="keyfile_command", required=True)
+            inspect_parser = keyfile_subparsers.add_parser("inspect", help="Check keyfile size and print its SHA-256 fingerprint.")
+            inspect_parser.add_argument("--input", required=True, help="Path to the keyfile to inspect.")
+            inspect_parser.set_defaults(handler=hse2_keyfile_inspect_handler)
 
     if dpapi_protect_handler is not None:
         dpapi_parser = subparsers.add_parser("dpapi-protect", help="WINDOWS ONLY: Protect a local binary file with DPAPI; scope changes portability and who on this computer may decrypt it.")
