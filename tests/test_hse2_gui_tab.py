@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from high_security_encryptor.hse2_gui_tab import (
     HEADER_BACKUP_RECOVERY_WARNING,
@@ -22,6 +23,29 @@ from high_security_encryptor.hse2_gui_tab import (
 
 
 class HSE2GuiTabTests(unittest.TestCase):
+    def test_run_selected_action_reports_plan_validation_errors(self) -> None:
+        class Variable:
+            def __init__(self, value: str) -> None:
+                self.value = value
+
+            def set(self, value: str) -> None:
+                self.value = value
+
+        tab = SimpleNamespace(
+            _confirm_destructive_action=lambda: True,
+            build_plan=lambda: (_ for _ in ()).throw(ValueError("永久禁用访问确认短语不匹配。")),
+            _run_command=lambda _plan: self.fail("runner must not run when plan validation fails"),
+            archive_password=Variable("secret"),
+            archive_password_confirmation=Variable("secret"),
+        )
+
+        with patch("high_security_encryptor.hse2_gui_tab.messagebox.showerror") as showerror:
+            HSE2ExperimentalTab.run_selected_action(tab)
+
+        showerror.assert_called_once_with("输入无效", "永久禁用访问确认短语不匹配。")
+        self.assertEqual(tab.archive_password.value, "")
+        self.assertEqual(tab.archive_password_confirmation.value, "")
+
     def test_header_backup_warning_says_it_cannot_replace_unlock_factors(self) -> None:
         self.assertIn("不能恢复或替代", HEADER_BACKUP_RECOVERY_WARNING)
         self.assertIn("密码、keyfile 或 DPAPI", HEADER_BACKUP_RECOVERY_WARNING)

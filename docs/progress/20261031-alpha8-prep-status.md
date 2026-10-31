@@ -69,11 +69,11 @@ The project venv used during prep is `work\hse2-test-venv`. Build and smoke each
 
 ## Remaining release gates
 
-- Tag-specific Windows EXE workflow and uploaded release asset must pass before public release. The workflow is release-producing when run for a tag, so the tag remains uncreated until its publication step is explicitly authorized.
+- Tag-specific Windows EXE build and Actions artifact upload are complete for `v0.6.0-alpha.8` (run [41203971451](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41203971451)). The public GitHub Release and its uploaded asset remain unpublished; the workflow's publish job was skipped.
 
 ## Status
 
-Local Windows candidate validation and clean-clone release gate are complete. Remote CI runs [41187598235](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41187598235) and [41189557379](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41189557379) passed on the GCM-limit code and latest progress record. Maintainer review is recorded below. The tag-specific Windows EXE workflow and publication remain outstanding. No tag or release has been created.
+Local Windows candidate validation and clean-clone release gate are complete. Remote CI runs [41187598235](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41187598235) and [41189557379](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41189557379) passed on the GCM-limit code and latest progress record. Maintainer review is recorded below. Tag-specific build and artifact upload have since passed; public release publication remains outstanding.
 
 ## Maintainer review — 2026-10-31
 
@@ -88,11 +88,22 @@ Reviewed source commit: `9caf7fe62f078803ea531ef5214e0becd5cd3a7c` (candidate co
 - On the packaged candidate, DPAPI v3 create and open succeeded for an empty file and a 200,000-byte multi-chunk file; restored relative paths, lengths, and SHA-256 values matched. Latest standalone HSE2 GUI metadata inspection and wrapper listing both exited 0 on this disposable archive; metadata showed format version 3, one DPAPI wrapper, four payload chunks, and no access-destroyed marker.
 - The tag-specific Windows EXE workflow has not run and its tag-triggered publication/upload has not been verified. GitHub currently returns 404 for both the `v0.6.0-alpha.8` tag ref and release. Therefore this is candidate approval only, not approval to publish or a claim that the final tag asset exists.
 
-## Build-only workflow verification — 2026-10-31
+## Windows executable workflow verification — 2026-10-31
 
-- Workflow hardening source: `43abbb6f9d4bdb8d4924eb686a57a77bf034541a`. GitHub CI passed for Python 3.11, 3.12, and 3.13. The workflow itself was not manually dispatched because the available GitHub browser session is signed out and `gh` has no authenticated session.
-- On Windows 11 x64 / Python 3.13.15 / PyInstaller 6.22.3, mirrored the `windows-exe.yml` build job into the isolated directory `work/workflow-build-only-43abbb6`; all source gates passed: `detect-secrets`, `pip_audit` (no known vulnerabilities), `compileall`, and full `unittest` discovery (680 tests, 6 skipped).
-- Built all ten executables. Main CLI help and hardened config validation passed; main GUI smoke and seven helper CLI help checks passed. The standalone HSE2 GUI launcher has no smoke-only mode; a `--smoke-test` launch opened its normal UI and was closed after detecting the unsupported flag, so standalone GUI interaction remains unverified in this run.
-- Created a local v3 archive with an empty file and a 180,123-byte multi-chunk file using the packaged EXEs. Create-time authentication, standalone archive validation, `validate-before-open` restore, and per-file SHA-256 comparison all passed.
+- Workflow hardening source: `43abbb6f9d4bdb8d4924eb686a57a77bf034541a`. Its Windows Python 3.11/3.12/3.13 CI passed.
+- On Windows 11 x64 / Python 3.13.15 / PyInstaller 6.22.3, mirrored the `windows-exe.yml` build job into `work/workflow-build-only-43abbb6`; all source gates passed: `detect-secrets`, `pip_audit` (no known vulnerabilities), `compileall`, and full `unittest` discovery (680 tests, 6 skipped).
+- Built all ten executables. Main CLI help and hardened config validation passed; main GUI smoke and seven helper CLI help checks passed. The packaged GUI interaction checks are recorded below.
+- Created a local v3 archive with an empty file and a 180,123-byte multi-chunk file using packaged EXEs. Create-time authentication, standalone archive validation, `validate-before-open` restore, and per-file SHA-256 comparison passed.
 - Local build-only ZIP: `work/workflow-build-only-43abbb6/high-security-encryptor-workflow-smoke-43abbb6-windows-x64.zip`, 16 entries including ten EXEs, 134,014,063 bytes; SHA-256 `595c589e97614d79009aafdd7e2675e9146ae208e5058f7c997f3756293c215e`.
-- This local build result does not verify GitHub artifact upload, runner parity on Python 3.11, or Release publication. No tag or public Release was created.
+- Manual workflow-dispatch build run [41203128076](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41203128076) on commit `5935f76038683f76aebc8557f5891ecae29628e6` built successfully; its publish job was skipped. Artifact digest: `sha256:9fdeaf7a3526778501d6a65b26cd561183375ee43b79e6989d92676e2be20fec`.
+- Annotated tag `v0.6.0-alpha.8` points to `5935f76038683f76aebc8557f5891ecae29628e6`. Tag run [41203971451](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41203971451) completed successfully: all 16 build/package/upload steps passed; the publish job was skipped. Artifact `high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip` is 146,975,410 bytes with digest `sha256:1285232a49f201d03ebc7ecd2be8aa55c3b2864d835328e5cc679c8b30d4d5ee`.
+- The Actions workflow artifact is not a GitHub Release. Public release publication and a publicly downloadable Release asset remain outstanding.
+
+## Standalone HSE2 GUI verification and fix — 2026-10-31
+
+- On the original packaged HSE2 GUI, selecting “永久禁用 HSE2 访问”, entering a wrong phrase, and confirming the disposable-output warning produced no output archive. Source archive remained 181,749 bytes with SHA-256 `3A7DFF495D372CE02159BC5AD2B0EA7E701993925FCCD5759F6C26B1CB8A8CBB`.
+- That interaction exposed a UX issue: plan validation raised `ValueError` before the GUI's existing runner error handler, so the user received no visible mismatch message. The fix moves plan creation into the GUI error boundary and displays `输入无效` with the validation message. A regression test checks the message, blocks runner invocation, and verifies password fields are cleared.
+- Packaged the updated standalone GUI in the isolated directory `work/gui-access-guard-validation`; executable SHA-256: `D507E69D1CC58FC7240F8F1BDECC583E4DF38CE16A36748A983E65A75AD4ECC9` (16,278,853 bytes). All 38 `tests.test_hse2_gui_tab` tests passed.
+- Manual packaged-GUI negative path now visibly reports `永久禁用访问确认短语不匹配。`; no output archive was created. The source archive remained unchanged.
+- Manual packaged-GUI positive path used the same disposable source and a distinct output. The GUI reported exit code 0, removed wrapper count 1, and `access_destroyed: true`. Packaged metadata inspection confirmed `access_destroyed=true`, `wrapper_count=0`, no wrappers, and three payload chunks. The source archive still inspects as `access_destroyed=false`, `wrapper_count=1`.
+- The GUI validation fix is a local uncommitted change after the `v0.6.0-alpha.8` tag. It must pass the repository-wide local gates and remote CI before being considered part of a future release candidate. No public release was created.

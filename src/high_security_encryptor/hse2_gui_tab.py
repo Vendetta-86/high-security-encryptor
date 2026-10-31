@@ -351,9 +351,11 @@ class HSE2ExperimentalTab(ttk.Frame):
 
         if not self._confirm_destructive_action():
             return
-        plan = self.build_plan()
         try:
+            plan = self.build_plan()
             self._run_command(plan)
+        except ValueError as exc:
+            messagebox.showerror("输入无效", str(exc))
         finally:
             self.archive_password.set("")
             self.archive_password_confirmation.set("")
