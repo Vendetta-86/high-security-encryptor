@@ -43,6 +43,18 @@ class HSE2GuiActionTests(unittest.TestCase):
         plan = build_hse2_gui_command(action="inspect", input_path="archive.hse2")
         self.assertEqual(plan.argv, ("hse2-inspect", "--input", "archive.hse2"))
 
+    def test_header_backup_export_action(self) -> None:
+        plan = build_hse2_gui_command(
+            action="header-backup-export",
+            input_path="archive.hse2",
+            output_path="archive.hse2.header",
+            force=True,
+        )
+        self.assertEqual(
+            plan.argv,
+            ("hse2-header-backup", "export", "--input", "archive.hse2", "--output", "archive.hse2.header", "--overwrite"),
+        )
+
     def test_rotate_keyfile_action(self) -> None:
         plan = build_hse2_gui_command(action="rotate-keyfile", config_path="rotate.json")
         self.assertEqual(plan.argv, ("hse2-rotate-keyfile", "--config", "rotate.json"))

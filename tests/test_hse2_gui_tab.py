@@ -23,6 +23,7 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_header_backup_warning_says_it_cannot_replace_unlock_factors(self) -> None:
         self.assertIn("不能恢复或替代", HEADER_BACKUP_RECOVERY_WARNING)
         self.assertIn("密码、keyfile 或 DPAPI", HEADER_BACKUP_RECOVERY_WARNING)
+        self.assertIn("创建归档后立即导出", HEADER_BACKUP_RECOVERY_WARNING)
 
     def test_dpapi_warnings_cover_machine_scope_and_wrapper_portability(self) -> None:
         machine_warning = dpapi_warning_for_state("dpapi-protect", "local_machine", False)
@@ -136,6 +137,22 @@ class HSE2GuiTabTests(unittest.TestCase):
 
     def test_visible_fields_for_inspect_action(self) -> None:
         self.assertEqual(visible_hse2_gui_field_keys("inspect"), frozenset({"input_path"}))
+
+    def test_header_backup_export_shows_input_output_and_overwrite(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("header-backup-export"),
+            frozenset({"input_path", "output_path", "force"}),
+        )
+        self.assertEqual(
+            build_hse2_command_from_tab_state(
+                HSE2GuiTabState(
+                    action="header-backup-export",
+                    input_path="archive.hse2",
+                    output_path="archive.hse2.header",
+                )
+            ),
+            ["hse2-header-backup", "export", "--input", "archive.hse2", "--output", "archive.hse2.header"],
+        )
 
     def test_visible_fields_accepts_localized_inspect_label(self) -> None:
         self.assertEqual(visible_hse2_gui_field_keys("检查 HSE2 元数据"), frozenset({"input_path"}))

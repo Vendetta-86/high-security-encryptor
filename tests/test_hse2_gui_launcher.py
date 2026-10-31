@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import contextlib
 import inspect
+import io
 import json
+from pathlib import Path
+import tempfile
 import unittest
 
 from high_security_encryptor import hse2_gui_launcher
-from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_hse2_result_summary, _quote_argv, main
+from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
+from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2_quickstart_gui_tab import HSE2QuickstartTab, build_hse2_quickstart_tab
 
 
@@ -95,6 +100,30 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("hse2-access destroy", summary)
         self.assertIn("已移除 wrapper 数：2", summary)
         self.assertIn("数据不可再恢复", summary)
+
+    def test_header_backup_export_is_dispatched_through_gui_helper(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            root = base / "source"
+            root.mkdir()
+            (root / "payload.txt").write_text("backup fixture", encoding="utf-8")
+            keyfile = base / "recovery.key"
+            keyfile.write_bytes(b"k" * 32)
+            container = base / "archive.hse2"
+            backup = base / "archive.hse2.header"
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                create_exit = create_main([
+                    "--root", str(root), "--output", str(container), "--keyfile", str(keyfile),
+                ])
+            self.assertEqual(create_exit, 0)
+
+            result = _invoke_hse2_gui_command([
+                "hse2-header-backup", "export", "--input", str(container), "--output", str(backup),
+            ])
+
+            self.assertEqual(result.exit_code, 0)
+            self.assertTrue(backup.exists())
+            self.assertTrue(json.loads(result.stdout)["header_backup_written"])
 
     def test_wrapper_remove_summary_reports_remaining_count(self) -> None:
         summary = _build_hse2_result_summary(

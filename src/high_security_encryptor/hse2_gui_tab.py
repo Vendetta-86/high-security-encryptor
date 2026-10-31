@@ -33,6 +33,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
         }
     ),
     "inspect": frozenset({"input_path"}),
+    "header-backup-export": frozenset({"input_path", "output_path", "force"}),
     "rotate-keyfile": frozenset({"config_path"}),
     "generate-keyfile": frozenset({"output_path", "size", "force", "paranoid_warning"}),
     "dpapi-protect": frozenset({"input_path", "output_path", "scope", "force", "dpapi_warning"}),
@@ -72,7 +73,7 @@ _HSE2_KDF_PROFILE_LABELS = {
 
 HEADER_BACKUP_RECOVERY_WARNING = (
     "重要：header backup 只用于恢复容器头部，不能恢复或替代解锁所需的密码、keyfile 或 DPAPI 访问条件。"
-    "请将备份与 .hse2 容器分开保存，并继续保管原有解锁因子。"
+    "建议在创建归档后立即导出，并将备份与 .hse2 容器分开保存；同时继续保管原有解锁因子。"
 )
 
 

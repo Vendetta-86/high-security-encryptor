@@ -13,6 +13,7 @@ from typing import Any, Callable
 from .gui import GuiCommandResult, invoke_cli_command
 from .hse2_access_cli import main as hse2_access_main
 from .hse2_gui_tab import build_hse2_experimental_tab
+from .hse2_header_backup_cli import main as hse2_header_backup_main
 from .hse2_inspect_cli import main as hse2_inspect_main
 from .hse2_quickstart_gui_tab import build_hse2_quickstart_tab
 from .hse2_quickstart_wizard import HSE2QuickstartCommandStep, HSE2QuickstartWorkspace
@@ -25,6 +26,7 @@ HSE2_STANDALONE_HELPER_COMMANDS: dict[str, StandaloneCliMain] = {
     "hse2-wrapper": hse2_wrapper_main,
     "hse2-access": hse2_access_main,
     "hse2-inspect": hse2_inspect_main,
+    "hse2-header-backup": hse2_header_backup_main,
 }
 
 
