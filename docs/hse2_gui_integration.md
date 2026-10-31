@@ -15,6 +15,7 @@ Supported actions:
 - `decrypt-config` -> `hse2-decrypt-config --config ...`
 - `validate` -> `hse2-validate --config ... [--output ...] [--summary-only] [--exit-code-on-failure]`
 - `inspect` -> `hse2-inspect --input ...`
+- `archive-create` -> `hse2-create --root ... --output ... --format-version ... --chunk-size ...`, with password-file/keyfile/DPAPI access, localized password profile, optional final-chunk padding, and overwrite control
 - `header-backup-export` -> `hse2-header-backup export --input ... --output ... [--overwrite]`
 - `rotate-keyfile` -> `hse2-rotate-keyfile --config ...`
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
@@ -35,8 +36,12 @@ injected runner callback.
 The tab always displays a prominent recovery warning: export a header backup
 after archive creation, store it separately, and remember it restores header
 metadata only. It cannot replace or recover the password, keyfile, or DPAPI
-access conditions needed to unlock a container. Archive creation remains a
-CLI/config workflow; header-backup export is available directly in the tab.
+access conditions needed to unlock a container. The `archive-create` action
+creates an archive from a selected folder through the existing create CLI. It
+offers v2/v3 format, chunk size, password profile, optional padding, and
+password-file/keyfile/DPAPI factors; plaintext passwords are never placed in
+argv. A paranoid password wrapper requires a keyfile. Password confirmation,
+open/decrypt, and post-create validation remain follow-up wizard work.
 
 The tab dynamically hides fields that are not relevant to the selected action.
 This keeps each operation focused on the values the underlying CLI actually
@@ -45,6 +50,9 @@ consumes. For example:
 - config actions show only the config path;
 - `validate` shows the config path plus validation report/summary options;
 - `inspect` shows only the `.hse2` input container path;
+- `archive-create` shows a source folder, output path, password file, keyfile,
+  password profile, format version, chunk size, optional padding, DPAPI, and
+  overwrite controls;
 - `header-backup-export` shows the source container, backup output path, and overwrite option;
 - `generate-keyfile` shows output path, size, and overwrite;
 - `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;

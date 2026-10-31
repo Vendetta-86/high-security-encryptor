@@ -317,7 +317,7 @@
 - [~] 新增“高安全 HSE2 加密向导”（standalone HSE2 GUI 已有，完整向导仍需补齐）
 - [x] 文件 / 文件夹选择
 - [x] 输出位置选择
-- [~] 安全等级选择：wrapper add/rewrap 已支持标准兼容 / 推荐高安全 / 极高安全；新建归档向导仍待接入
+- [~] 安全等级选择：wrapper add/rewrap 和新建归档已支持标准兼容 / 推荐高安全 / 极高安全；归档密码确认仍待接入
 - [~] 密码输入与确认（当前偏 CLI/file boundary，需正式 GUI 控件）
 - [x] keyfile 生成 / 选择
 - [x] DPAPI 本机绑定选项
@@ -330,7 +330,7 @@
 
 ### 完成标准
 
-- [~] 新手可通过 GUI 完成 password + keyfile 加密
+- [~] 新手可通过 GUI 选择目录并创建 v2/v3 password-file + keyfile 归档；确认密码与完整恢复向导仍待补齐
 - [~] 新手可通过 GUI 完成解密
 - [~] GUI 不诱导用户只依赖 DPAPI
 - [x] GUI 对 destroy-access 有强确认和单独入口
@@ -462,3 +462,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 10 CLI 整合第四步：接入统一 `hse2 access destroy`，保留专用 helper；要求完全匹配的破坏性确认短语，授权因子通过后写入新容器并清除全部 wrappers。集成测试验证输出 `access_destroyed=true` 且 wrappers 为空；help、compileall 与 `git diff --check` 通过，全量 627 项通过（6 项跳过）。Commit: `8d4000f`
 - 2026-10-31：Phase 10 CLI 整合第五步：在统一命令树下接入 `hse2 validate`，复用原 validation handler，并保持报告文件、summary-only 和失败退出码选项一致；同一有效/无效混合样本对比 unified 与 helper 两个入口的总数、成功数和失败数相同。定向回归、help 和 `git diff --check` 通过；全量 627 项通过（6 项跳过）。Commit: `bccde7a`
 - 2026-10-31：Phase 11 GUI header-backup 第一步：新增 header backup 导出动作、输入/输出/覆盖控件及专用 CLI helper 调度；常驻提示要求创建后导出并与归档分开保存。58 项 GUI 定向测试通过，实建 v2 容器并从 GUI dispatcher 导出备份成功；Tk 实例确认 input/output/overwrite 控件实际可见；全量 630 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `507837f`
+- 2026-10-31：Phase 11 GUI 归档创建向导第一步：新增目录归档 GUI action，复用 `hse2-create`，可选择 password-file/keyfile/DPAPI、KDF profile、v2/v3、chunk size、末块 padding 与覆盖确认；密码不进入 argv，paranoid 密码策略要求 keyfile。为端到端路径补齐 v3 流式 inspect（仅读 framing/metadata，分块跳过密文，不解锁、不验证 AEAD）。修正 GUI 密码文件变更后 paranoid 提示不刷新的问题及旧的“GUI 不应展示 archive-create”断言。定向 77 项通过；Tk 控件及 paranoid/DPAPI 条件警告检查通过；全量 637 项通过（6 项跳过），compileall 与 `git diff --check` 通过。Commit: 待提交
+
