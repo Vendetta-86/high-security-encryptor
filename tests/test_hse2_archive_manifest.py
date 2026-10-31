@@ -1,3 +1,4 @@
+import os
 import unittest
 
 from high_security_encryptor.hse2 import (
@@ -49,6 +50,13 @@ class HSE2ArchiveManifestTests(unittest.TestCase):
 
     def test_archive_entry_rejects_noncanonical_posix_paths(self) -> None:
         for path in ("./file.txt", "folder//file.txt", "folder/./file.txt", "folder/"):
+            with self.subTest(path=path), self.assertRaises(HSE2ModelError):
+                HSE2ArchiveEntry(path=path, kind="file")
+
+    def test_archive_entry_rejects_windows_unsafe_components(self) -> None:
+        if os.name != "nt":
+            self.skipTest("Windows path restrictions are platform-specific")
+        for path in ("file.txt:stream", "NUL.txt", "COM¹.log", "trailing.", "trailing ", "bad?.txt"):
             with self.subTest(path=path), self.assertRaises(HSE2ModelError):
                 HSE2ArchiveEntry(path=path, kind="file")
 

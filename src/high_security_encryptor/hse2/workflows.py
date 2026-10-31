@@ -16,7 +16,7 @@ from typing import Any
 
 from ..atomic_io import atomic_output_path
 from .archive_assembly_plan import build_archive_assembly_plan
-from .archive_manifest import build_archive_manifest
+from .archive_manifest import build_archive_manifest, validate_archive_path
 from .archive_traversal import build_archive_entries_from_roots
 from .dpapi import is_dpapi_available
 from .file_io import read_hse2_container, write_hse2_container
@@ -1007,17 +1007,11 @@ def _manifest_path_key(item: dict[str, Any]) -> str:
 
 
 def _safe_manifest_path(value: str) -> PurePosixPath:
-    if not value or "\\" in value:
-        raise HSE2ModelError("unsafe archive path in manifest")
-    path = PurePosixPath(value)
-    if (
-        path.is_absolute()
-        or not path.parts
-        or path.as_posix() != value
-        or any(part in {"", ".", ".."} for part in path.parts)
-    ):
-        raise HSE2ModelError("unsafe archive path in manifest")
-    return path
+    try:
+        validate_archive_path(value)
+    except HSE2ModelError as exc:
+        raise HSE2ModelError("unsafe archive path in manifest") from exc
+    return PurePosixPath(value)
 
 
 def _atomic_write_file(target: Path, data: bytes, *, temp_dir: Path | None = None) -> None:

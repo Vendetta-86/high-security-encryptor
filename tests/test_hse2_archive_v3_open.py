@@ -253,6 +253,28 @@ class HSE2ArchiveV3OpenTests(unittest.TestCase):
 
             self.assertFalse(destination.exists())
 
+    def test_windows_unsafe_manifest_paths_are_rejected_before_creating_output(self) -> None:
+        if os.name != "nt":
+            self.skipTest("Windows path restrictions are platform-specific")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source.bin"
+            source.write_bytes(b"secret")
+            archive = Path(temp_dir) / "archive.hse2"
+            self._create_v3((source,), archive)
+            for index, unsafe_path in enumerate(("source.bin:stream", "NUL.txt", "trailing.", "bad?.txt")):
+                malformed = Path(temp_dir) / f"malformed-{index}.hse2"
+                destination = Path(temp_dir) / f"restored-{index}"
+                _header, _encrypted_manifest, _chunks, manifest, _unlocked = self._read_archive_parts(archive)
+                manifest["entries"][0]["path"] = unsafe_path
+                manifest["payload_ranges"][0]["path"] = unsafe_path
+                self._rewrite_manifest(archive, malformed, manifest)
+
+                with self.subTest(path=unsafe_path), self.assertRaisesRegex(
+                    HSE2ModelError, "unsafe archive path"
+                ):
+                    self._open(malformed, destination)
+                self.assertFalse(destination.exists())
+
     def test_invalid_manifest_chunk_range_is_rejected_before_creating_output(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "source.bin"

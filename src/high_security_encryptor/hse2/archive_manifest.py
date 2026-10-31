@@ -7,11 +7,21 @@ write containers, or provide CLI/GUI behavior.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
 
 from .models import HSE2ModelError, canonical_json_bytes
+
+_WINDOWS_INVALID_FILENAME_CHARACTERS = frozenset('<>:"|?*')
+_WINDOWS_RESERVED_DEVICE_NAMES = frozenset({
+    "CON", "PRN", "AUX", "NUL",
+    "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+    "COM¹", "COM²", "COM³",
+    "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    "LPT¹", "LPT²", "LPT³",
+})
 
 
 @dataclass(frozen=True)
@@ -24,7 +34,7 @@ class HSE2ArchiveEntry:
     modified_utc: str | None = None
 
     def __post_init__(self) -> None:
-        _validate_archive_path(self.path)
+        validate_archive_path(self.path)
         if self.kind not in {"file", "directory"}:
             raise HSE2ModelError("archive entry kind must be file or directory")
         if self.size < 0:
@@ -64,7 +74,9 @@ def archive_manifest_digest(entries: tuple[HSE2ArchiveEntry, ...]) -> bytes:
     return canonical_json_bytes(build_archive_manifest(entries))
 
 
-def _validate_archive_path(path: str) -> None:
+def validate_archive_path(path: str) -> None:
+    if not isinstance(path, str):
+        raise HSE2ModelError("archive path must be a string")
     if not path:
         raise HSE2ModelError("archive path must not be empty")
     if "\\" in path:
@@ -76,6 +88,20 @@ def _validate_archive_path(path: str) -> None:
         raise HSE2ModelError("archive path must use canonical POSIX form")
     if any(part in {"", ".", ".."} for part in posix.parts):
         raise HSE2ModelError("archive path must not contain empty, current, or parent segments")
+    if os.name == "nt":
+        _validate_windows_path_components(posix.parts)
+
+
+def _validate_windows_path_components(parts: tuple[str, ...]) -> None:
+    for part in parts:
+        if (
+            any(ord(char) < 32 or char in _WINDOWS_INVALID_FILENAME_CHARACTERS for char in part)
+            or part.endswith((" ", "."))
+        ):
+            raise HSE2ModelError("archive path component is not valid on Windows")
+        base_name = part.split(".", 1)[0].rstrip(" .").upper()
+        if base_name in _WINDOWS_RESERVED_DEVICE_NAMES:
+            raise HSE2ModelError("archive path component is a reserved Windows device name")
 
 
 def _reject_duplicate_paths(entries: tuple[HSE2ArchiveEntry, ...]) -> None:
