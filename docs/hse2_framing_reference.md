@@ -287,6 +287,8 @@ Manifest AAD is domain-separated with:
 HSE2:manifest:v1
 ```
 
+Manifest entry paths are relative POSIX paths in canonical form: the stored value must equal `PurePosixPath(value).as_posix()`, and may not be empty, absolute, or contain `.` or `..` segments. Readers reject alternate spellings such as `./file`, `folder//file`, or a trailing separator instead of silently normalizing them. Before creating restore outputs, Windows readers reject entries that collide under Windows path normalization, including paths differing only by case. This check is conservative for Windows directories explicitly configured as case-sensitive; filesystem-specific Unicode normalization and case-folding outside Windows normalization are not covered.
+
 ## Encrypted payload chunks
 
 Payload chunks are encrypted with DEK-backed AES-GCM.

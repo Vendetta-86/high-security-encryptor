@@ -72,6 +72,8 @@ def _validate_archive_path(path: str) -> None:
     if path.startswith("/"):
         raise HSE2ModelError("archive path must be relative")
     posix = PurePosixPath(path)
+    if not posix.parts or posix.as_posix() != path:
+        raise HSE2ModelError("archive path must use canonical POSIX form")
     if any(part in {"", ".", ".."} for part in posix.parts):
         raise HSE2ModelError("archive path must not contain empty, current, or parent segments")
 

@@ -16,10 +16,28 @@ from high_security_encryptor.hse2 import (
     unlock_first_matching_wrapper,
 )
 from high_security_encryptor.hse2.streaming_file_io import open_v3_container, write_v3_container
-from high_security_encryptor.hse2.workflows import create_hse2_archive, open_hse2_archive
+from high_security_encryptor.hse2.workflows import (
+    _preflight_restore_targets,
+    create_hse2_archive,
+    open_hse2_archive,
+)
 
 
 class HSE2ArchiveV3OpenTests(unittest.TestCase):
+    def test_restore_preflight_rejects_case_colliding_targets_on_windows(self) -> None:
+        if os.name != "nt":
+            self.skipTest("Windows path normalization is not active on this platform")
+        manifest = {
+            "entries": [
+                {"path": "Readme.txt", "kind": "file"},
+                {"path": "README.TXT", "kind": "file"},
+            ]
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_dir = Path(temp_dir) / "restored"
+            with self.assertRaisesRegex(HSE2ModelError, "same restore target"):
+                _preflight_restore_targets(manifest, output_dir, overwrite=True)
+
     def _create_v3(self, roots: tuple[Path, ...], output: Path, *, overwrite: bool = False) -> None:
         create_hse2_archive(
             roots=roots,
@@ -205,6 +223,24 @@ class HSE2ArchiveV3OpenTests(unittest.TestCase):
 
             self.assertFalse(destination.exists())
             self.assertFalse((Path(temp_dir) / "outside.bin").exists())
+
+    def test_noncanonical_path_is_rejected_before_creating_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "source.bin"
+            source.write_bytes(b"secret")
+            archive = Path(temp_dir) / "archive.hse2"
+            malformed = Path(temp_dir) / "malformed.hse2"
+            destination = Path(temp_dir) / "restored"
+            self._create_v3((source,), archive)
+            _header, _encrypted_manifest, _chunks, manifest, _unlocked = self._read_archive_parts(archive)
+            manifest["entries"][0]["path"] = "./source.bin"
+            manifest["payload_ranges"][0]["path"] = "./source.bin"
+            self._rewrite_manifest(archive, malformed, manifest)
+
+            with self.assertRaisesRegex(HSE2ModelError, "unsafe archive path"):
+                self._open(malformed, destination)
+
+            self.assertFalse(destination.exists())
 
     def test_invalid_manifest_chunk_range_is_rejected_before_creating_output(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

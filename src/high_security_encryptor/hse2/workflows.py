@@ -720,14 +720,20 @@ def _preflight_restore_targets(
         raise HSE2ModelError(f"output path is not a directory: {output_dir}")
     resolved_root = output_dir.resolve()
     targets: dict[str, Path] = {}
+    target_keys: set[str] = set()
     for entry in manifest["entries"]:
         path_key = _manifest_path_key(entry)
         relative_path = _safe_manifest_path(path_key)
         target = output_dir.joinpath(*relative_path.parts)
         try:
-            target.resolve().relative_to(resolved_root)
+            resolved_target = target.resolve()
+            resolved_target.relative_to(resolved_root)
         except (OSError, ValueError) as exc:
             raise HSE2ModelError("unsafe archive path resolves outside output directory") from exc
+        target_key = os.path.normcase(os.path.normpath(os.fspath(resolved_target)))
+        if target_key in target_keys:
+            raise HSE2ModelError("archive entries resolve to the same restore target")
+        target_keys.add(target_key)
         targets[path_key] = target
         if entry["kind"] == "directory" and target.exists() and not target.is_dir():
             raise HSE2ModelError(f"target is not a directory: {target}")
@@ -996,7 +1002,12 @@ def _safe_manifest_path(value: str) -> PurePosixPath:
     if not value or "\\" in value:
         raise HSE2ModelError("unsafe archive path in manifest")
     path = PurePosixPath(value)
-    if path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts):
+    if (
+        path.is_absolute()
+        or not path.parts
+        or path.as_posix() != value
+        or any(part in {"", ".", ".."} for part in path.parts)
+    ):
         raise HSE2ModelError("unsafe archive path in manifest")
     return path
 

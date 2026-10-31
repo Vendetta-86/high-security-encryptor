@@ -47,6 +47,11 @@ class HSE2ArchiveManifestTests(unittest.TestCase):
         with self.assertRaises(HSE2ModelError):
             HSE2ArchiveEntry(path="folder\\file.txt", kind="file")
 
+    def test_archive_entry_rejects_noncanonical_posix_paths(self) -> None:
+        for path in ("./file.txt", "folder//file.txt", "folder/./file.txt", "folder/"):
+            with self.subTest(path=path), self.assertRaises(HSE2ModelError):
+                HSE2ArchiveEntry(path=path, kind="file")
+
     def test_archive_entry_rejects_unknown_kind(self) -> None:
         with self.assertRaises(HSE2ModelError):
             HSE2ArchiveEntry(path="item", kind="symlink")
