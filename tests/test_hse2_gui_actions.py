@@ -47,6 +47,21 @@ class HSE2GuiActionTests(unittest.TestCase):
                 archive_profile="paranoid",
             )
 
+    def test_archive_open_action_keeps_factors_out_of_argv_and_requires_unlock_method(self) -> None:
+        plan = build_hse2_gui_command(
+            action="archive-open", input_path="archive.hse2", output_path="restored",
+            password_file="secret.txt", keyfile_path="recovery.key", allow_dpapi=True, force=True,
+        )
+        self.assertEqual(
+            plan.argv,
+            (
+                "hse2-open", "--input", "archive.hse2", "--output-dir", "restored",
+                "--password-file", "secret.txt", "--keyfile", "recovery.key", "--dpapi", "--overwrite",
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "请选择密码文件"):
+            build_hse2_gui_command(action="archive-open", input_path="archive.hse2", output_path="restored")
+
     def test_validate_action_with_options(self) -> None:
         plan = build_hse2_gui_command(
             action="validate",

@@ -29,6 +29,9 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
         "root_path", "output_path", "password_file", "keyfile_path", "archive_profile", "archive_format_version",
         "archive_chunk_size", "new_wrapper_dpapi", "force", "archive_pad_last_chunk", "paranoid_warning", "dpapi_warning",
     }),
+    "archive-open": frozenset({
+        "input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force", "dpapi_warning",
+    }),
     "validate": frozenset(
         {
             "config_path",
@@ -109,7 +112,7 @@ def dpapi_warning_for_state(action: str, scope: str, new_wrapper_dpapi: bool) ->
     normalized_action = hse2_gui_action_key_from_display(action)
     if normalized_action == "dpapi-protect" and scope == "local_machine":
         return DPAPI_LOCAL_MACHINE_SCOPE_WARNING
-    if normalized_action in {"archive-create", "wrapper-add", "wrapper-rewrap"} and new_wrapper_dpapi:
+    if normalized_action in {"archive-create", "archive-open", "wrapper-add", "wrapper-rewrap"} and new_wrapper_dpapi:
         return DPAPI_WRAPPER_PORTABILITY_WARNING
     return None
 
@@ -257,6 +260,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.new_kdf_profile.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.new_password_file.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.password_file.trace_add("write", lambda *_args: self._apply_action_visibility())
+        self.allow_dpapi.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.scope.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.new_wrapper_dpapi.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.archive_profile.trace_add("write", lambda *_args: self._apply_action_visibility())
@@ -483,7 +487,8 @@ class HSE2ExperimentalTab(ttk.Frame):
                 for widget in self._field_widgets["paranoid_warning"]:
                     widget.grid_remove()
 
-        dpapi_warning = dpapi_warning_for_state(action, self.scope.get(), bool(self.new_wrapper_dpapi.get()))
+        dpapi_enabled = bool(self.new_wrapper_dpapi.get()) or (action == "archive-open" and bool(self.allow_dpapi.get()))
+        dpapi_warning = dpapi_warning_for_state(action, self.scope.get(), dpapi_enabled)
         for widget in self._field_widgets["dpapi_warning"]:
             if "dpapi_warning" in visible_fields and dpapi_warning:
                 widget.configure(text=dpapi_warning)

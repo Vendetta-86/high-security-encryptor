@@ -68,6 +68,18 @@ class HSE2GuiTabTests(unittest.TestCase):
             ],
         )
 
+    def test_build_archive_open_command_from_tab_state(self) -> None:
+        argv = build_hse2_command_from_tab_state(
+            HSE2GuiTabState(
+                action="archive-open", input_path="archive.hse2", output_path="restored",
+                keyfile_path="recovery.key", force=True,
+            )
+        )
+        self.assertEqual(
+            argv,
+            ["hse2-open", "--input", "archive.hse2", "--output-dir", "restored", "--keyfile", "recovery.key", "--overwrite"],
+        )
+
     def test_build_validate_command_from_tab_state(self) -> None:
         argv = build_hse2_command_from_tab_state(
             HSE2GuiTabState(
@@ -158,6 +170,12 @@ class HSE2GuiTabTests(unittest.TestCase):
                 "archive_format_version", "archive_chunk_size", "new_wrapper_dpapi", "force",
                 "archive_pad_last_chunk", "paranoid_warning", "dpapi_warning",
             }),
+        )
+
+    def test_archive_open_shows_restore_and_unlock_controls(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("archive-open"),
+            frozenset({"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force", "dpapi_warning"}),
         )
 
     def test_visible_fields_for_validate_action(self) -> None:

@@ -361,7 +361,7 @@ class HSE2V3CliIntegrationTests(unittest.TestCase):
         ):
             self.assertIn(command, scripts)
         self.assertIn("archive-create", HSE2_GUI_ACTIONS)
-        self.assertNotIn("archive-open", HSE2_GUI_ACTIONS)
+        self.assertIn("archive-open", HSE2_GUI_ACTIONS)
         self.assertIn("wrapper-add", HSE2_GUI_ACTIONS)
         self.assertIn("wrapper-rewrap", HSE2_GUI_ACTIONS)
         self.assertNotIn("header-backup", HSE2_GUI_ACTIONS)

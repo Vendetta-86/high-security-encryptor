@@ -13,6 +13,7 @@ from typing import Any, Callable
 from .gui import GuiCommandResult, invoke_cli_command
 from .hse2_access_cli import main as hse2_access_main
 from .hse2_create_cli import main as hse2_create_main
+from .hse2_open_cli import main as hse2_open_main
 from .hse2_gui_tab import build_hse2_experimental_tab
 from .hse2_header_backup_cli import main as hse2_header_backup_main
 from .hse2_inspect_cli import main as hse2_inspect_main
@@ -25,6 +26,7 @@ StandaloneCliMain = Callable[[list[str] | None], int]
 
 HSE2_STANDALONE_HELPER_COMMANDS: dict[str, StandaloneCliMain] = {
     "hse2-create": hse2_create_main,
+    "hse2-open": hse2_open_main,
     "hse2-wrapper": hse2_wrapper_main,
     "hse2-access": hse2_access_main,
     "hse2-inspect": hse2_inspect_main,

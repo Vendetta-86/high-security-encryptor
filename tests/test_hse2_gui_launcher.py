@@ -177,6 +177,39 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("剩余 wrapper 数：1", summary)
         self.assertIn("已写出容器：true", summary)
 
+    def test_archive_open_is_dispatched_and_restores_created_v3_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            source = base / "source"
+            source.mkdir()
+            expected = b"restored through the GUI open action"
+            (source / "payload.txt").write_bytes(expected)
+            keyfile = base / "recovery.key"
+            keyfile.write_bytes(b"k" * 32)
+            container = base / "archive.hse2"
+            output_dir = base / "restored"
+            create_result = _invoke_hse2_gui_command(
+                build_hse2_command_from_tab_state(
+                    HSE2GuiTabState(
+                        action="archive-create", root_path=str(source), output_path=str(container),
+                        keyfile_path=str(keyfile), archive_format_version="3",
+                    )
+                )
+            )
+            open_result = _invoke_hse2_gui_command(
+                build_hse2_command_from_tab_state(
+                    HSE2GuiTabState(
+                        action="archive-open", input_path=str(container), output_path=str(output_dir),
+                        keyfile_path=str(keyfile),
+                    )
+                )
+            )
+            self.assertEqual(create_result.exit_code, 0, create_result.stderr)
+            self.assertEqual(open_result.exit_code, 0, open_result.stderr)
+            restored_files = list(output_dir.rglob("payload.txt"))
+            self.assertEqual(len(restored_files), 1)
+            self.assertEqual(restored_files[0].read_bytes(), expected)
+
     def test_result_summary_ignores_non_json_stdout(self) -> None:
         self.assertEqual(_build_hse2_result_summary("not json"), "")
 

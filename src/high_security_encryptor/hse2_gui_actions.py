@@ -16,6 +16,7 @@ HSE2_GUI_ACTIONS = (
     "encrypt-config",
     "decrypt-config",
     "archive-create",
+    "archive-open",
     "validate",
     "inspect",
     "header-backup-export",
@@ -33,6 +34,7 @@ HSE2_GUI_ACTION_LABELS = {
     "encrypt-config": "HSE2 加密配置",
     "decrypt-config": "HSE2 解密配置",
     "archive-create": "创建 HSE2 归档",
+    "archive-open": "解密并打开 HSE2 归档",
     "validate": "HSE2 只读校验",
     "inspect": "检查 HSE2 元数据",
     "header-backup-export": "导出 HSE2 header backup",
@@ -123,6 +125,25 @@ def build_hse2_gui_command(
             args.append("--dpapi")
         if archive_pad_last_chunk:
             args.append("--pad-last-chunk")
+        if force:
+            args.append("--overwrite")
+        argv = tuple(args)
+    elif normalized_action == "archive-open":
+        password_path = password_file.strip()
+        keyfile = keyfile_path.strip()
+        if not password_path and not keyfile and not allow_dpapi:
+            raise ValueError("请选择密码文件、keyfile 或允许 Windows DPAPI 解锁。")
+        args = [
+            "hse2-open",
+            "--input", _require_text(input_path, "请选择要解密的 .hse2 容器。"),
+            "--output-dir", _require_text(output_path, "请选择解密文件的输出文件夹。"),
+        ]
+        if password_path:
+            args.extend(["--password-file", password_path])
+        if keyfile:
+            args.extend(["--keyfile", keyfile])
+        if allow_dpapi:
+            args.append("--dpapi")
         if force:
             args.append("--overwrite")
         argv = tuple(args)
