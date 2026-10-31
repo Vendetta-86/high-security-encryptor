@@ -21,6 +21,15 @@ inspection tools and shell history.
 
 ## Commands
 
+Inspect safe container metadata without decrypting payload content:
+
+```bash
+high-security-encryptor hse2 inspect --input <ARCHIVE_PATH>
+```
+
+The command prints format, authenticated layout, and wrapper metadata as JSON. It
+does not print wrapper bytes or decrypt filenames or payload content.
+
 ### Encrypt one file
 
 ```bash

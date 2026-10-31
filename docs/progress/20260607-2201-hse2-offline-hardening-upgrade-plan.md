@@ -76,7 +76,7 @@
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
-| Phase 10 | [~] | GUI / CLI 完整闭环 | helper CLI 与 HSE2 GUI 可用；统一子命令树和完整向导仍需补齐 |
+| Phase 10 | [~] | GUI / CLI 完整闭环 | 统一 `hse2 inspect` 子命令已接入；wrapper 子命令和完整向导仍需补齐 |
 | Phase 11 | [~] | 测试与发布 | v0.6.0-alpha.3 release-prep 已建立，待 CI/本地验收与发布 |
 
 ---
@@ -292,7 +292,7 @@
 - [x] `high-security-encryptor-hse2-wrapper remove`
 - [x] `high-security-encryptor-hse2-access destroy`
 - [x] `high-security-encryptor-hse2-gui`
-- [ ] `high-security-encryptor hse2 inspect`
+- [x] `high-security-encryptor hse2 inspect`（复用现有安全元数据 inspect handler）
 - [x] `high-security-encryptor hse2 keyfile inspect`（定向 helper/CLI 测试 4/4 通过）
 - [ ] `high-security-encryptor hse2 wrapper add-password`
 - [ ] `high-security-encryptor hse2 wrapper add-keyfile`
@@ -453,3 +453,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：完成 Phase 6 header backup wrapper 恢复场景：修复 restore 在 header 长度变化后仍使用备份旧 offset 的问题；有效当前 header 用于定位现有 body，恢复后继续校验备份 frame offset、body 长度及 SHA-256，损坏 header 仍回退备份 offset。新增 v2/v3 测试：备份、access destroy、恢复旧 wrapper、验证 body 完全一致并以原 keyfile 解密。HSE2 定向 398 项通过、2 项跳过；全量 617 项通过、6 项跳过。Commit: `00054a6`
 - 2026-10-31：完成 Phase 7 DPAPI 风险正式化：create/add/rewrap CLI 明示 DPAPI wrapper 的账户/设备可移植性限制并建议保留独立密码或 keyfile；GUI 对新 DPAPI wrapper 显示醒目提示并在确认框重申，对 `local_machine` scope 显示同机其他用户可解密的风险。补充微软官方行为说明和 roaming-profile 例外。Windows 本机实测 DPAPI create/open、wrapper add、DPAPI 解锁、保留密码 fallback 后移除 DPAPI、local_machine blob 保护/解保护；Tk 界面动态警示可见性通过。全量 620 项通过、6 项跳过。Commit: `2b0e525`
 - 2026-10-31：完成 Phase 9 元数据最小化：确认 v2/v3 文件名与相对路径只存在于加密 manifest，payload record 无明文路径，原始容器检查中 secret 文件名不可见；为 v2/v3 create/open 增加显式 `--pad-last-chunk`，以随机填充将每个非空文件末块加密到 chunk_size，manifest 保留原大小，解密只写回原始字节，padding mode 纳入认证 header 且使用独立 AAD。新增 CLI dry-run 与 v2/v3 create/open 集成回归，定向 9 项通过，全量 622 项通过（6 项跳过），`git diff --check` 通过。随机别名无额外 at-rest 隐私，故不引入冗余格式复杂度；padding 默认关闭。Commit: 待提交
+- 2026-10-31：Phase 10 CLI 整合第一步：在统一 `high-security-encryptor hse2` 命令树下接入容器 `inspect`，保留原 `hse2-inspect` 兼容入口，并更新 CLI 文档；新增 unified route 回归。定向测试通过，`high-security-encryptor hse2 --help` 显示 `inspect` 与 `keyfile`，全量 622 项通过（6 项跳过），`git diff --check` 通过。Commit: `02268b1`
