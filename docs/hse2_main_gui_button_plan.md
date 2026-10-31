@@ -60,5 +60,6 @@ After the button is wired, CI should verify:
 - `high-security-encryptor-gui --smoke-test`
 - `high-security-encryptor-hse2-gui` remains installable through package metadata
 
-A future manual Windows check should open the main GUI, click `打开 HSE2 实验工具`,
-and confirm the child HSE2 experimental window appears.
+Windows UI verification was completed on 2026-10-31: the main GUI was opened,
+`打开 HSE2 实验工具` was clicked, and an `HSE2 实验工具` window was observed.
+The test process was then closed.
