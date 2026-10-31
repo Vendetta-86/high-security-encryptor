@@ -11,7 +11,7 @@ Use this checklist before tagging or publishing a release.
 
 ## Local Verification
 
-The alpha.8 local candidate has passed the full suite (666 passed, 6 skipped), compileall, pre-commit, dependency audit, ten-executable Windows build, packaged CLI smoke checks, a v3 executable round trip, and packaged GUI metadata inspection. See `docs/progress/20261031-alpha8-prep-status.md` for exact environment and artifact details. Current-commit CI and maintainer review remain release gates.
+The alpha.8 local candidate has passed the full suite (666 passed, 6 skipped), compileall, pre-commit, dependency audit, ten-executable Windows build, packaged CLI smoke checks, a v3 executable round trip, and packaged GUI metadata inspection. Candidate commit `6699036` passed [GitHub Actions CI](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016) on Windows Python 3.11, 3.12, and 3.13. Maintainer review remains a release gate. See `docs/progress/20261031-alpha8-prep-status.md` for exact environment and artifact details.
 
 Run:
 

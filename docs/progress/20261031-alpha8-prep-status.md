@@ -30,7 +30,7 @@ This release-prep line follows the published `v0.6.0-alpha.7`. It packages the c
 - Packaged HSE2 GUI: localized action labels and action-specific fields inspected; password entries masked; metadata inspection of a disposable v3 container exited 0 and showed the expected non-secret summary.
 - Local ZIP: `dist/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 133,992,289 bytes, 16 entries (10 EXEs plus documentation/examples); contents checked.
 
-These are local development-checkout results. The current committed revision still needs CI before tag/publication. The following commands are the reproducible release gate when validating a clean candidate:
+The candidate commit `6699036294fa5f9a7c6dc3aac4c972a0e041c74e` also passed GitHub Actions run [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016): all Windows Python 3.11, 3.12, and 3.13 jobs succeeded. This does not substitute for maintainer release review. The following commands are the reproducible local release gate when validating a clean candidate:
 
 ```powershell
 python -m compileall -q src tests build_tools
@@ -43,10 +43,9 @@ The project venv used during prep is `work\hse2-test-venv`. Build and smoke each
 
 ## Remaining release gates
 
-- Current-commit CI success.
 - Maintainer review of the release checklist, threat model, format and GUI/CLI behavior.
-- A clean-checkout rerun of the local release gate if the current commit differs from the tested candidate tree.
+- A clean-checkout rerun of the local release gate if source code or build inputs differ from the tested candidate tree.
 
 ## Status
 
-Local Windows candidate validation is complete; waiting for current-commit CI and maintainer review. No tag or release has been created.
+Local Windows candidate validation and GitHub CI are complete; waiting for maintainer release review. No tag or release has been created.
