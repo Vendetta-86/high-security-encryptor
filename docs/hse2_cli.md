@@ -51,6 +51,21 @@ The existing container is unlocked with `--password-file`, `--keyfile`, or
 create a combined wrapper. DPAPI is Windows-only; retain an independent password
 or keyfile wrapper for recovery.
 
+The same command group can list, remove, or replace a wrapper:
+
+```bash
+high-security-encryptor hse2 wrapper list --input <ARCHIVE_PATH>
+
+high-security-encryptor hse2 wrapper remove \
+  --input <ARCHIVE_PATH> --output <OUTPUT_PATH> --wrapper-id <WRAPPER_ID> \
+  --keyfile <CURRENT_KEYFILE>
+
+high-security-encryptor hse2 wrapper rewrap \
+  --input <ARCHIVE_PATH> --output <OUTPUT_PATH> --wrapper-id <OLD_ID> \
+  --new-wrapper-id <NEW_ID> --keyfile <CURRENT_KEYFILE> \
+  --new-keyfile <NEW_KEYFILE>
+```
+
 ### Encrypt one file
 
 ```bash

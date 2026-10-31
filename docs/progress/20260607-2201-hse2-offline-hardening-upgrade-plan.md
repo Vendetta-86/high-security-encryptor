@@ -76,7 +76,7 @@
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
-| Phase 10 | [~] | GUI / CLI 完整闭环 | 统一 inspect 与 wrapper add-password/add-keyfile/add-dpapi 已接入；统一 list/remove/rewrap 与完整向导仍需补齐 |
+| Phase 10 | [~] | GUI / CLI 完整闭环 | 统一 inspect 与 wrapper list/add/remove/rewrap 已接入；统一 access/validate 命令与完整向导仍需补齐 |
 | Phase 11 | [~] | 测试与发布 | v0.6.0-alpha.3 release-prep 已建立，待 CI/本地验收与发布 |
 
 ---
@@ -297,6 +297,8 @@
 - [x] `high-security-encryptor hse2 wrapper add-password`
 - [x] `high-security-encryptor hse2 wrapper add-keyfile`
 - [x] `high-security-encryptor hse2 wrapper add-dpapi`
+- [x] `high-security-encryptor hse2 wrapper list/remove/rewrap`
+- [ ] `high-security-encryptor hse2 access destroy` 与统一 validate 命令
 
 ### 完成标准
 
@@ -455,3 +457,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：完成 Phase 9 元数据最小化：确认 v2/v3 文件名与相对路径只存在于加密 manifest，payload record 无明文路径，原始容器检查中 secret 文件名不可见；为 v2/v3 create/open 增加显式 `--pad-last-chunk`，以随机填充将每个非空文件末块加密到 chunk_size，manifest 保留原大小，解密只写回原始字节，padding mode 纳入认证 header 且使用独立 AAD。新增 CLI dry-run 与 v2/v3 create/open 集成回归，定向 9 项通过，全量 622 项通过（6 项跳过），`git diff --check` 通过。随机别名无额外 at-rest 隐私，故不引入冗余格式复杂度；padding 默认关闭。Commit: 待提交
 - 2026-10-31：Phase 10 CLI 整合第一步：在统一 `high-security-encryptor hse2` 命令树下接入容器 `inspect`，保留原 `hse2-inspect` 兼容入口，并更新 CLI 文档；新增 unified route 回归。定向测试通过，`high-security-encryptor hse2 --help` 显示 `inspect` 与 `keyfile`，全量 622 项通过（6 项跳过），`git diff --check` 通过。Commit: `02268b1`
 - 2026-10-31：Phase 10 CLI 整合第二步：统一 `hse2 wrapper add-password/add-keyfile/add-dpapi` 三条路径，复用现有 wrapper add 校验和写入实现；新入口支持现有解锁因子、密码档位、组合 password+keyfile、覆盖控制、keyfile 共址提示及 DPAPI 恢复警告，并在 paranoid 密码 wrapper 缺少 keyfile 时拒绝写入。三条 `--help`、密码/keyfile/Windows DPAPI 路由集成回归及 compileall 均通过；全量 625 项通过（6 项跳过），`git diff --check` 通过。Commit: `22ebc2b`
+- 2026-10-31：Phase 10 CLI 整合第三步：统一 `hse2 wrapper list/remove/rewrap` 命令，保留专用 helper；安全元数据列表、header 鉴权后 wrapper 移除、body 原样保留的 rewrap 均复用现有实现。集成回归验证 list、rewrap、remove 后保留 keyfile 可重新解密；全量 626 项通过（6 项跳过），help、compileall 与 `git diff --check` 通过。Commit: `04c22f6`
