@@ -349,10 +349,10 @@
 - [x] `tests/test_hse2_gui_actions.py`
 - [x] `tests/test_hse2_gui_launcher.py`
 - [x] `tests/test_hse2_wrapper_provider_examples.py`
-- [ ] `tests/test_hse2_format.py`（原计划文件名，尚未单独建立）
-- [ ] `tests/test_hse2_keyfile.py`
-- [ ] `tests/test_hse2_dpapi.py`
-- [ ] `tests/test_hse2_manifest_metadata.py`
+- [x] HSE2 格式测试覆盖（未沿用原计划单文件名）：`tests/test_hse2_container_codec.py`、`tests/test_hse2_container_bytes.py`、`tests/test_hse2_v3_container_stream.py`
+- [x] Keyfile 安全与轮换覆盖：`tests/test_hse2_keyfile_safety.py`、`tests/test_hse2_keyfile_rotation.py`、`tests/test_hse2_keyfile_provider.py`、`tests/test_hse2_keyfile_kdf.py`、`tests/test_hse2_keyfile_inspect.py`
+- [x] `tests/test_hse2_dpapi.py`（另有 CLI 与 Windows 平台测试）
+- [x] Manifest / metadata 覆盖：`tests/test_hse2_manifest_crypto.py`、`tests/test_hse2_archive_manifest.py`、`tests/test_metadata_crypto.py`
 
 ### 必测场景
 
@@ -420,7 +420,7 @@ python -m pip_audit . --progress-spinner off
 16. [~] 补齐 CLI help 和错误码
 17. [~] 补齐 GUI 向导
 18. [~] 补齐测试
-19. [ ] 写迁移文档
+19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
 20. [~] 打包 release
 21. [!] 评估 decoy / duress 是否进入下一版本
 
@@ -478,4 +478,5 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 12 质量门：安装 `.[dev]` 后 `pre-commit run --all-files` 通过；为识别出的固定 HSE2 测试密码与 fixture hash 加精确 false-positive 注释。`pip-audit . --progress-spinner off` 报告未发现已知漏洞。Commit: `ac5810e`
 - 2026-10-31：Phase 11 创建后 GUI 导航摘要：创建成功后摘要展示容器格式、wrapper 类型、payload 计数、创建后认证状态和建议 header backup 路径，并指向导出备份及归档恢复入口；明确 header backup 不替代密码/keyfile。定向 GUI 83 项、全量 660 项通过（6 项跳过）。Commit: 待提交
 - 2026-10-31：Phase 11 创建到恢复连续向导：创建成功且校验通过时询问是否继续；确认后切到 archive-open、自动填入归档路径、清空恢复目录，并只在 DPAPI wrapper 时启用 DPAPI 解锁。用户仍需确认访问因子/恢复目标，随后通过只读预览确认才运行恢复。创建失败或创建后认证失败不会启动下一步。GUI 定向 86 项、全量 663 项通过（6 项跳过），pre-commit、compileall、`git diff --check` 均通过。Commit: 待提交
+- 2026-10-31：路线图盘点：将原定测试文件名更新为仓库现有的格式、keyfile、DPAPI 与 manifest/metadata 覆盖文件，并确认 HSE1→HSE2 迁移文档已落地；没有重复创建空壳测试文件。Commit: 本提交（SHA 见 Git 历史）
 
