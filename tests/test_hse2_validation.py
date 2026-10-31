@@ -102,6 +102,7 @@ class HSE2ValidationTests(unittest.TestCase):
 
             with mock.patch.dict("os.environ", {"HSE2_VALIDATION_WRAPPER": WRAPPER_VALUE}):
                 summary = _run_cli_json(["hse2-validate", "--config", str(config_path)])
+                unified_summary = _run_cli_json(["hse2", "validate", "--config", str(config_path)])
 
             self.assertEqual(summary["command"], "hse2-validate")
             self.assertEqual(summary["total"], 2)
@@ -109,6 +110,10 @@ class HSE2ValidationTests(unittest.TestCase):
             self.assertEqual(summary["failed"], 1)
             self.assertTrue(summary["items"][0]["ok"])
             self.assertFalse(summary["items"][1]["ok"])
+            self.assertEqual(unified_summary["command"], summary["command"])
+            self.assertEqual(unified_summary["total"], summary["total"])
+            self.assertEqual(unified_summary["succeeded"], summary["succeeded"])
+            self.assertEqual(unified_summary["failed"], summary["failed"])
 
     def test_hse2_validate_cli_stops_on_first_failure_when_requested(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

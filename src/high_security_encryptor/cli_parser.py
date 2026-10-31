@@ -70,7 +70,7 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler)):
+    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler)):
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
         if hse2_inspect_handler is not None:
@@ -80,6 +80,13 @@ def build_cli_parser(
             )
             archive_inspect_parser.add_argument("--input", required=True, help="Input HSE2 container path.")
             archive_inspect_parser.set_defaults(handler=hse2_inspect_handler)
+        if hse2_validate_handler is not None:
+            validate_parser = hse2_subparsers.add_parser("validate", help="Validate HSE2 containers without writing plaintext output.")
+            validate_parser.add_argument("--config", required=True, help="Path to an HSE2 validation config file.")
+            validate_parser.add_argument("--output", help="Optional path to write the complete JSON validation report.")
+            validate_parser.add_argument("--summary-only", action="store_true", help="Print aggregate counts only while preserving the full report in --output.")
+            validate_parser.add_argument("--exit-code-on-failure", action="store_true", help="Return a non-zero exit code when any item fails validation.")
+            validate_parser.set_defaults(handler=hse2_validate_handler)
         if hse2_keyfile_inspect_handler is not None:
             keyfile_parser = hse2_subparsers.add_parser("keyfile", help="Inspect HSE2 keyfile material.")
             keyfile_subparsers = keyfile_parser.add_subparsers(dest="keyfile_command", required=True)
