@@ -81,13 +81,16 @@ GUI-generated configs use `env` providers by default so typed passwords are not 
 
 HSE2 remains experimental, but focused CLI entry points now cover create/open, header backup/restore, metadata-assisted body-offset recovery, and explicit Windows DPAPI create/open workflows.
 
+The archive-create CLI defaults to the compatible v2 container format. Opt into the streaming v3 format with `--format-version 3`; open detects either version automatically. Wrapper list/remove and access destruction remain CLI workflows. Adding or destroying access requires an existing unlock factor; destruction also requires the exact confirmation phrase shown by `high-security-encryptor-hse2-access destroy --help`. The standalone HSE2 GUI supports wrapper add/rewrap with localized KDF profiles; archive create/open and header backup remain CLI-only.
+
 Create and open a keyfile-backed archive:
 
 ```bash
 high-security-encryptor-hse2-create \
   --root <ROOT_PATH> \
   --output <ARCHIVE_PATH> \
-  --keyfile <KEYFILE_PATH>  # pragma: allowlist secret
+  --keyfile <KEYFILE_PATH> \
+  --format-version 3  # pragma: allowlist secret
 
 high-security-encryptor-hse2-open \
   --input <ARCHIVE_PATH> \

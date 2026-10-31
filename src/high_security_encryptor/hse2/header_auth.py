@@ -45,6 +45,7 @@ def attach_header_auth_tag(header: HSE2Header, *, mek: HSE2KeyMaterial) -> HSE2H
         format_version=header.format_version,
         header_auth_algorithm=header.header_auth_algorithm,
         header_auth_tag=tag,
+        access_destroyed=header.access_destroyed,
     )
 
 

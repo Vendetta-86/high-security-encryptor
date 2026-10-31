@@ -21,7 +21,9 @@ HSE2_GUI_ACTIONS = (
     "generate-keyfile",
     "dpapi-protect",
     "wrapper-list",
+    "wrapper-add",
     "wrapper-remove",
+    "wrapper-rewrap",
     "access-destroy",
 )
 
@@ -34,7 +36,9 @@ HSE2_GUI_ACTION_LABELS = {
     "generate-keyfile": "生成 keyfile",
     "dpapi-protect": "Windows DPAPI 保护 keyfile",
     "wrapper-list": "列出 HSE2 wrapper",
+    "wrapper-add": "添加 HSE2 wrapper",
     "wrapper-remove": "移除指定 HSE2 wrapper",
+    "wrapper-rewrap": "更换 HSE2 wrapper",
     "access-destroy": "永久禁用 HSE2 访问",
 }
 
@@ -65,6 +69,12 @@ def build_hse2_gui_command(
     password_file: str = "",
     keyfile_path: str = "",
     allow_dpapi: bool = False,
+    new_wrapper_id: str = "",
+    new_password_file: str = "",
+    new_keyfile_path: str = "",
+    new_profile_name: str = "hardened",
+    new_label: str = "",
+    new_wrapper_dpapi: bool = False,
     access_confirmation_phrase: str = "",
 ) -> HSE2GuiCommandPlan:
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
@@ -139,6 +149,78 @@ def build_hse2_gui_command(
         if force:
             args.append("--overwrite")
         argv = tuple(args)
+    elif normalized_action == "wrapper-add":
+        new_id = _require_text(wrapper_id, "请输入要新增的 wrapper id。")
+        if not password_file.strip() and not keyfile_path.strip() and not allow_dpapi:
+            raise ValueError("请选择现有容器的密码文件、keyfile 或 DPAPI 解锁方式。")
+        if new_wrapper_dpapi and (new_password_file.strip() or new_keyfile_path.strip()):
+            raise ValueError("新 DPAPI wrapper 不能同时使用密码或 keyfile。")
+        if not new_wrapper_dpapi and not new_password_file.strip() and not new_keyfile_path.strip():
+            raise ValueError("请提供新密码文件、新 keyfile 或选择新 DPAPI wrapper。")
+        args = [
+            "hse2-wrapper", "add", "--input",
+            _require_text(input_path, "请选择要添加 wrapper 的 .hse2 容器。"),
+            "--output", _require_text(output_path, "请选择添加 wrapper 后的新 .hse2 输出路径。"),
+            "--wrapper-id", new_id,
+        ]
+        if new_password_file.strip():
+            args.extend(["--new-password-file", new_password_file.strip()])
+        if new_keyfile_path.strip():
+            args.extend(["--new-keyfile", new_keyfile_path.strip()])
+        if new_wrapper_dpapi:
+            args.append("--new-dpapi")
+        elif new_password_file.strip():
+            if new_profile_name not in {"compatible", "hardened", "paranoid"}:
+                raise ValueError("请选择有效的 HSE2 密码 wrapper 安全等级。")
+            args.extend(["--new-profile", new_profile_name])
+        if new_label.strip():
+            args.extend(["--new-label", new_label.strip()])
+        if password_file.strip():
+            args.extend(["--password-file", password_file.strip()])
+        if keyfile_path.strip():
+            args.extend(["--keyfile", keyfile_path.strip()])
+        if allow_dpapi:
+            args.append("--dpapi")
+        if force:
+            args.append("--overwrite")
+        argv = tuple(args)
+    elif normalized_action == "wrapper-rewrap":
+        old_wrapper_id = _require_text(wrapper_id, "请选择要替换的现有 wrapper id。")
+        if not password_file.strip() and not keyfile_path.strip() and not allow_dpapi:
+            raise ValueError("请选择现有容器的密码文件、keyfile 或 DPAPI 解锁方式。")
+        if new_wrapper_dpapi and (new_password_file.strip() or new_keyfile_path.strip()):
+            raise ValueError("新 DPAPI wrapper 不能同时使用密码或 keyfile。")
+        if not new_wrapper_dpapi and not new_password_file.strip() and not new_keyfile_path.strip():
+            raise ValueError("请提供新密码文件、新 keyfile 或选择新 DPAPI wrapper。")
+        args = [
+            "hse2-wrapper", "rewrap", "--input",
+            _require_text(input_path, "请选择要更新 wrapper 的 .hse2 容器。"),
+            "--output", _require_text(output_path, "请选择重新包装后的新 .hse2 输出路径。"),
+            "--wrapper-id", old_wrapper_id,
+        ]
+        if new_wrapper_id.strip():
+            args.extend(["--new-wrapper-id", new_wrapper_id.strip()])
+        if new_password_file.strip():
+            args.extend(["--new-password-file", new_password_file.strip()])
+        if new_keyfile_path.strip():
+            args.extend(["--new-keyfile", new_keyfile_path.strip()])
+        if new_wrapper_dpapi:
+            args.append("--new-dpapi")
+        elif new_password_file.strip():
+            if new_profile_name not in {"compatible", "hardened", "paranoid"}:
+                raise ValueError("请选择有效的 HSE2 密码 wrapper 安全等级。")
+            args.extend(["--new-profile", new_profile_name])
+        if new_label.strip():
+            args.extend(["--new-label", new_label.strip()])
+        if password_file.strip():
+            args.extend(["--password-file", password_file.strip()])
+        if keyfile_path.strip():
+            args.extend(["--keyfile", keyfile_path.strip()])
+        if allow_dpapi:
+            args.append("--dpapi")
+        if force:
+            args.append("--overwrite")
+        argv = tuple(args)
     elif normalized_action == "access-destroy":
         confirmation_phrase = _require_text(access_confirmation_phrase, "请输入永久禁用访问确认短语。")
         if confirmation_phrase != DESTROY_ACCESS_CONFIRMATION_PHRASE:
@@ -153,6 +235,12 @@ def build_hse2_gui_command(
             "--confirm",
             confirmation_phrase,
         ]
+        if password_file.strip():
+            args.extend(["--password-file", password_file.strip()])
+        if keyfile_path.strip():
+            args.extend(["--keyfile", keyfile_path.strip()])
+        if allow_dpapi:
+            args.append("--dpapi")
         if force:
             args.append("--overwrite")
         argv = tuple(args)

@@ -237,7 +237,7 @@ class HSE2Header:
     def __post_init__(self) -> None:
         if self.format != "HSE2":
             raise HSE2ModelError(f"unsupported format: {self.format}")
-        if self.format_version != 2:
+        if self.format_version not in {2, 3}:
             raise HSE2ModelError(f"unsupported HSE2 format version: {self.format_version}")
         if not self.created_utc:
             raise HSE2ModelError("created_utc must not be empty")

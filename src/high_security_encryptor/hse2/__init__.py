@@ -13,6 +13,14 @@ from .archive_payload import (
 )
 from .archive_plan import build_archive_plan_summary
 from .archive_traversal import build_archive_entries_from_root, build_archive_entries_from_roots
+from .access_management import (
+    DESTROY_ACCESS_CONFIRMATION_PHRASE,
+    add_hse2_wrapper,
+    destroy_hse2_access,
+    list_hse2_wrappers,
+    remove_hse2_wrapper,
+    rewrap_hse2_wrapper,
+)
 from .combined_kdf import (
     HSE2_COMBINED_KDF_CONTEXT,
     CombinedKDFResult,
@@ -137,6 +145,12 @@ from .wrapping import (
 )
 
 __all__ = [
+    "DESTROY_ACCESS_CONFIRMATION_PHRASE",
+    "add_hse2_wrapper",
+    "destroy_hse2_access",
+    "list_hse2_wrappers",
+    "remove_hse2_wrapper",
+    "rewrap_hse2_wrapper",
     "BuiltWrapper",
     "CipherSuite",
     "CombinedKDFResult",

@@ -76,6 +76,8 @@ class HSE2Preamble:
 def encode_header_frame(header: HSE2Header) -> bytes:
     """Return preamble + canonical header bytes."""
 
+    if header.format_version != HSE2_PREAMBLE_VERSION:
+        raise HSE2ModelError("encode_header_frame only writes HSE2 version 2 headers")
     header_bytes = header.canonical_bytes(include_auth_tag=True)
     preamble = HSE2Preamble(header_length=len(header_bytes))
     return preamble.to_bytes() + header_bytes
@@ -92,6 +94,8 @@ def decode_header_frame(data: bytes) -> tuple[HSE2Preamble, HSE2Header, bytes]:
     if len(data) < header_end:
         raise HSE2ModelError("data is too short to contain the declared HSE2 header")
     header = hse2_header_from_dict(_json_dict_from_bytes(data[header_start:header_end]))
+    if header.format_version != preamble.format_version:
+        raise HSE2ModelError("HSE2 preamble and header versions do not match")
     return preamble, header, data[header_end:]
 
 

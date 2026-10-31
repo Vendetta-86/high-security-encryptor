@@ -1,7 +1,9 @@
 # HSE2 Rewrap Helper Draft
 
-This draft adds an experimental file-level rewrap helper for HSE2 containers.
-It is not wired into CLI or GUI workflows yet.
+This draft describes the legacy experimental single-file HSE2 streaming helper.
+It is separate from archive-container wrapper management. The archive CLI has a
+`high-security-encryptor-hse2-wrapper rewrap` workflow documented in
+`docs/hse2_cli_workflows.md`; this file's single-file helper remains unwired.
 
 ## Purpose
 

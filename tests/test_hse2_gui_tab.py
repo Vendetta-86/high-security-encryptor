@@ -10,6 +10,9 @@ from high_security_encryptor.hse2_gui_tab import (
     hse2_gui_action_display_label,
     hse2_gui_action_display_values,
     hse2_gui_action_key_from_display,
+    hse2_kdf_profile_display_values,
+    hse2_kdf_profile_key_from_display,
+    should_show_paranoid_profile_warning,
     visible_hse2_gui_field_keys,
 )
 
@@ -140,7 +143,64 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_visible_fields_for_access_destroy(self) -> None:
         self.assertEqual(
             visible_hse2_gui_field_keys("access-destroy"),
-            frozenset({"input_path", "output_path", "access_confirmation_phrase", "danger_text", "force"}),
+            frozenset({"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force"}),
+        )
+
+    def test_wrapper_rewrap_uses_chinese_kdf_profiles_and_paranoid_warning(self) -> None:
+        self.assertEqual(hse2_kdf_profile_display_values(), ("兼容旧设备", "推荐高安全", "极高安全"))
+        self.assertEqual(hse2_kdf_profile_key_from_display("极高安全"), "paranoid")
+        self.assertEqual(hse2_kdf_profile_key_from_display("hardened"), "hardened")
+        self.assertTrue(should_show_paranoid_profile_warning("wrapper-rewrap", "paranoid", "new-password.txt"))
+        self.assertTrue(should_show_paranoid_profile_warning("wrapper-add", "paranoid", "new-password.txt"))
+        self.assertFalse(should_show_paranoid_profile_warning("wrapper-rewrap", "paranoid", ""))
+        self.assertFalse(should_show_paranoid_profile_warning("wrapper-rewrap", "hardened", "new-password.txt"))
+
+    def test_wrapper_add_visibility_and_state_use_profiled_factors(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("wrapper-add"),
+            frozenset({
+                "input_path", "output_path", "wrapper_id", "password_file", "keyfile_path", "new_password_file",
+                "new_keyfile_path", "new_kdf_profile", "new_label", "allow_dpapi", "new_wrapper_dpapi", "force",
+                "paranoid_warning",
+            }),
+        )
+        argv = build_hse2_command_from_tab_state(
+            HSE2GuiTabState(
+                action="wrapper-add",
+                input_path="source.hse2",
+                output_path="added.hse2",
+                wrapper_id="recovery",
+                password_file="unlock.txt",
+                new_password_file="recovery.txt",
+                new_kdf_profile="极高安全",
+            )
+        )
+        self.assertEqual(argv[1], "add")
+        self.assertEqual(argv[argv.index("--new-profile") + 1], "paranoid")
+
+    def test_wrapper_rewrap_tab_state_maps_localized_profile_to_cli(self) -> None:
+        argv = build_hse2_command_from_tab_state(
+            HSE2GuiTabState(
+                action="wrapper-rewrap",
+                input_path="source.hse2",
+                output_path="rotated.hse2",
+                wrapper_id="primary",
+                password_file="old.txt",
+                new_password_file="new.txt",
+                new_kdf_profile="极高安全",
+            )
+        )
+        self.assertIn("--new-profile", argv)
+        self.assertEqual(argv[argv.index("--new-profile") + 1], "paranoid")
+
+    def test_visible_fields_for_wrapper_rewrap_include_profile_warning(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("wrapper-rewrap"),
+            frozenset({
+                "input_path", "output_path", "wrapper_id", "new_wrapper_id", "password_file", "keyfile_path",
+                "new_password_file", "new_keyfile_path", "new_kdf_profile", "new_label", "allow_dpapi",
+                "new_wrapper_dpapi", "force", "paranoid_warning",
+            }),
         )
 
     def test_unknown_action_visibility_is_rejected(self) -> None:

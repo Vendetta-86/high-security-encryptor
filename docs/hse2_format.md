@@ -9,7 +9,7 @@ This document freezes the initial HSE2 container direction for offline-hardening
 - Support multiple unlock wrappers for password, keyfile, password+keyfile, and Windows DPAPI workflows.
 - Encrypt payload metadata by default for hardened and paranoid workflows.
 - Support explicit header backup and explicit access destruction workflows.
-- Preserve streaming encryption/decryption for large files.
+- Provide bounded-memory streaming encryption/decryption in archive format v3 while retaining v2 compatibility.
 
 ## Non-goals
 
@@ -34,18 +34,14 @@ HSE2 assumes that if an attacker has all ciphertext, all wrappers, all keyfiles,
 
 ## Container layout
 
-The initial HSE2 container is a single file with this logical layout:
+HSE2 containers are single files. The v2 and v3 formats share an authenticated JSON header and key model, but their bodies differ:
 
 ```text
-HSE2 Container
-├── fixed preamble
-├── authenticated header
-├── encrypted manifest
-├── encrypted payload chunks
-└── footer
+v2: fixed preamble | authenticated header | JSON body (manifest + all chunks)
+v3: fixed preamble | authenticated header | MNF3 record | CHK3 records (exact EOF)
 ```
 
-The physical layout should remain streaming-friendly. Implementations may write the header before payload when sizes are known, or reserve/update the header atomically when needed. Header update operations must use write-to-temp-and-rename semantics where possible.
+Version 2 is retained for compatibility and remains the default output format. Its JSON body is materialized by existing v2 workflows, so memory use can grow with archive size. Version 3 is the binary streaming format; create selects it with `--format-version 3`, and open detects the version from the preamble. Do not reinterpret, migrate, or rewrite an existing v2 container as v3 implicitly.
 
 ## Fixed preamble
 
@@ -56,11 +52,28 @@ Required fields:
 | Field | Purpose |
 |---|---|
 | `magic` | Constant `HSE2` marker. |
-| `format_version` | Integer format version. Initial value: `2`. |
+| `format_version` | Integer format version: `2` for the JSON-body format or `3` for binary streaming. |
 | `header_length` | Length of the serialized authenticated header. |
 | `header_encoding` | Initial value: `canonical-json`. |
 
-The preamble must not contain passwords, key material, file names, source paths, or KDF salts.
+The preamble is 16 bytes, big-endian (`>4sBBHQ`): magic, version, header encoding, zero reserved field, and unsigned 64-bit header length. The preamble must not contain passwords, key material, file names, source paths, or KDF salts. Header JSON is canonical UTF-8 JSON in both versions.
+
+### Version 3 streaming body
+
+After the authenticated header, v3 stores one manifest record followed by exactly `payload_layout.chunk_count` payload records. All integer fields are unsigned big-endian. There is no footer; readers must reject truncation, wrong record order, unexpected chunk indices, and any trailing bytes.
+
+```text
+MNF3 | ciphertext_length:u64 | nonce:12 bytes | ciphertext:N | tag:16 bytes
+CHK3 | index:u64 | ciphertext_length:u32 | nonce:12 bytes | ciphertext:N | tag:16 bytes
+```
+
+The manifest ciphertext is limited to 64 MiB; each chunk is limited to 16 MiB and to the authenticated `cipher_suite.chunk_size`. The header is limited to 1 MiB. `chunk_size` is 1 byte through 16 MiB. `payload_layout.payload_offset` and `footer_offset` are reserved and must be zero in v3. Payload chunk AAD remains `HSE2:payload-chunk:v1:{global-index}`. The manifest is authenticated with AES-256-GCM, and its existing domain-separated AAD remains unchanged.
+
+V3 readers authenticate the header before reading the manifest or payload. They validate the manifest and safe output paths before creating restored files, then decrypt to per-file staging outputs and atomically commit complete files. A later chunk failure may leave previously completed files in place; whole-directory all-or-nothing restore is not promised.
+
+### Version 2 compatibility body
+
+Version 2 retains the existing JSON body framing and v2 reader/writer behavior. Its `payload_chunks` array stores Base64 nonce, ciphertext, and authentication tag fields. V2 remains readable; it does not gain v3 bounded-memory guarantees. Header backup metadata v1 remains compatible with v2, while v3 uses its own metadata format.
 
 ## Authenticated header
 
@@ -99,6 +112,8 @@ Recommended top-level shape:
 
 The header authentication tag must cover all security-critical header fields, including KDF parameters, wrapper metadata, cipher selections, manifest policy, payload layout, and nonce/salt fields that influence decryption.
 
+For v3, the authenticated header declares the exact chunk count and chunk size used by the streaming body. V3 reserved offsets are zero; sequential framing, authenticated counts, AEAD tags, and exact EOF provide the record boundaries and completeness checks.
+
 ## Key model
 
 HSE2 uses random content keys. User passwords must not directly encrypt large payloads.
@@ -125,6 +140,16 @@ KEK wraps DEK and MEK inside one or more wrappers
 ```
 
 Password changes, keyfile rotation, and DPAPI additions should rewrap DEK/MEK without rewriting payload bytes.
+
+Wrapper add/remove/rewrap and explicit access destruction in v3 authenticate the existing header, write a new authenticated header, and copy the encrypted body in fixed-size blocks. They preserve the body bytes and do not re-encrypt payload chunks.
+
+## Compatibility policy
+
+- Readers dispatch by preamble version and reject unknown versions; they never infer a format from body contents.
+- V2 remains the default create format for compatibility. V3 creation is explicit until a separate release policy changes this default.
+- V2 remains readable by this implementation. V3 requires a v3-capable reader; older implementations reject it as an unsupported version.
+- HSE1 files are migrated explicitly through the HSE1-to-HSE2 workflow. Migration writes a new output and preserves the original input; it is not an in-place upgrade.
+- V2 and v3 use different body framing. A format change requires an explicit version dispatch and must not silently reinterpret existing bytes.
 
 ## Wrapper records
 

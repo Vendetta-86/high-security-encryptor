@@ -1,6 +1,6 @@
 # HSE2 Framing Reference
 
-This document records the current alpha HSE2 byte and JSON framing used by the implementation. It is a reference for contributors and release review, not a stable-format guarantee by itself.
+This document records the HSE2 v2 and v3 byte and JSON framing used by the implementation. It is a reference for contributors and release review, not a stable-format guarantee by itself. Unless a section explicitly says v3, the JSON body description below is the legacy v2 format.
 
 The broader stable-format contract remains governed by `docs/hse2_format.md` and future format-freeze release notes.
 
@@ -15,12 +15,13 @@ This reference covers:
 - encrypted payload chunk framing;
 - header authentication coverage;
 - compatibility notes for alpha readers and writers.
+- v3 binary streaming records and resource limits.
 
 It does not redefine cryptographic policy, user-facing workflows, key backup policy, or GUI behavior.
 
 ## Container byte layout
 
-Current alpha HSE2 containers are encoded as:
+Version 2 alpha HSE2 containers are encoded as:
 
 ```text
 [preamble][header_json][body_json]
@@ -30,7 +31,7 @@ There is no separate delimiter between `header_json` and `body_json`. The reader
 
 ## Fixed preamble
 
-The preamble is exactly 16 bytes and is packed big-endian with this Python struct format:
+The preamble is exactly 16 bytes in both versions and is packed big-endian with this Python struct format:
 
 ```text
 >4sBBH Q
@@ -324,6 +325,59 @@ For future stable HSE2 releases:
 - Any change to canonical JSON rules should require an explicit compatibility decision.
 - Any change to body framing should document whether old alpha containers remain readable.
 - HSE1 compatibility should remain a migration boundary, not an HSE2 byte-layout constraint.
+
+## Version 3 binary streaming body
+
+V3 uses the same 16-byte preamble shape and canonical JSON authenticated header, with preamble and header `format_version` both equal to `3`. Header JSON is limited to 1 MiB. The header is authenticated before any manifest or payload body read.
+
+After the header, v3 is a sequence of raw binary records. All integer fields are unsigned big-endian. Nonces and tags are raw bytes, not Base64, in the body records.
+
+### Manifest record
+
+```text
+offset  size  field
+0       4     magic = "MNF3"
+4       8     ciphertext_length (1..64 MiB)
+12      12    AES-GCM nonce
+24      N     ciphertext
+24+N    16    AES-GCM tag
+```
+
+Exactly one manifest record must immediately follow the header. It is decrypted and validated before restore files are created.
+
+### Payload chunk record
+
+```text
+offset  size  field
+0       4     magic = "CHK3"
+4       8     index (zero-based, contiguous)
+12      4     ciphertext_length (1..authenticated chunk_size, max 16 MiB)
+16      12    AES-GCM nonce
+28      N     ciphertext
+28+N    16    AES-GCM tag
+```
+
+Exactly `payload_layout.chunk_count` chunks follow the manifest. Each `index` must equal the next expected index. `chunk_size` is 1 byte through 16 MiB. The authenticated header's `payload_layout.payload_offset` and `footer_offset` must both be zero; they are reserved in v3 and are not seek positions. After the declared chunks, the reader requires exact EOF; no footer or trailing data is allowed.
+
+V3 payload AAD remains `HSE2:payload-chunk:v1:{global-index}`. This preserves the existing chunk AEAD definition. The authenticated chunk count, contiguous record indices, manifest ranges, GCM tags, and exact EOF jointly detect missing, reordered, altered, and extra records.
+
+### V3 body limits and streaming behavior
+
+- Header JSON: at most 1 MiB.
+- Encrypted manifest ciphertext: at most 64 MiB.
+- Chunk ciphertext: at most 16 MiB and at most authenticated `chunk_size`.
+- Entry count: at most 1,000,000.
+- UTF-8 relative path: at most 4,096 bytes.
+- V3 create/open, wrapper body copying, and header-backup digest/restore use bounded buffers; manifest JSON parsing remains bounded by the manifest limit and may expand in memory.
+- Create and wrapper rewrites use same-directory temporary outputs and replace the target only after successful completion. Restore commits each complete file from a same-directory staging file; already committed files may remain if a later chunk fails.
+
+### Version dispatch and compatibility
+
+- Preamble and header versions must match; unknown versions and encodings are rejected.
+- V2 uses the JSON body documented above and does not have v3's bounded-memory guarantee.
+- V2 remains the default output format. CLI v3 creation is explicit with `--format-version 3`; open dispatches automatically.
+- Header backup v2 metadata remains supported; v3 has a versioned metadata format.
+- HSE1 migration writes a new HSE2 output and preserves the original. There is no in-place reinterpretation of v2 bytes as v3.
 
 ## Status
 

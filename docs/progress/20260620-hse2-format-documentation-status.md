@@ -51,3 +51,7 @@ The format documentation item itself should be considered present. Remaining Pha
 ## Status
 
 Phase 1 should no longer track `docs/hse2_format.md` as missing. The broader HSE2 format-freeze phase remains partially open until compatibility and stable-format commitments are finalized.
+
+## 2026-10-31 Update
+
+This status note records the June 20 implementation snapshot. The current format document and framing reference now distinguish the legacy v2 JSON body from the v3 binary streaming body. V2 remains the default and v3 is selected explicitly. Cross-version v3 exchange still needs a second v3-capable implementation; the current fixed v3 fixture only checks the present reader/writer contract.

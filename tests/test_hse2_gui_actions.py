@@ -126,23 +126,65 @@ class HSE2GuiActionTests(unittest.TestCase):
             input_path="archive.hse2",
             output_path="disabled.hse2",
             access_confirmation_phrase=DESTROY_ACCESS_CONFIRMATION_PHRASE,
+            password_file="unlock.txt",
+            keyfile_path="unlock.key",
+            allow_dpapi=True,
             force=True,
         )
         self.assertEqual(
             plan.argv,
             (
-                "hse2-access",
-                "destroy",
-                "--input",
-                "archive.hse2",
-                "--output",
-                "disabled.hse2",
-                "--confirm",
-                DESTROY_ACCESS_CONFIRMATION_PHRASE,
-                "--overwrite",
+                "hse2-access", "destroy", "--input", "archive.hse2", "--output", "disabled.hse2",
+                "--confirm", DESTROY_ACCESS_CONFIRMATION_PHRASE, "--password-file", "unlock.txt",
+                "--keyfile", "unlock.key", "--dpapi", "--overwrite",
             ),
         )
 
+    def test_wrapper_rewrap_action_builds_localized_profiled_cli_command(self) -> None:
+        plan = build_hse2_gui_command(
+            action="wrapper-rewrap",
+            input_path="archive.hse2",
+            output_path="rotated.hse2",
+            wrapper_id="old-id",
+            new_wrapper_id="new-id",
+            password_file="old-password.txt",
+            keyfile_path="old.key",
+            new_password_file="new-password.txt",
+            new_keyfile_path="new.key",
+            new_profile_name="paranoid",
+            new_label="recovery",
+            force=True,
+        )
+        self.assertEqual(
+            plan.argv,
+            (
+                "hse2-wrapper", "rewrap", "--input", "archive.hse2", "--output", "rotated.hse2",
+                "--wrapper-id", "old-id", "--new-wrapper-id", "new-id",
+                "--new-password-file", "new-password.txt", "--new-keyfile", "new.key",
+                "--new-profile", "paranoid", "--new-label", "recovery",
+                "--password-file", "old-password.txt", "--keyfile", "old.key", "--overwrite",
+            ),
+        )
+
+    def test_wrapper_add_action_builds_profiled_cli_command(self) -> None:
+        plan = build_hse2_gui_command(
+            action="wrapper-add",
+            input_path="archive.hse2",
+            output_path="with-recovery.hse2",
+            wrapper_id="recovery-password",
+            password_file="unlock.txt",
+            new_password_file="recovery.txt",
+            new_profile_name="hardened",
+            new_label="recovery",
+        )
+        self.assertEqual(
+            plan.argv,
+            (
+                "hse2-wrapper", "add", "--input", "archive.hse2", "--output", "with-recovery.hse2",
+                "--wrapper-id", "recovery-password", "--new-password-file", "recovery.txt",
+                "--new-profile", "hardened", "--new-label", "recovery", "--password-file", "unlock.txt",
+            ),
+        )
     def test_missing_required_config_path_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             build_hse2_gui_command(action="encrypt-config", config_path="")

@@ -96,6 +96,20 @@ high-security-encryptor-hse2-wrapper list \
 
 The list output includes wrapper ids, wrapper types, creation timestamps, labels, KDF profile names, and the `access_destroyed` header marker.
 
+Add a new recovery wrapper after authenticating the existing container. The new wrapper gets its own id and may use a password, keyfile, password+keyfile, or Windows DPAPI:
+
+```bash
+high-security-encryptor-hse2-wrapper add \
+  --input <EXISTING_ARCHIVE.hse2> \
+  --output <ARCHIVE_WITH_RECOVERY.hse2> \
+  --wrapper-id <NEW_WRAPPER_ID> \
+  --new-password-file <NEW_PASSWORD_FILE> \
+  --new-profile hardened \
+  --password-file <EXISTING_UNLOCK_PASSWORD_FILE>
+```
+
+The add workflow writes a new output container and preserves the original. The existing unlock factors (`--password-file`, `--keyfile`, `--dpapi`) are distinct from new wrapper material. `--new-profile` applies to password-based wrappers; DPAPI wrappers do not use a password KDF profile.
+
 Remove one selected wrapper after authenticating the current header with another valid unlock factor:
 
 ```bash
@@ -107,6 +121,21 @@ high-security-encryptor-hse2-wrapper remove \
 ```
 
 The remove workflow writes a new output container. It does not mutate the input path unless `--output` points to the same file and `--overwrite` is used intentionally. The command refuses to remove the final wrapper; use `high-security-encryptor-hse2-access --help` for the separate explicit access-marker workflow.
+
+## Wrapper Rewrap
+
+Use `rewrap` to replace one existing wrapper with a new password, keyfile, password+keyfile combination, or Windows DPAPI wrapper in a single atomic header rewrite:
+
+```bash
+high-security-encryptor-hse2-wrapper rewrap \
+  --input <INPUT_ARCHIVE> \
+  --output <OUTPUT_ARCHIVE> \
+  --wrapper-id <EXISTING_WRAPPER_ID> \
+  --new-password-file <NEW_PASSWORD_FILE> \
+  --keyfile <EXISTING_UNLOCK_KEYFILE>
+```
+
+`--new-wrapper-id` is optional and defaults to the replaced ID. Supply exactly one new wrapper type; `--new-keyfile` may be combined with `--new-password-file`, while `--new-dpapi` cannot be combined with either. Existing-container authentication uses `--password-file`, `--keyfile`, and/or `--dpapi`; those are separate from the `--new-*` wrapper material. The new output preserves the encrypted body byte for byte for both v2 and v3. The old wrapper is absent only in the successfully committed output; a failure leaves an existing target unchanged and removes the temporary output.
 
 ## Header Backup Export and Restore
 

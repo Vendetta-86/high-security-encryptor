@@ -34,6 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_CREATE_CHUNK_SIZE,
         help=f"Payload chunk size. Defaults to {DEFAULT_CREATE_CHUNK_SIZE}.",
     )
+    parser.add_argument("--format-version", type=int, choices=(2, 3), default=2, help="Container format version. Defaults to v2 for compatibility.")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -91,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
                 profile_name=args.profile,
                 chunk_size=int(args.chunk_size),
                 overwrite=bool(args.overwrite),
+                container_format_version=int(args.format_version),
             )
             summary = result.to_dict()
     except (HSE2ModelError, OSError, ValueError) as exc:
@@ -111,6 +113,7 @@ def _build_dry_run_summary(*, args: argparse.Namespace, roots: tuple[Path, ...],
     summary["roots"] = [str(root) for root in roots]
     summary["output_path"] = str(output_path)
     summary["wrapper_type"] = _dry_run_wrapper_type(args)
+    summary["format_version"] = int(args.format_version)
     return summary
 
 

@@ -19,7 +19,9 @@ Supported actions:
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
 - `dpapi-protect` -> `dpapi-protect --input ... --output ... --scope ... [--force]`
 - `wrapper-list` -> `hse2-wrapper list --input ...`
+- `wrapper-add` -> `hse2-wrapper add ...`, with existing unlock factors kept separate from the new wrapper's password/keyfile/DPAPI factors
 - `wrapper-remove` -> `hse2-wrapper remove --input ... --output ... --wrapper-id ... [--password-file ...] [--keyfile ...] [--dpapi] [--overwrite]`
+- `wrapper-rewrap` -> `hse2-wrapper rewrap ...`, with separate source unlock factors and replacement password/keyfile/DPAPI factors; password replacements offer localized compatible, hardened, and paranoid profiles
 - `access-destroy` -> `hse2-access destroy --input ... --output ... --confirm ... [--overwrite]`
 
 ## Reusable Experimental Tab Component
@@ -39,6 +41,8 @@ consumes. For example:
 - `generate-keyfile` shows output path, size, and overwrite;
 - `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;
 - `wrapper-remove` shows wrapper id plus optional password/keyfile/DPAPI fields;
+- `wrapper-add` shows separate existing unlock and new wrapper factors, with localized KDF profiles and the paranoid performance warning;
+- `wrapper-rewrap` shows separate old and new wrapper factors, a localized KDF profile selector, and a performance warning when paranoid password wrapping is selected;
 - `access-destroy` shows input/output paths, overwrite, the exact confirmation field, and the warning phrase.
 
 The wrapper/access/inspect workflows use these fields:
@@ -89,7 +93,9 @@ window:
 - keyfile generation;
 - Windows DPAPI protection;
 - wrapper list;
+- wrapper add;
 - wrapper remove;
+- wrapper rewrap;
 - explicit access-disable workflow.
 
 ## Result Summaries

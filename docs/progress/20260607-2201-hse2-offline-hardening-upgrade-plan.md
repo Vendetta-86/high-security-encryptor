@@ -69,7 +69,7 @@
 | Phase 0 | [x] | 升级计划建立 | 本进度文档已建立 |
 | Phase 1 | [~] | HSE2 格式冻结 | magic/version/header codec 已实现；正式格式文档未合并 |
 | Phase 2 | [~] | DEK + Wrapper 架构 | DEK/MEK 与 wrapper 架构已实现；rewrap/正式文档仍需补齐 |
-| Phase 3 | [~] | KDF Profiles 正式化 | 三档 profile 已实现并可由 CLI 选择；GUI 映射仍需完善 |
+| Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
 | Phase 4 | [~] | Keyfile 双因子 | keyfile 与 password+keyfile wrapper 已实现；inspect/强风险提示未完成 |
 | Phase 5 | [~] | Header Backup | export/restore CLI 与测试已实现；GUI 提示未完成 |
 | Phase 6 | [~] | Destroy Access | wrapper list/remove/access destroy CLI+GUI 已完成；backup 恢复场景仍需补测 |
@@ -85,7 +85,7 @@
 
 ### 待完成清单
 
-- [ ] 新增 `docs/hse2_format.md`
+- [x] `docs/hse2_format.md` 定义 v2/v3 格式及流式兼容边界
 - [x] 明确 HSE2 magic：`HSE2`
 - [x] 明确格式版本：`format_version = 2`
 - [x] 明确 header 编码格式：canonical JSON
@@ -93,11 +93,11 @@
 - [x] 明确 payload 加密方式：AES-256-GCM streaming chunks
 - [x] 明确 manifest 默认加密策略
 - [x] 明确 wrappers 数组结构
-- [ ] 明确向后兼容策略：HSE1 只读迁移，不强行原地升级
+- [x] 明确向后兼容策略：HSE1 显式迁移到新 HSE2 输出；不原地转换既有容器
 
 ### 完成标准
 
-- [ ] `docs/hse2_format.md` 已合并
+- [x] `docs/hse2_format.md` 和 `docs/hse2_framing_reference.md` 已覆盖 v2/v3 framing；工作区改动仍待用户决定是否提交
 - [x] HSE2 header schema 有模型和 codec 实现
 - [x] 测试能读取 HSE2 header / container fixture
 - [x] 旧 HSE1 路径未被破坏
@@ -114,13 +114,13 @@
 - [x] 每个 wrapper 独立生成 salt 和 nonce
 - [x] wrapper 只保存加密后的 `DEK` / `MEK`
 - [x] 支持同一容器多个 wrapper（测试中可追加并移除 wrapper）
-- [ ] 支持 rewrap：更换密码或 keyfile 不重加密 payload
+- [x] 支持原子 rewrap：更换密码或 keyfile 时只替换 wrapper，不重加密 payload
 
 ### 完成标准
 
 - [x] 密码 wrapper 能解开 DEK / MEK
 - [x] 不同 wrapper 能解开同一组 DEK / MEK
-- [~] 修改密码只改 wrapper，不重写 payload（remove 已有，完整 rewrap 未完成）
+- [x] 修改密码只改 wrapper，不重写 payload；v2/v3 body 字节保持不变
 - [x] 篡改 wrapper / header 会认证失败
 
 ---
@@ -142,13 +142,13 @@
 - [x] 新增 profile 参数校验
 - [x] 加密时把实际 KDF 参数写入 wrapper/header
 - [x] 解密时以 header 参数为准，不依赖当前软件默认值
-- [ ] GUI 使用中文安全等级，不直接暴露底层参数
+- [x] GUI 的 wrapper add/rewrap 使用中文安全等级，不直接暴露底层参数
 
 ### 完成标准
 
 - [x] 三档 profile 均有实现
 - [x] 参数被篡改会导致认证失败
-- [ ] `paranoid` 模式有明显 GUI 性能提示
+- [x] wrapper add/rewrap 选择 `paranoid` 且设置新密码文件时显示明显 GUI 性能提示
 
 ---
 
@@ -313,7 +313,7 @@
 - [~] 新增“高安全 HSE2 加密向导”（standalone HSE2 GUI 已有，完整向导仍需补齐）
 - [x] 文件 / 文件夹选择
 - [x] 输出位置选择
-- [ ] 安全等级选择：标准兼容 / 推荐高安全 / 极高安全
+- [~] 安全等级选择：wrapper add/rewrap 已支持标准兼容 / 推荐高安全 / 极高安全；新建归档向导仍待接入
 - [~] 密码输入与确认（当前偏 CLI/file boundary，需正式 GUI 控件）
 - [x] keyfile 生成 / 选择
 - [x] DPAPI 本机绑定选项
@@ -440,3 +440,7 @@ python -m pip_audit . --progress-spinner off
 - 2026-06-07：P12 第二段合并，HSE2 GUI wrapper/access JSON 日志新增可读结果摘要。Merge commit: `fab8c6b1e74fbe057430728071ea5cdd700564b9`
 - 2026-06-07：根据当前 HSE2 alpha 进度更新本计划勾选状态。Commit: `918c4cdd17b245924bef7627b9312cf095de294a`
 - 2026-06-07：准备 `v0.6.0-alpha.3` release-prep，更新版本号和发布验收清单。Commit: 本 PR
+- 2026-10-31：扩展正式格式文档和 framing reference，描述 v2 JSON body 与 v3 MNF3/CHK3 流式布局、限制、自动分派及 HSE1 显式迁移边界。验证：M1 定向回归与 589 项全量测试通过（6 项跳过）；独立 v3 版本互操作仍未验证。Commit: 未提交
+- 2026-10-31：新增 HSE2 wrapper 原子 rewrap API/CLI，可替换最后一个 wrapper 或保留其他 wrapper，一次写出新认证 header 并流式复制 v2/v3 body；新增旧/新因子和失败回滚测试并更新 CLI 文档。HSE2 定向 154/154、全量 593 项通过（6 项跳过）。Commit: 未提交
+- 2026-10-31：HSE2 实验 GUI 新增 wrapper rewrap 操作、原/新因子输入、标签和 DPAPI 选项；密码 wrapper 提供兼容旧设备/推荐高安全/极高安全中文档位，极高安全在新密码文件已设置时展示耗时与内存提示，并在执行前确认。GUI 定向 42 项、全量 597 项通过（6 项跳过）；Windows 界面已目视检查，未使用真实容器执行 rewrap。Commit: 未提交
+- 2026-10-31：HSE2 实验 GUI 新增 wrapper add 流程，复用现有容器验证因子并单独采集新 wrapper 因子，支持中文 KDF 档位、密码+keyfile 与 DPAPI；增加执行前确认并更新 README、GUI 集成和 CLI 工作流文档。GUI 定向 44 项、全量 599 项通过（6 项跳过），Windows GUI 中 add/rewrap 表单已目视检查。Commit: 未提交

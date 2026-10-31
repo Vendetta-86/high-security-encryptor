@@ -10,6 +10,7 @@ from typing import Any
 
 from .hse2 import HSE2ModelError
 from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE, destroy_hse2_access
+from .hse2.workflows import read_keyfile_bytes, read_secret_text_file
 
 HSE2_CONTAINER_SUFFIX = ".hse2"
 
@@ -27,6 +28,9 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Required exact confirmation phrase: {DESTROY_ACCESS_CONFIRMATION_PHRASE}",
     )
     destroy_parser.add_argument("--overwrite", action="store_true", help="Allow replacing an existing output container.")
+    destroy_parser.add_argument("--password-file", help="Password file used to authenticate the container header.")
+    destroy_parser.add_argument("--keyfile", help="Keyfile used to authenticate the container header.")
+    destroy_parser.add_argument("--dpapi", action="store_true", help="Allow Windows DPAPI wrappers while authenticating.")
     destroy_parser.add_argument("--compact", action="store_true", help="Emit compact single-line JSON to stdout.")
 
     return parser
@@ -55,6 +59,9 @@ def _run_destroy(args: argparse.Namespace) -> dict[str, Any]:
         input_path,
         output_path,
         confirmation_phrase=str(args.confirm),
+        password=read_secret_text_file(args.password_file) if args.password_file else None,
+        keyfile_bytes=read_keyfile_bytes(args.keyfile) if args.keyfile else None,
+        allow_dpapi=bool(args.dpapi),
         overwrite=bool(args.overwrite),
     ).to_dict()
 
