@@ -32,6 +32,8 @@ This release-prep line follows the published `v0.6.0-alpha.7`. It packages the c
 - Rebuilt all ten executables from the expanded fix; CLI smoke checks and packaged v3 create/inspect/validate/open round trip passed again, with byte-identical restored content.
 - Refreshed local ZIP: `dist/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 133,995,227 bytes, 16 entries (10 EXEs plus documentation/examples); contents checked.
 - After commit `1d7e9f3` added the NIST-based per-DEK GCM payload invocation limit: full `unittest` discovery passed (671 tests, 6 skipped); `compileall`, `pre-commit run --all-files`, and `pip_audit . --progress-spinner off` passed. All ten Windows executables were rebuilt from this tree. Packaged CLI/GUI/helper help smoke checks passed, and packaged v3 create, inspect, standalone validation, validate-before-open, and byte-identical restore passed for three files including an empty file. The rebuilt HSE2 GUI metadata action reported format version 3, two payload chunks, and exit code 0.
+- Clean-clone verification at `5d038c1ba357f73c362684045073fc71928c5339` imported source from `work\alpha8-clean-checkout-5d038c1\src`; `compileall`, pre-commit, and pip-audit passed, and full `unittest` discovery passed (671 tests, 4 skipped). GitHub CI run [41189557379](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41189557379) passed for this documentation commit.
+- Refreshed the local candidate zip from the rebuilt executables and current release documentation: `dist/high-security-encryptor-v0.6.0-alpha.8-windows-x64.zip`, 133,996,955 bytes, 16 entries including all 10 executables; archive entry list and executable count checked.
 
 Candidate commit `6699036294fa5f9a7c6dc3aac4c972a0e041c74e`, roadmap commit `141c056240cb7fc117461e204cc665f75e7c244e`, initial parser fix `45e7e4cec5ce2bd598d6df02ed5d9bb7aaec3546`, and expanded integer-boundary fix `258607f2e6c209fd6de4940a9a436a4f794bb045` passed runs [41178052016](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41178052016), [41179913657](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41179913657), [41180527122](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180527122), and [41180988674](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41180988674), respectively, on Windows Python 3.11, 3.12, and 3.13. The latest remote CI does not substitute for maintainer release review. The following commands are the reproducible local release gate when validating a clean candidate:
 
@@ -47,8 +49,7 @@ The project venv used during prep is `work\hse2-test-venv`. Build and smoke each
 ## Remaining release gates
 
 - Maintainer review of the release checklist, threat model, format and GUI/CLI behavior.
-- A clean-checkout rerun of the local release gate if source code or build inputs differ from the tested candidate tree.
 
 ## Status
 
-Local Windows candidate validation for commit `1d7e9f3` is complete. Remote CI run [41187598235](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41187598235) passed on the GCM-limit commit. Maintainer release review and a clean-checkout release-gate rerun remain outstanding. No tag or release has been created.
+Local Windows candidate validation and clean-clone release gate are complete. Remote CI runs [41187598235](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41187598235) and [41189557379](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41189557379) passed on the GCM-limit code and latest progress record. Maintainer release review remains outstanding. No tag or release has been created.

@@ -391,7 +391,7 @@ python -m pip_audit . --progress-spinner off
 |---|---|---|
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
-| `v0.6.0-alpha.8` | [~] | 本机 release candidate post-fix 验证完成：669 tests (6 skipped)、质量门、10 个 Windows EXE、v3 EXE 往返、打包 GUI 元数据检查；提交 `258607f` 的三版本 Windows CI 已通过；待维护者审查。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
+| `v0.6.0-alpha.8` | [~] | 本机候选验证与干净克隆 release gate 完成：671 tests（干净克隆 4 skipped）、质量门、10 个 Windows EXE、v3 EXE 往返与打包 GUI 元数据检查、16 项候选 ZIP；GCM 上限修复和最新进度提交的 CI 均通过；待维护者审查。详情见 `docs/progress/20261031-alpha8-prep-status.md` |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
