@@ -64,7 +64,15 @@ high-security-encryptor hse2 wrapper rewrap \
   --input <ARCHIVE_PATH> --output <OUTPUT_PATH> --wrapper-id <OLD_ID> \
   --new-wrapper-id <NEW_ID> --keyfile <CURRENT_KEYFILE> \
   --new-keyfile <NEW_KEYFILE>
+
+high-security-encryptor hse2 access destroy \
+  --input <ARCHIVE_PATH> --output <ACCESS_DESTROYED_PATH> \
+  --confirm "I UNDERSTAND THIS WILL MAKE THE DATA PERMANENTLY UNRECOVERABLE" \
+  --keyfile <CURRENT_KEYFILE>
 ```
+
+Access destruction always writes a separate output container (unless
+`--overwrite` is explicitly selected) and removes every unlock wrapper from it.
 
 ### Encrypt one file
 
