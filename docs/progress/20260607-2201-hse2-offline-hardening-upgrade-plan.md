@@ -321,7 +321,7 @@
 - [~] 密码输入与确认（当前偏 CLI/file boundary，需正式 GUI 控件）
 - [x] keyfile 生成 / 选择
 - [x] DPAPI 本机绑定选项
-- [ ] header backup 导出提示
+- [x] header backup 导出提示和 GUI 导出入口（创建后提醒；备份与容器分开保存）
 - [~] 加密后 validate 选项
 - [~] 解密前 inspect / validate 选项
 - [x] wrapper 管理界面
@@ -461,3 +461,4 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 10 CLI 整合第三步：统一 `hse2 wrapper list/remove/rewrap` 命令，保留专用 helper；安全元数据列表、header 鉴权后 wrapper 移除、body 原样保留的 rewrap 均复用现有实现。集成回归验证 list、rewrap、remove 后保留 keyfile 可重新解密；全量 626 项通过（6 项跳过），help、compileall 与 `git diff --check` 通过。Commit: `04c22f6`
 - 2026-10-31：Phase 10 CLI 整合第四步：接入统一 `hse2 access destroy`，保留专用 helper；要求完全匹配的破坏性确认短语，授权因子通过后写入新容器并清除全部 wrappers。集成测试验证输出 `access_destroyed=true` 且 wrappers 为空；help、compileall 与 `git diff --check` 通过，全量 627 项通过（6 项跳过）。Commit: `8d4000f`
 - 2026-10-31：Phase 10 CLI 整合第五步：在统一命令树下接入 `hse2 validate`，复用原 validation handler，并保持报告文件、summary-only 和失败退出码选项一致；同一有效/无效混合样本对比 unified 与 helper 两个入口的总数、成功数和失败数相同。定向回归、help 和 `git diff --check` 通过；全量 627 项通过（6 项跳过）。Commit: `bccde7a`
+- 2026-10-31：Phase 11 GUI header-backup 第一步：新增 header backup 导出动作、输入/输出/覆盖控件及专用 CLI helper 调度；常驻提示要求创建后导出并与归档分开保存。58 项 GUI 定向测试通过，实建 v2 容器并从 GUI dispatcher 导出备份成功；Tk 实例确认 input/output/overwrite 控件实际可见；全量 630 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `507837f`

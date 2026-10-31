@@ -15,6 +15,7 @@ Supported actions:
 - `decrypt-config` -> `hse2-decrypt-config --config ...`
 - `validate` -> `hse2-validate --config ... [--output ...] [--summary-only] [--exit-code-on-failure]`
 - `inspect` -> `hse2-inspect --input ...`
+- `header-backup-export` -> `hse2-header-backup export --input ... --output ... [--overwrite]`
 - `rotate-keyfile` -> `hse2-rotate-keyfile --config ...`
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
 - `dpapi-protect` -> `dpapi-protect --input ... --output ... --scope ... [--force]`
@@ -31,10 +32,11 @@ component and `build_hse2_experimental_tab(...)` helper. The component collects
 paths and options, calls the HSE2 command builders, and delegates execution to an
 injected runner callback.
 
-The tab always displays a prominent recovery warning: a header backup only
-restores header metadata and cannot replace or recover the password, keyfile, or
-DPAPI access conditions needed to unlock a container. Archive creation and
-header-backup export remain CLI-only workflows.
+The tab always displays a prominent recovery warning: export a header backup
+after archive creation, store it separately, and remember it restores header
+metadata only. It cannot replace or recover the password, keyfile, or DPAPI
+access conditions needed to unlock a container. Archive creation remains a
+CLI/config workflow; header-backup export is available directly in the tab.
 
 The tab dynamically hides fields that are not relevant to the selected action.
 This keeps each operation focused on the values the underlying CLI actually
@@ -43,6 +45,7 @@ consumes. For example:
 - config actions show only the config path;
 - `validate` shows the config path plus validation report/summary options;
 - `inspect` shows only the `.hse2` input container path;
+- `header-backup-export` shows the source container, backup output path, and overwrite option;
 - `generate-keyfile` shows output path, size, and overwrite;
 - `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;
 - `wrapper-remove` shows wrapper id plus optional password/keyfile/DPAPI fields;
