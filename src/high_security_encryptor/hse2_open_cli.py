@@ -50,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, password_override: str | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
     try:
         input_path = Path(args.input)
@@ -58,7 +58,11 @@ def main(argv: list[str] | None = None) -> int:
         warning = keyfile_colocation_warning((args.keyfile,), (input_path,))
         if warning:
             print(f"hse2-open: warning: {warning}", file=sys.stderr)
-        password = read_secret_text_file(args.password_file) if args.password_file else None
+        if password_override is not None and args.password_file:
+            raise ValueError("password override cannot be combined with --password-file")
+        password = password_override if password_override is not None else (
+            read_secret_text_file(args.password_file) if args.password_file else None
+        )
         keyfile_bytes = read_keyfile_bytes(args.keyfile) if args.keyfile else None
         validation = None
         if args.validate_before_open:

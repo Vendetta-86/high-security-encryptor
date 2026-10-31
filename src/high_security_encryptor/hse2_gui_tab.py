@@ -33,10 +33,10 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     }),
     "archive-open": frozenset({
         "input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force",
-        "archive_validate_before_open", "dpapi_warning",
+        "archive_validate_before_open", "dpapi_warning", "archive_password",
     }),
     "archive-validate": frozenset({
-        "input_path", "password_file", "keyfile_path", "allow_dpapi", "dpapi_warning",
+        "input_path", "password_file", "keyfile_path", "allow_dpapi", "dpapi_warning", "archive_password",
     }),
     "validate": frozenset(
         {

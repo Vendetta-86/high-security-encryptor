@@ -24,7 +24,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def validate_archive_from_files(
-    *, input_path: str, password_file: str | None, keyfile: str | None, allow_dpapi: bool
+    *, input_path: str, password_file: str | None, keyfile: str | None, allow_dpapi: bool,
+    password_override: str | None = None,
 ) -> dict[str, Any]:
     path = Path(input_path)
     if path.suffix.lower() != ".hse2":
@@ -32,7 +33,11 @@ def validate_archive_from_files(
     warning = keyfile_colocation_warning((keyfile,), (path,))
     if warning:
         print(f"hse2-archive-validate: warning: {warning}", file=sys.stderr)
-    password = read_secret_text_file(password_file) if password_file else None
+    if password_override is not None and password_file:
+        raise ValueError("password override cannot be combined with --password-file")
+    password = password_override if password_override is not None else (
+        read_secret_text_file(password_file) if password_file else None
+    )
     keyfile_bytes = read_keyfile_bytes(keyfile) if keyfile else None
     result = validate_hse2_archive(
         input_path=path,
@@ -43,7 +48,7 @@ def validate_archive_from_files(
     return {"command": "hse2-archive-validate", **result.to_dict()}
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, password_override: str | None = None) -> int:
     args = build_parser().parse_args(sys.argv[1:] if argv is None else argv)
     try:
         payload = validate_archive_from_files(
@@ -51,6 +56,7 @@ def main(argv: list[str] | None = None) -> int:
             password_file=args.password_file,
             keyfile=args.keyfile,
             allow_dpapi=bool(args.dpapi),
+            password_override=password_override,
         )
     except (HSE2ModelError, OSError, ValueError) as exc:
         print(f"hse2-archive-validate: {exc}", file=sys.stderr)

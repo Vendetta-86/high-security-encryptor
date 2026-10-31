@@ -16,8 +16,8 @@ Supported actions:
 - `validate` -> `hse2-validate --config ... [--output ...] [--summary-only] [--exit-code-on-failure]`
 - `inspect` -> `hse2-inspect --input ...`
 - `archive-create` -> `hse2-create --root ... --output ... --format-version ... --chunk-size ...`, with password-file/keyfile/DPAPI access, localized password profile, optional final-chunk padding, and overwrite control
-- `archive-open` -> `hse2-open --input ... --output-dir ...`, with password-file/keyfile/DPAPI unlock and overwrite control
-- `archive-validate` -> `hse2-archive-validate --input ...`, with password-file/keyfile/DPAPI unlock and no plaintext output
+- `archive-open` -> `hse2-open --input ... --output-dir ...`, with masked in-memory password, password-file, keyfile, DPAPI unlock, and overwrite control
+- `archive-validate` -> `hse2-archive-validate --input ...`, with masked in-memory password, password-file, keyfile, DPAPI unlock, and no plaintext output
 - `header-backup-export` -> `hse2-header-backup export --input ... --output ... [--overwrite]`
 - `rotate-keyfile` -> `hse2-rotate-keyfile --config ...`
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
@@ -52,8 +52,12 @@ checks the header, encrypted manifest, and every payload authentication tag
 without writing plaintext. A validation failure is reported distinctly and
 the already-created archive remains on disk. A paranoid password wrapper
 requires a keyfile. The `archive-open`
-action restores a selected container into a destination folder and keeps all
-unlock factors as file paths or explicit DPAPI allowance. Before starting, the
+action restores a selected container into a destination folder and accepts a
+masked password field, password file, keyfile, or explicit DPAPI allowance.
+Opening and standalone validation need one password entry; creation requires
+matching password and confirmation fields. All typed passwords stay outside
+argv and temporary files and are cleared from the UI after dispatch. Before
+starting restore, the
 GUI performs a read-only metadata inspect and asks the user to confirm the
 container, destination, format, size, wrapper types, and payload chunk count.
 Canceling here does not start restore. This preview does not authenticate the
@@ -73,9 +77,11 @@ consumes. For example:
   and confirmation, password file, keyfile,
   password profile, format version, chunk size, optional padding, DPAPI, and
   overwrite and post-create validation controls;
-- `archive-open` shows a source container, restore folder, password file,
+- `archive-open` shows a source container, restore folder, masked password,
+  password file,
   keyfile, DPAPI unlock allowance, overwrite, and optional pre-open validation controls;
-- `archive-validate` shows a source container, password file, keyfile, and DPAPI allowance;
+- `archive-validate` shows a source container, masked password, password file,
+  keyfile, and DPAPI allowance;
 - `header-backup-export` shows the source container, backup output path, and overwrite option;
 - `generate-keyfile` shows output path, size, and overwrite;
 - `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;

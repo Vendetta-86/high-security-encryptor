@@ -252,11 +252,28 @@ class HSE2GuiLauncherTests(unittest.TestCase):
             self.assertTrue(container.exists())
 
             restored = base / "restored"
-            from high_security_encryptor.hse2.workflows import open_hse2_archive
-            open_hse2_archive(input_path=container, output_dir=restored, password=password)
+            open_plan = build_hse2_plan_from_tab_state(
+                HSE2GuiTabState(
+                    action="archive-open", input_path=str(container), output_path=str(restored),
+                    archive_password=password,
+                )
+            )
+            self.assertNotIn(password, " ".join(open_plan.argv))
+            open_result = _invoke_hse2_gui_command(open_plan)
+            self.assertEqual(open_result.exit_code, 0, open_result.stderr)
+            self.assertNotIn(password, open_result.stdout + open_result.stderr)
             restored_files = list(restored.rglob("payload.txt"))
             self.assertEqual(len(restored_files), 1)
             self.assertEqual(restored_files[0].read_bytes(), expected)
+
+            validate_plan = build_hse2_plan_from_tab_state(
+                HSE2GuiTabState(action="archive-validate", input_path=str(container), archive_password=password)
+            )
+            self.assertNotIn(password, " ".join(validate_plan.argv))
+            validation_result = _invoke_hse2_gui_command(validate_plan)
+            self.assertEqual(validation_result.exit_code, 0, validation_result.stderr)
+            self.assertNotIn(password, validation_result.stdout + validation_result.stderr)
+            self.assertTrue(json.loads(validation_result.stdout)["payload_authenticated"])
 
     def test_wrapper_remove_summary_reports_remaining_count(self) -> None:
         summary = _build_hse2_result_summary(

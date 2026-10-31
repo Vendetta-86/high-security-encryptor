@@ -24,7 +24,7 @@ from .hse2_quickstart_wizard import HSE2QuickstartCommandStep, HSE2QuickstartWor
 from .hse2_wrapper_cli import main as hse2_wrapper_main
 
 
-StandaloneCliMain = Callable[[list[str] | None], int]
+StandaloneCliMain = Callable[..., int]
 
 HSE2_STANDALONE_HELPER_COMMANDS: dict[str, StandaloneCliMain] = {
     "hse2-create": hse2_create_main,
@@ -169,29 +169,23 @@ def _invoke_hse2_gui_command(command: list[str] | HSE2GuiCommandPlan) -> GuiComm
     plan = command if isinstance(command, HSE2GuiCommandPlan) else None
     argv = list(plan.argv) if plan is not None else command
     if argv and argv[0] in HSE2_STANDALONE_HELPER_COMMANDS:
-        if plan is not None and plan.secret_input is not None and argv[0] == "hse2-create":
-            return _invoke_create_with_password(argv[1:], plan.secret_input)
-        return _invoke_standalone_helper(HSE2_STANDALONE_HELPER_COMMANDS[argv[0]], argv[1:])
+        return _invoke_standalone_helper(
+            HSE2_STANDALONE_HELPER_COMMANDS[argv[0]], argv[1:],
+            password_override=plan.secret_input if plan is not None else None,
+        )
     return invoke_cli_command(argv)
 
 
-def _invoke_create_with_password(argv: list[str], password: str) -> GuiCommandResult:
+def _invoke_standalone_helper(
+    main_func: StandaloneCliMain, argv: list[str], *, password_override: str | None = None
+) -> GuiCommandResult:
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
     with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
-        exit_code = hse2_create_main(argv, password_override=password)
-    return GuiCommandResult(
-        exit_code=exit_code,
-        stdout=stdout_buffer.getvalue(),
-        stderr=stderr_buffer.getvalue(),
-    )
-
-
-def _invoke_standalone_helper(main_func: StandaloneCliMain, argv: list[str]) -> GuiCommandResult:
-    stdout_buffer = io.StringIO()
-    stderr_buffer = io.StringIO()
-    with redirect_stdout(stdout_buffer), redirect_stderr(stderr_buffer):
-        exit_code = main_func(argv)
+        if password_override is None:
+            exit_code = main_func(argv)
+        else:
+            exit_code = main_func(argv, password_override=password_override)
     return GuiCommandResult(
         exit_code=exit_code,
         stdout=stdout_buffer.getvalue(),

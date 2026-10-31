@@ -318,7 +318,7 @@
 - [x] 文件 / 文件夹选择
 - [x] 输出位置选择
 - [x] 安全等级选择：wrapper add/rewrap 和新建归档支持标准兼容 / 推荐高安全 / 极高安全；paranoid 密码 wrapper 强制要求 keyfile
-- [x] 密码输入与确认：创建归档可用掩码输入框直接输入并二次确认，密码与 argv、日志、临时文件隔离
+- [x] 密码输入与确认：创建归档可用掩码输入框直接输入并二次确认；打开/校验可单次输入，密码与 argv、日志、临时文件隔离
 - [x] keyfile 生成 / 选择
 - [x] DPAPI 本机绑定选项
 - [x] header backup 导出提示和 GUI 导出入口（创建后提醒；备份与容器分开保存）
@@ -330,7 +330,7 @@
 
 ### 完成标准
 
-- [~] 新手可通过 GUI 选择目录并创建 v2/v3 password-file 或确认密码 + keyfile 归档；从归档创建到预览、确认、恢复的统一引导仍可继续收敛
+- [~] 新手可通过 GUI 选择目录并创建 v2/v3 password-file 或直接输入密码归档；创建到预览、确认、恢复的统一引导仍可继续收敛
 - [x] GUI 可用 password-file/keyfile/DPAPI 打开并恢复 v2/v3 归档；可选的整包预校验失败时不创建输出目录
 - [x] GUI 不诱导用户只依赖 DPAPI：创建与 wrapper 管理均提示 DPAPI 本机绑定/可移植性风险及独立恢复方式
 - [x] GUI 对 destroy-access 有强确认和单独入口
@@ -469,5 +469,6 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：Phase 11 打开前认证校验：`hse2-open --validate-before-open` 和 GUI 可选项会先认证 header、manifest 和全部 payload tags，再执行恢复；失败时输出目录不会创建，GUI 默认关闭以避免重复读大文件。损坏 tag/无输出目录回归、GUI dispatcher v3 create/validate/open、定向 74 项及全量 643 项（6 项跳过）通过；Tk 选项显隐、compileall 与 `git diff --check` 通过。Commit: `dc073bb`
 - 2026-10-31：Phase 11 单独归档校验入口：新增 unified `hse2 validate-archive`、focused `high-security-encryptor-hse2-archive-validate` 和 GUI action，报告 header/manifest/payload 全部认证且未写明文。v3 unified CLI 与 GUI dispatcher 集成通过；定向 84 项、全量 648 项通过（6 项跳过），Tk 输入控件检查、compileall 与 `git diff --check` 通过。Commit: `69953c0`
 - 2026-10-31：Phase 11 GUI 密码输入确认：新建归档可在两个掩码输入框内输入并确认密码；CLI builder 校验匹配、互斥的 password-file/DPAPI 方式及 paranoid+keyfile 策略。密码只在内存命令计划中携带（repr 隐藏），不进 argv、日志或临时文件，提交后 GUI 清空输入框；GUI dispatcher 端到端创建并恢复比对成功。GUI 定向 78 项通过；全量 654 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `0098582`
-- 2026-10-31：Phase 11 打开前 inspect 预览确认：GUI 恢复动作先运行只读 inspect，展示输入容器、恢复目标、格式、容器大小、wrapper 类型、payload 块数及访问禁用标记；预览检查失败或用户取消都会阻止恢复。界面明确该预览不代表认证通过且不显示加密文件名，打开仍按原流程认证。定向 GUI 80 项、全量 656 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: 待提交
+- 2026-10-31：Phase 11 打开前 inspect 预览确认：GUI 恢复动作先运行只读 inspect，展示输入容器、恢复目标、格式、容器大小、wrapper 类型、payload 块数及访问禁用标记；预览检查失败或用户取消都会阻止恢复。界面明确该预览不代表认证通过且不显示加密文件名，打开仍按原流程认证。定向 GUI 80 项、全量 656 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: `1b76e27`
+- 2026-10-31：Phase 11 创建后直接密码打开/校验：归档创建、解密恢复和完整校验均支持掩码密码输入并直接传入原 CLI helper；创建必须确认两次，打开/校验单次输入。端到端 GUI dispatcher 创建后直接以输入密码恢复并完整认证，argv/stdout/stderr 均不含密码；Tk 检查确认三个动作字段均掩码且确认框只在创建时出现。定向 88 项通过；全量 658 项通过（6 项跳过），`compileall` 与 `git diff --check` 通过。Commit: 待提交
 

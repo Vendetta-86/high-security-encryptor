@@ -98,6 +98,7 @@ def build_hse2_gui_command(
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
 
     normalized_action = _require_action(action)
+    plan_secret: str | None = None
     if normalized_action == "encrypt-config":
         argv = ("hse2-encrypt-config", "--config", _require_text(config_path, "请选择 HSE2 加密配置文件。"))
     elif normalized_action == "decrypt-config":
@@ -135,6 +136,7 @@ def build_hse2_gui_command(
             args.extend(["--password-file", password_path, "--profile", archive_profile])
         elif typed_password:
             args.extend(["--profile", archive_profile])
+            plan_secret = typed_password
         if keyfile:
             args.extend(["--keyfile", keyfile])
         if new_wrapper_dpapi:
@@ -149,7 +151,10 @@ def build_hse2_gui_command(
     elif normalized_action == "archive-open":
         password_path = password_file.strip()
         keyfile = keyfile_path.strip()
-        if not password_path and not keyfile and not allow_dpapi:
+        typed_password = archive_password
+        if typed_password and password_path:
+            raise ValueError("请使用密码输入框或密码文件其中一种方式。")
+        if not password_path and not typed_password and not keyfile and not allow_dpapi:
             raise ValueError("请选择密码文件、keyfile 或允许 Windows DPAPI 解锁。")
         args = [
             "hse2-open",
@@ -158,6 +163,8 @@ def build_hse2_gui_command(
         ]
         if password_path:
             args.extend(["--password-file", password_path])
+        if typed_password:
+            plan_secret = typed_password
         if keyfile:
             args.extend(["--keyfile", keyfile])
         if allow_dpapi:
@@ -170,11 +177,16 @@ def build_hse2_gui_command(
     elif normalized_action == "archive-validate":
         password_path = password_file.strip()
         keyfile = keyfile_path.strip()
-        if not password_path and not keyfile and not allow_dpapi:
+        typed_password = archive_password
+        if typed_password and password_path:
+            raise ValueError("请使用密码输入框或密码文件其中一种方式。")
+        if not password_path and not typed_password and not keyfile and not allow_dpapi:
             raise ValueError("请选择密码文件、keyfile 或允许 Windows DPAPI 解锁。")
         args = ["hse2-archive-validate", "--input", _require_text(input_path, "请选择要校验的 .hse2 容器。")]
         if password_path:
             args.extend(["--password-file", password_path])
+        if typed_password:
+            plan_secret = typed_password
         if keyfile:
             args.extend(["--keyfile", keyfile])
         if allow_dpapi:
@@ -351,12 +363,11 @@ def build_hse2_gui_command(
         argv = tuple(args)
     else:  # pragma: no cover - guarded by _require_action.
         raise ValueError(f"unsupported HSE2 GUI action: {action}")
-    secret_input = typed_password or None if normalized_action == "archive-create" else None
     return HSE2GuiCommandPlan(
         action=normalized_action,
         argv=argv,
         description=HSE2_GUI_ACTION_LABELS[normalized_action],
-        secret_input=secret_input,
+        secret_input=plan_secret,
     )
 
 

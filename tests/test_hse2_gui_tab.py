@@ -189,14 +189,14 @@ class HSE2GuiTabTests(unittest.TestCase):
             visible_hse2_gui_field_keys("archive-open"),
             frozenset({
                 "input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "force",
-                "archive_validate_before_open", "dpapi_warning",
+                "archive_validate_before_open", "dpapi_warning", "archive_password",
             }),
         )
 
     def test_archive_validate_shows_input_and_unlock_controls(self) -> None:
         self.assertEqual(
             visible_hse2_gui_field_keys("archive-validate"),
-            frozenset({"input_path", "password_file", "keyfile_path", "allow_dpapi", "dpapi_warning"}),
+            frozenset({"input_path", "password_file", "keyfile_path", "allow_dpapi", "dpapi_warning", "archive_password"}),
         )
 
     def test_visible_fields_for_validate_action(self) -> None:

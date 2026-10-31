@@ -104,6 +104,20 @@ class HSE2GuiActionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "请选择密码文件"):
             build_hse2_gui_command(action="archive-open", input_path="archive.hse2", output_path="restored")
 
+    def test_archive_open_accepts_typed_password_without_putting_it_in_argv(self) -> None:
+        password = "typed-open-password"
+        plan = build_hse2_gui_command(
+            action="archive-open", input_path="archive.hse2", output_path="restored",
+            archive_password=password,
+        )
+        self.assertEqual(plan.secret_input, password)
+        self.assertNotIn(password, " ".join(plan.argv))
+        with self.assertRaisesRegex(ValueError, "密码输入框或密码文件"):
+            build_hse2_gui_command(
+                action="archive-open", input_path="archive.hse2", output_path="restored",
+                password_file="password.txt", archive_password=password,
+            )
+
     def test_archive_validate_action_requires_unlock_material(self) -> None:
         plan = build_hse2_gui_command(
             action="archive-validate", input_path="archive.hse2", keyfile_path="recovery.key"
@@ -111,6 +125,14 @@ class HSE2GuiActionTests(unittest.TestCase):
         self.assertEqual(plan.argv, ("hse2-archive-validate", "--input", "archive.hse2", "--keyfile", "recovery.key"))
         with self.assertRaisesRegex(ValueError, "请选择密码文件"):
             build_hse2_gui_command(action="archive-validate", input_path="archive.hse2")
+
+    def test_archive_validate_accepts_typed_password_without_putting_it_in_argv(self) -> None:
+        password = "typed-validate-password"
+        plan = build_hse2_gui_command(
+            action="archive-validate", input_path="archive.hse2", archive_password=password,
+        )
+        self.assertEqual(plan.secret_input, password)
+        self.assertNotIn(password, " ".join(plan.argv))
 
     def test_validate_action_with_options(self) -> None:
         plan = build_hse2_gui_command(
