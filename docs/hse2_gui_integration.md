@@ -16,6 +16,7 @@ Supported actions:
 - `validate` -> `hse2-validate --config ... [--output ...] [--summary-only] [--exit-code-on-failure]`
 - `inspect` -> `hse2-inspect --input ...`
 - `archive-create` -> `hse2-create --root ... --output ... --format-version ... --chunk-size ...`, with password-file/keyfile/DPAPI access, localized password profile, optional final-chunk padding, and overwrite control
+- `archive-open` -> `hse2-open --input ... --output-dir ...`, with password-file/keyfile/DPAPI unlock and overwrite control
 - `header-backup-export` -> `hse2-header-backup export --input ... --output ... [--overwrite]`
 - `rotate-keyfile` -> `hse2-rotate-keyfile --config ...`
 - `generate-keyfile` -> `generate-keyfile --output ... --size ... [--force]`
@@ -40,8 +41,10 @@ access conditions needed to unlock a container. The `archive-create` action
 creates an archive from a selected folder through the existing create CLI. It
 offers v2/v3 format, chunk size, password profile, optional padding, and
 password-file/keyfile/DPAPI factors; plaintext passwords are never placed in
-argv. A paranoid password wrapper requires a keyfile. Password confirmation,
-open/decrypt, and post-create validation remain follow-up wizard work.
+argv. A paranoid password wrapper requires a keyfile. Password confirmation
+and post-create validation remain follow-up wizard work. The `archive-open`
+action restores a selected container into a destination folder and keeps all
+unlock factors as file paths or explicit DPAPI allowance.
 
 The tab dynamically hides fields that are not relevant to the selected action.
 This keeps each operation focused on the values the underlying CLI actually
@@ -53,6 +56,8 @@ consumes. For example:
 - `archive-create` shows a source folder, output path, password file, keyfile,
   password profile, format version, chunk size, optional padding, DPAPI, and
   overwrite controls;
+- `archive-open` shows a source container, restore folder, password file,
+  keyfile, DPAPI unlock allowance, and overwrite control;
 - `header-backup-export` shows the source container, backup output path, and overwrite option;
 - `generate-keyfile` shows output path, size, and overwrite;
 - `dpapi-protect` shows input path, output path, DPAPI scope, and overwrite;
