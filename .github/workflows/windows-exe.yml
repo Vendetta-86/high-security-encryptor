@@ -235,10 +235,14 @@ jobs:
         run: |
           if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             release_notes="docs/releases/$RELEASE_TAG.md"
+            release_flags=()
+            if [[ "$RELEASE_TAG" =~ -(alpha|beta|rc)([.-]|$) ]]; then
+              release_flags+=(--prerelease)
+            fi
             if [[ -f "$release_notes" ]]; then
-              gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes-file "$release_notes"
+              gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes-file "$release_notes" "${release_flags[@]}"
             else
-              gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes "Windows executable build for $RELEASE_TAG."
+              gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TAG" --notes "Windows executable build for $RELEASE_TAG." "${release_flags[@]}"
             fi
           fi
           gh release upload "$RELEASE_TAG" "dist/$ASSET_NAME" --repo "$GITHUB_REPOSITORY" --clobber
