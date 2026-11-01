@@ -77,8 +77,8 @@
 | Phase 8 | [!] | Decoy / Duress | 继续延后 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
-| Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；本机 GUI 检查 alpha.8 打包版元数据预览成功 |
-| Phase 12 | [x] | 测试计划 | 全量自动化回归、Windows build/EXE 往返、依赖审计、本地流式基准及提交 `4cd844c` 的 Windows Python 3.11/3.12/3.13 CI 已通过；alpha.8 发布审查待完成 |
+| Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；alpha.9 打包版的 GUI 负向/正向 destroy-access 验收及 v3 元数据检查均通过 |
+| Phase 12 | [x] | 测试计划 | 全量自动化回归（681 项通过、4 项跳过）、依赖审计、语法检查、Windows EXE 构建与打包 smoke、流式基准及 Windows Python 3.11/3.12/3.13 CI 已通过；alpha.9 已获批准并发布为预发布 |
 
 ---
 
