@@ -276,7 +276,7 @@ The user-facing name should be `destroy access` or `永久销毁解锁能力`, n
 
 ## Duress and decoy handling
 
-Duress or decoy support is deferred. If added later, it must open decoy content rather than silently deleting real access material.
+HSE2 v2/v3 do not implement alternate-view, decoy, or duress behavior. Phase 8 is exploring a separate v4 self-use candidate under [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md); that work does not change these formats and is not a promise of plausible deniability.
 
 A future duress wrapper should be documented as a limited decoy mechanism, not a full plausible-deniability guarantee.
 

@@ -52,3 +52,7 @@ Reason:
 ## Status
 
 Phase 1 is closed for alpha-track documentation purposes and remains partially open only for stable-format freeze review.
+
+## 2026-11-01 Current Status
+
+The stable v2/v3 format-freeze review is now complete. See [`20261101-phase1-format-freeze-local-review.md`](20261101-phase1-format-freeze-local-review.md). Third-party interoperability and independent review are not release gates for this self-use project; this decision does not certify the format or the separate experimental v4 candidate.

@@ -21,14 +21,14 @@ class HSE2V4CryptoTests(unittest.TestCase):
         key = derive_v4_key(root_key=root, salt=salt, info=info)
         self.assertEqual(
             key.hex(),
-            "1f357c1b5768c99fd7d2211a92193393d8e02c80cd246ce4e9f34e0b6c55c0fe",
+            "1f357c1b5768c99fd7d2211a92193393d8e02c80cd246ce4e9f34e0b6c55c0fe",  # pragma: allowlist secret
         )
         sealed = seal_v4(key=key, nonce=bytes(12), plaintext=plaintext, aad=aad)
         self.assertEqual(
             sealed.ciphertext.hex(),
-            "9fc1f749c79556f60a2d490714566a538a72dadeb61517ab9aa26ea86667dbbb",
+            "9fc1f749c79556f60a2d490714566a538a72dadeb61517ab9aa26ea86667dbbb",  # pragma: allowlist secret
         )
-        self.assertEqual(sealed.tag.hex(), "761fa63653ab7d9d2595ad795da3c149")
+        self.assertEqual(sealed.tag.hex(), "761fa63653ab7d9d2595ad795da3c149")  # pragma: allowlist secret
         self.assertEqual(open_v4(key=key, sealed=sealed, aad=aad), plaintext)
 
     def test_gcm_rejects_changed_aad_and_ciphertext(self) -> None:

@@ -72,6 +72,10 @@ Relevant implementation points include `hse2/models.py` (`WrapperRecord.VALID_TY
 
 Phase 8 design work has resumed at the proposal stage. The current v2/v3 no-go remains in force: no patch to `WrapperRecord` or existing wire formats, no implementation before the local review gates above, and no automatic deletion of real data or wrapper material. The proposal draft is [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md); it is not yet an approved construction.
 
+## 2026-11-01 Current Status
+
+The user authorized continued local implementation for self-use without third-party or independent-review gates. Work is now limited to isolated v4 wire codecs in `container_v4_*.py`; there is still no file-level reader/writer or product integration. The v2/v3 no-go and all exclusions in this review remain in force. The current proposal records the implementation boundary and open resource, atomicity, and parser-test questions.
+
 ## References
 
 - [VeraCrypt Security Requirements and Precautions Pertaining to Hidden Volumes](https://veracrypt.io/en/Security%20Requirements%20for%20Hidden%20Volumes.html)

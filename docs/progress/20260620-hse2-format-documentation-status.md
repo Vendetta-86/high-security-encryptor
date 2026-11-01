@@ -55,3 +55,7 @@ Phase 1 should no longer track `docs/hse2_format.md` as missing. The broader HSE
 ## 2026-10-31 Update
 
 This status note records the June 20 implementation snapshot. The current format document and framing reference now distinguish the legacy v2 JSON body from the v3 binary streaming body. V2 remains the default and v3 is selected explicitly. Cross-version v3 exchange still needs a second v3-capable implementation; the current fixed v3 fixture only checks the present reader/writer contract.
+
+## 2026-11-01 Current Status
+
+The local v2/v3 format-freeze consistency review is complete; see [`20261101-phase1-format-freeze-local-review.md`](20261101-phase1-format-freeze-local-review.md). The older statement that a second v3 implementation is required is historical: third-party interoperability is not a gate for this self-use project. The local test-only reference path remains a regression aid, not independent cryptographic validation.

@@ -67,18 +67,18 @@
 | 阶段 | 状态 | 名称 | 当前判断 |
 |---|---|---|---|
 | Phase 0 | [x] | 升级计划建立 | 本进度文档已建立 |
-| Phase 1 | [~] | HSE2 格式冻结 | v2/v3 格式与 framing 已实现并有文档；本地独立代码路径覆盖 keyfile、password、password+keyfile 的双向互读写（password KDF 限 compatible）；剩余工作为本地规范一致性复核、测试向量与兼容性说明 |
+| Phase 1 | [x] | HSE2 格式冻结 | 2026-11-01 完成本地 v2/v3 wire 规范、源码、fixture、回归及 HSE1 迁移边界一致性复核；第三方互操作和独立审查按自用项目决定不作为门槛。记录见 `docs/progress/20261101-phase1-format-freeze-local-review.md` |
 | Phase 2 | [x] | DEK + Wrapper 架构 | DEK/MEK、wrapper add/remove/rewrap 及本地兼容行为已实现；稳定契约以仓库格式文档和回归向量为准 |
 | Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
 | Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
-| Phase 8 | [~] | Alternate-view design review | v4 本地提案与隔离 HKDF/AES-GCM 原语原型已开始；固定向量和篡改拒绝测试通过；尚无容器 parser/writer，未接入 create/open，不宣称可否认性；v2/v3 保持不变 |
+| Phase 8 | [~] | Alternate-view design review | v4 本地提案、固定公有头/密码槽/描述符/记录 codecs 已实现为隔离原型；13 项定向测试及 PyCryptodome 3.20.0/4.2.0 验证通过；尚无文件级容器 reader/writer、原子更新和 create/open 集成，不宣称可否认性；v2/v3 保持不变 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
 | Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；alpha.9 打包版的 GUI 负向/正向 destroy-access 验收及 v3 元数据检查均通过 |
-| Phase 12 | [x] | 测试计划 | alpha.9 发布时全量回归为 681 项通过、4 项跳过；2026-11-01 当前全量回归 684 项通过、6 项跳过（`python -m unittest discover -s tests`）；新增 v4 crypto 定向测试 3 项通过；依赖审计、语法检查、Windows EXE 构建与打包 smoke、流式基准及 Windows Python 3.11/3.12/3.13 CI 已通过 |
+| Phase 12 | [x] | 测试计划 | alpha.9 发布时全量回归为 681 项通过、4 项跳过；2026-11-01 当前全量回归 694 项通过、6 项跳过（`python -m unittest discover -s tests`）；新增 v4 codecs 定向测试 13 项在 PyCryptodome 3.20.0 与 4.2.0 均通过；依赖审计、语法检查、Windows EXE 构建与打包 smoke、流式基准及 Windows Python 3.11/3.12/3.13 CI 已通过 |
 
 ---
 
@@ -98,7 +98,7 @@
 
 ### 完成标准
 
-- [x] `docs/hse2_format.md` 和 `docs/hse2_framing_reference.md` 已覆盖 v2/v3 framing；工作区改动仍待用户决定是否提交
+- [x] `docs/hse2_format.md` 和 `docs/hse2_framing_reference.md` 已覆盖 v2/v3 framing；2026-11-01 本地规范一致性复核完成，记录见 `docs/progress/20261101-phase1-format-freeze-local-review.md`
 - [x] HSE2 header schema 有模型和 codec 实现
 - [x] 测试能读取 HSE2 header / container fixture
 - [x] 旧 HSE1 路径未被破坏
@@ -426,7 +426,7 @@ python -m pip_audit . --progress-spinner off
 18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
 20. [x] alpha.9 精确 tag 构建、工件检查、预发布 Release 与资产摘要核对均已完成；`v0.6.0` 至 `v0.6.4` 稳定版本仍待按版本规划分别打包、测试和发布
-21. [~] Phase 8 改为自用 two-view v4 候选；完成本地设计审查后再实现，不宣称可否认性，不改写 v2/v3
+21. [~] Phase 8 自用 two-view v4 候选：完成隔离公有头、密码槽、描述符和记录 codecs；下一步实现有界文件级读写与原子输出，再做 create/open 集成；不宣称可否认性，不改写 v2/v3
 
 ---
 
@@ -499,6 +499,8 @@ python -m pip_audit . --progress-spinner off
 - 2026-10-31：M1.7 互操作门槛文档校准：test-only 参考实现已在提交 `fc27860` 覆盖 keyfile、password、password+keyfile 三类 wrapper 双向对照，定向 5 项测试通过；更新测试包和 M1 进度记录，将“本地独立代码路径通过”与“第三方互操作/格式审查待完成”分开表述。文档单测、pre-commit 与 `git diff --check` 通过。Commit: 待提交
 - 2026-11-01：更新自用项目审查策略并推进 Phase 8 v4 候选至字节布局；全量 unittest 681 项通过、6 项跳过，退出码 0。当前测试结果不等同于 Phase 8 v4 的实现或安全验收。Commit: 本提交
 - 2026-11-01：新增隔离的 `container_v4_crypto.py` HKDF-SHA-256/AES-256-GCM 原语层及固定向量、AAD/密文篡改拒绝用例；定向 3/3、全量 684 项通过/6 项跳过。固定向量在 PyCryptodome 4.2.0 与 pyproject 最低版本 3.20.0 均通过。该原型未接入 v2/v3 或产品 create/open。Commit: `0845e03`
+- 2026-11-01：Phase 8 v4 继续实现隔离固定头、双密码槽、定长加密描述符和数据记录编码；补齐 wire 长度/AAD，纠正描述符固定区长度与 manifest 容量计算。13 项定向测试在 PyCryptodome 3.20.0 与 4.2.0 均通过；全量 694 项通过、6 项跳过。文件级容器读写、原子更新和产品集成尚未实现。Commit: 待提交
+- 2026-11-01：Phase 1 v2/v3 格式冻结本地一致性复核完成；对应规范、源码、固定 fixture、测试覆盖和 HSE1 新文件迁移边界一致。按自用项目要求不以第三方互操作或独立审查作为门槛。记录见 `docs/progress/20261101-phase1-format-freeze-local-review.md`。Commit: 待提交
 - 2026-10-31：Phase 12 restore-path hardening：HSE2 manifest 创建及恢复现在拒绝会被 POSIX 路径解析静默归一化的非规范路径；Windows 恢复预检以路径前缀树拒绝大小写归一化后的同目标及文件/子路径冲突，避免条目顺序决定覆盖结果，同时令额外索引随路径段数线性增长。新增 manifest 与 v3 open 回归；定向 26 项、最终全量 677 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。格式 framing 文档已同步。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：刷新 restore-path hardening 后的 Windows 候选构建：PyInstaller 6.22.3 从提交 `4c3bb09` 构建 10 个 EXE；8 个 CLI `--help`、主 GUI smoke、打包 v3 create/validate/open、字节哈希还原及两类恶意路径拒绝均通过。独立刷新 ZIP 为 16 项，10 个 EXE 内容哈希与构建输出一致；记录在 `docs/progress/20261031-alpha8-prep-status.md`。CI run `41196270229` 三版本全通过。产物留在本地隔离目录，未覆盖旧候选或发布 tag。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：Phase 12 Windows restore filename hardening：解档路径共用 `validate_archive_path`，在 Windows 拒绝 ADS 冒号、控制/保留字符、DOS 设备名（含扩展名与上标 COM/LPT 变体）及尾随 ASCII 空格/句点；manifest 认证后、输出目录创建前执行。28 项定向测试、全量 679 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。Framing 与 alpha.8 发布说明已更新，并依据 Microsoft Win32 文件命名规则记录范围。Commit: 待提交
