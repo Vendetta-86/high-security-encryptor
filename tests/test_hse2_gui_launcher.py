@@ -15,6 +15,7 @@ from high_security_encryptor import hse2_gui_launcher
 from high_security_encryptor.gui import GuiCommandResult
 from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_archive_open_confirmation, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
 from high_security_encryptor.hse2_create_cli import main as create_main
+from high_security_encryptor.hse2.container_v4_workflows import create_v4_archive
 from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state, build_hse2_plan_from_tab_state
 from high_security_encryptor.hse2_quickstart_gui_tab import HSE2QuickstartTab, build_hse2_quickstart_tab
 
@@ -530,6 +531,38 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("不承诺可否认性", message)
         self.assertIn("old.hse2", message)
         self.assertIn("new.hse2", message)
+
+    def test_gui_v4_to_v5_export_keeps_passwords_private_and_both_views_readable(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            primary = base / "primary.txt"
+            secondary = base / "secondary.txt"
+            primary.write_bytes(b"GUI migrated primary")
+            secondary.write_bytes(b"GUI migrated secondary")
+            source = base / "source-v4.hse2"
+            output = base / "exported-v5.hse2"
+            passwords = ("GUI-v4-primary-pass", "GUI-v4-secondary-pass")
+            create_v4_archive(
+                output_path=source, view_passwords=passwords,
+                view_files=((('primary.txt', primary),), (('secondary.txt', secondary),)),
+                capacity_records=2,
+            )
+            plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v4-to-v5", input_path=str(source), output_path=str(output),
+                primary_password=passwords[0], secondary_password=passwords[1],
+            ))
+            result = _invoke_hse2_gui_command(plan)
+            self.assertEqual(result.exit_code, 0, result.stderr)
+            self.assertNotIn(passwords[0], result.stdout + result.stderr)
+            self.assertNotIn(passwords[1], result.stdout + result.stderr)
+
+            restored = base / "restored-primary"
+            open_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v5-open", input_path=str(output), output_path=str(restored), archive_password=passwords[0],
+            ))
+            open_result = _invoke_hse2_gui_command(open_plan)
+            self.assertEqual(open_result.exit_code, 0, open_result.stderr)
+            self.assertEqual((restored / "primary.txt").read_bytes(), b"GUI migrated primary")
 
     def test_result_summary_ignores_non_json_stdout(self) -> None:
         self.assertEqual(_build_hse2_result_summary("not json"), "")

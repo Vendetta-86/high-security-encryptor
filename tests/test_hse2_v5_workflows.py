@@ -4,6 +4,7 @@ import hashlib
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from high_security_encryptor.hse2.container_v5_credentials import unlock_v5_credentials
 from high_security_encryptor.hse2.container_v5_descriptor import open_v5_descriptor
@@ -137,6 +138,118 @@ class HSE2V5WorkflowTests(unittest.TestCase):
                     overwrite=True,
                 )
             self.assertEqual(primary.read_bytes(), b"keep this input")
+
+    def test_injected_record_write_failure_keeps_targets_unpublished(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"atomic output test")
+            archive = root / "source.hse2"
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("primary view pass", "secondary view pass"),
+                view_files=((('source.txt', source),), ()),
+            )
+            original_digest = hashlib.sha256(archive.read_bytes()).digest()
+            create_target = root / "failed-create.hse2"
+
+            with patch("high_security_encryptor.hse2.container_v5_workflows.seal_v5_record",
+                       side_effect=OSError("injected record write failure")):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    create_v5_archive(
+                        output_path=create_target,
+                        view_passwords=("primary new pass", "secondary new pass"),
+                        view_files=((('source.txt', source),), ()),
+                    )
+            self.assertFalse(create_target.exists())
+
+            replace_target = root / "existing-target.hse2"
+            replace_target.write_bytes(b"previous output")
+            with patch("high_security_encryptor.hse2.container_v5_workflows.seal_v5_record",
+                       side_effect=OSError("injected record write failure")):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    replace_v5_view(
+                        input_path=archive, output_path=replace_target, password="primary view pass",
+                        view_files=(("new.txt", source),), overwrite=True,
+                    )
+
+            self.assertEqual(replace_target.read_bytes(), b"previous output")
+            self.assertEqual(hashlib.sha256(archive.read_bytes()).digest(), original_digest)
+            self.assertEqual(list(root.glob(".*.tmp")), [])
+
+    def test_injected_flush_failures_preserve_create_replace_restore_and_migration_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            primary = root / "primary.txt"
+            secondary = root / "secondary.txt"
+            primary.write_bytes(b"primary flush test")
+            secondary.write_bytes(b"secondary flush test")
+            passwords = ("primary view pass", "secondary view pass")
+            archive = root / "source-v5.hse2"
+            create_v5_archive(
+                output_path=archive, view_passwords=passwords,
+                view_files=((('primary.txt', primary),), (('secondary.txt', secondary),)),
+            )
+            source_digest = hashlib.sha256(archive.read_bytes()).digest()
+
+            failed_create = root / "failed-create.hse2"
+            with patch("high_security_encryptor.hse2.container_v5_workflows.flush_file",
+                       side_effect=OSError("injected flush failure")):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    create_v5_archive(
+                        output_path=failed_create,
+                        view_passwords=("new primary", "new secondary"),
+                        view_files=((('primary.txt', primary),), (('secondary.txt', secondary),)),
+                    )
+            self.assertFalse(failed_create.exists())
+
+            replace_target = root / "replace-target.hse2"
+            replace_target.write_bytes(b"prior replace output")
+            with patch("high_security_encryptor.hse2.container_v5_workflows.flush_file",
+                       side_effect=OSError("injected flush failure")):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    replace_v5_view(
+                        input_path=archive, output_path=replace_target, password=passwords[0],
+                        view_files=(("updated.txt", primary),), overwrite=True,
+                    )
+            self.assertEqual(replace_target.read_bytes(), b"prior replace output")
+
+            restore_target = root / "failed-restore"
+            with patch("high_security_encryptor.hse2.container_v5_workflows.flush_file",
+                       side_effect=OSError("injected flush failure")):
+                with self.assertRaises(HSE2ModelError):
+                    restore_v5_archive(input_path=archive, password=passwords[0], output_dir=restore_target)
+            self.assertFalse(restore_target.exists())
+            self.assertEqual(list(root.glob(".failed-restore.v5-restore-*")), [])
+
+            compact_target = root / "compact-target.hse2"
+            compact_target.write_bytes(b"prior compact output")
+            with patch("high_security_encryptor.hse2.container_v5_migration.flush_file",
+                       side_effect=OSError("injected flush failure")):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    compact_v5_archive(
+                        input_path=archive, output_path=compact_target, view_passwords=passwords, overwrite=True,
+                    )
+            self.assertEqual(compact_target.read_bytes(), b"prior compact output")
+
+            legacy_v4 = root / "legacy-v4.hse2"
+            create_v4_archive(
+                output_path=legacy_v4, view_passwords=passwords,
+                view_files=((('primary.txt', primary),), (('secondary.txt', secondary),)),
+                capacity_records=2,
+            )
+            export_target = root / "export-target.hse2"
+            export_target.write_bytes(b"prior export output")
+            with patch("high_security_encryptor.hse2.container_v5_migration.flush_file",
+                       side_effect=OSError("injected flush failure")):
+                with self.assertRaisesRegex(OSError, "injected"):
+                    export_v4_to_v5(
+                        input_path=legacy_v4, output_path=export_target,
+                        view_passwords=passwords, overwrite=True,
+                    )
+            self.assertEqual(export_target.read_bytes(), b"prior export output")
+            self.assertEqual(hashlib.sha256(archive.read_bytes()).digest(), source_digest)
+            self.assertEqual(list(root.glob(".*.tmp")), [])
 
     def test_compaction_rewrites_only_current_views_and_reclaims_stale_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
