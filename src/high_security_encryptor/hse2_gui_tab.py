@@ -9,12 +9,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+import shutil
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from typing import Callable
 
 from .dpapi_guidance import DPAPI_LOCAL_MACHINE_SCOPE_WARNING, DPAPI_WRAPPER_PORTABILITY_WARNING
 from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
+from .hse2.container_v4_crypto import V4_DESCRIPTOR_SIZE, V4_MAX_RECORDS, V4_RECORD_SIZE
+from .hse2.container_v4_header import V4_PUBLIC_HEADER_SIZE
 from .hse2_gui_actions import HSE2_GUI_ACTION_LABELS, HSE2GuiCommandPlan, build_hse2_gui_command
 
 
@@ -69,7 +72,7 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "access-destroy": frozenset(
         {"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force", "paranoid_warning"}
     ),
-    "v4-create": frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "capacity_records", "primary_password", "primary_password_confirmation", "secondary_password", "secondary_password_confirmation", "force", "v4_warning"}),
+    "v4-create": frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "capacity_records", "v4_capacity_summary", "primary_password", "primary_password_confirmation", "secondary_password", "secondary_password_confirmation", "force", "v4_warning"}),
     "v4-open": frozenset({"input_path", "output_path", "archive_password", "v4_warning"}),
     "v4-replace": frozenset({"input_path", "output_path", "replace_file_spec", "archive_password", "force", "v4_warning"}),
 }
@@ -95,6 +98,46 @@ HEADER_BACKUP_RECOVERY_WARNING = (
     "重要：header backup 只用于恢复容器头部，不能恢复或替代解锁所需的密码、keyfile 或 DPAPI 访问条件。"
     "建议在创建归档后立即导出，并将备份与 .hse2 容器分开保存；同时继续保管原有解锁因子。"
 )
+
+
+def estimate_v4_container_size(capacity_records: int) -> int:
+    """Return the exact fixed v4 container length for a valid record capacity."""
+
+    if type(capacity_records) is not int or not 2 <= capacity_records <= V4_MAX_RECORDS or capacity_records % 2:
+        raise ValueError("v4 固定记录容量必须是 2 到 65,536 之间的偶数。")
+    return V4_PUBLIC_HEADER_SIZE + 2 * V4_DESCRIPTOR_SIZE + capacity_records * V4_RECORD_SIZE
+
+
+def _available_bytes_for_output(output_path: str) -> int | None:
+    if not output_path.strip():
+        return None
+    directory = Path(output_path).expanduser().parent
+    while not directory.exists() and directory != directory.parent:
+        directory = directory.parent
+    try:
+        return shutil.disk_usage(directory).free if directory.exists() else None
+    except OSError:
+        return None
+
+
+def format_v4_capacity_summary(capacity_records: int, output_path: str = "") -> str:
+    """Explain v4's fixed output size and optionally compare it with free disk space."""
+
+    try:
+        required_bytes = estimate_v4_container_size(capacity_records)
+    except ValueError:
+        return "容量必须是 2 到 65,536 之间的偶数；修正后才能估算输出大小。"
+
+    required_mib = required_bytes / (1024 * 1024)
+    summary = f"预计容器大小：{required_bytes:,} 字节（{required_mib:.1f} MiB）；每个视图可用 {capacity_records // 2} 条记录。"
+    available_bytes = _available_bytes_for_output(output_path)
+    if available_bytes is not None:
+        available_mib = available_bytes / (1024 * 1024)
+        if available_bytes < required_bytes:
+            summary += f" 目标磁盘可用 {available_mib:.1f} MiB，少于预计输出大小。"
+        else:
+            summary += f" 目标磁盘可用 {available_mib:.1f} MiB。"
+    return summary
 
 
 def hse2_kdf_profile_display_values() -> tuple[str, ...]:
@@ -299,6 +342,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.primary_file_spec = tk.StringVar()
         self.secondary_file_spec = tk.StringVar()
         self.capacity_records = tk.IntVar(value=2)
+        self.v4_capacity_summary = tk.StringVar()
         self.primary_password = tk.StringVar()
         self.primary_password_confirmation = tk.StringVar()
         self.secondary_password = tk.StringVar()
@@ -310,6 +354,8 @@ class HSE2ExperimentalTab(ttk.Frame):
         self._options_frame: ttk.Frame | None = None
 
         self._build_widgets()
+        self.capacity_records.trace_add("write", lambda *_args: self._update_v4_capacity_summary())
+        self.output_path.trace_add("write", lambda *_args: self._update_v4_capacity_summary())
         self.action_label.trace_add("write", self._on_action_label_changed)
         self.action.trace_add("write", self._on_action_changed)
         self.new_kdf_profile.trace_add("write", lambda *_args: self._apply_action_visibility())
@@ -320,6 +366,14 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.new_wrapper_dpapi.trace_add("write", lambda *_args: self._apply_action_visibility())
         self.archive_profile.trace_add("write", lambda *_args: self._apply_action_visibility())
         self._apply_action_visibility()
+        self._update_v4_capacity_summary()
+
+    def _update_v4_capacity_summary(self) -> None:
+        try:
+            capacity_records = int(self.capacity_records.get())
+        except (TypeError, ValueError, tk.TclError):
+            capacity_records = 0
+        self.v4_capacity_summary.set(format_v4_capacity_summary(capacity_records, self.output_path.get()))
 
     def state(self) -> HSE2GuiTabState:
         """Return current widget state as a serializable object."""
@@ -508,13 +562,27 @@ class HSE2ExperimentalTab(ttk.Frame):
         )
         self._field_widgets["primary_file_spec"] = _add_text_row(self, 30, "Primary 文件映射（归档路径=源文件）", self.primary_file_spec)
         self._field_widgets["secondary_file_spec"] = _add_text_row(self, 31, "Secondary 文件映射（归档路径=源文件）", self.secondary_file_spec)
-        self._field_widgets["capacity_records"] = _add_spin_row(self, 32, "v4 固定记录容量（偶数，最小 2）", self.capacity_records)
+        self._field_widgets["capacity_records"] = _add_v4_capacity_row(
+            self, 32, "v4 固定记录容量（偶数，2–65,536）", self.capacity_records
+        )
+        capacity_summary = ttk.Label(self, textvariable=self.v4_capacity_summary, wraplength=780, justify=tk.LEFT)
+        self._field_widgets["v4_capacity_summary"] = (capacity_summary,)
+        capacity_summary.grid(row=39, column=0, columnspan=3, sticky="ew", pady=(4, 0))
         self._field_widgets["primary_password"] = _add_secret_row(self, 33, "Primary 视图密码", self.primary_password)
         self._field_widgets["primary_password_confirmation"] = _add_secret_row(self, 34, "确认 Primary 密码", self.primary_password_confirmation)
         self._field_widgets["secondary_password"] = _add_secret_row(self, 35, "Secondary 视图密码", self.secondary_password)
         self._field_widgets["secondary_password_confirmation"] = _add_secret_row(self, 36, "确认 Secondary 密码", self.secondary_password_confirmation)
         self._field_widgets["replace_file_spec"] = _add_text_row(self, 37, "替换视图文件映射（归档路径=源文件）", self.replace_file_spec)
-        v4_warning = ttk.Label(self, text="v4 为实验性双视图格式；固定容量将分配给两个视图，文件记录按 1 MiB 分块。最小容量 2 对应约 130 MiB 容器。此功能不提供可否认性保证，v2/v3 文件不会被此功能改写。", wraplength=780, justify=tk.LEFT)
+        v4_warning = ttk.Label(
+            self,
+            text=(
+                "v4 为实验性双视图格式；固定容量将平均分给两个视图，文件记录按 1 MiB 分块。"
+                "当前 GUI 每个视图/每次操作只接受一个文件映射；需要多个文件时可用 CLI 重复指定 --primary-file、--secondary-file。"
+                "此功能不提供可否认性保证，v2/v3 文件不会被此功能改写。"
+            ),
+            wraplength=780,
+            justify=tk.LEFT,
+        )
         self._field_widgets["v4_warning"] = (v4_warning,)
         v4_warning.grid(row=38, column=0, columnspan=3, sticky="ew", pady=(4, 0))
 
@@ -733,6 +801,14 @@ def _add_spin_row(parent: ttk.Frame, row: int, label: str, variable: tk.IntVar) 
         padx=(8, 8),
         pady=4,
     )
+    return (label_widget, spin_widget)
+
+
+def _add_v4_capacity_row(parent: ttk.Frame, row: int, label: str, variable: tk.IntVar) -> FieldWidgets:
+    label_widget = ttk.Label(parent, text=label)
+    label_widget.grid(row=row, column=0, sticky="w", pady=4)
+    spin_widget = ttk.Spinbox(parent, from_=2, to=V4_MAX_RECORDS, increment=2, textvariable=variable, width=12)
+    spin_widget.grid(row=row, column=1, sticky="w", padx=(8, 8), pady=4)
     return (label_widget, spin_widget)
 
 

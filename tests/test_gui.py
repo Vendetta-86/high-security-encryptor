@@ -2,11 +2,13 @@ from pathlib import Path
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from high_security_encryptor.gui import (
     CONFIG_KIND_LABELS,
     GuiCommandResult,
     HELP_TEXT,
+    HighSecurityEncryptorApp,
     REPORT_FORMAT_LABELS,
     SECURITY_MODE_LABELS,
     build_removable_action_summary,
@@ -23,8 +25,10 @@ from high_security_encryptor.gui import (
     describe_removable_device_status,
     describe_removable_inventory_status,
     format_size_bytes,
+    get_gui_resource_base_dir,
     make_available_path,
     main,
+    open_path_in_file_manager,
     run_quick_action,
     split_drop_paths,
 )
@@ -36,6 +40,38 @@ from high_security_encryptor.removable_bitlocker import (
 
 
 class GuiTests(unittest.TestCase):
+    def test_beginner_guide_and_example_resources_exist_at_gui_resource_root(self) -> None:
+        base_dir = get_gui_resource_base_dir()
+        self.assertTrue((base_dir / "docs" / "beginner_gui_usage.md").is_file())
+        self.assertTrue((base_dir / "examples" / "beginner_encrypt_config.json").is_file())
+        self.assertTrue((base_dir / "examples" / "beginner_multi_file_encrypt_config.json").is_file())
+
+    def test_beginner_resource_button_handlers_open_the_packaged_paths(self) -> None:
+        base_dir = get_gui_resource_base_dir()
+        expected_paths = [
+            base_dir / "docs" / "beginner_gui_usage.md",
+            base_dir / "examples",
+        ]
+        with patch("high_security_encryptor.gui.open_path_in_file_manager") as open_resource:
+            HighSecurityEncryptorApp._open_beginner_guide(None)
+            HighSecurityEncryptorApp._open_beginner_examples(None)
+        self.assertEqual([call.args[0] for call in open_resource.call_args_list], expected_paths)
+
+    def test_resource_opener_uses_windows_file_association(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir)
+            with patch("high_security_encryptor.gui.sys.platform", "win32"), patch(
+                "high_security_encryptor.gui.os.startfile", create=True
+            ) as startfile:
+                open_path_in_file_manager(path)
+            startfile.assert_called_once_with(path)
+
+    def test_resource_opener_rejects_missing_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing_path = Path(temp_dir) / "missing"
+            with self.assertRaises(FileNotFoundError):
+                open_path_in_file_manager(missing_path)
+
     def test_gui_smoke_test_does_not_open_window(self) -> None:
         """The GUI smoke path should validate imports without starting mainloop."""
 

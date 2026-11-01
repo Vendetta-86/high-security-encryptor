@@ -12,6 +12,8 @@ from high_security_encryptor.hse2_gui_tab import (
     HSE2GuiTabState,
     build_hse2_command_from_tab_state,
     dpapi_warning_for_state,
+    estimate_v4_container_size,
+    format_v4_capacity_summary,
     hse2_gui_action_display_label,
     hse2_gui_action_display_values,
     hse2_gui_action_key_from_display,
@@ -225,12 +227,29 @@ class HSE2GuiTabTests(unittest.TestCase):
     def test_v4_actions_expose_only_their_required_controls(self) -> None:
         self.assertEqual(
             visible_hse2_gui_field_keys("v4-create"),
-            frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "capacity_records",
+            frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "capacity_records", "v4_capacity_summary",
                        "primary_password", "primary_password_confirmation", "secondary_password",
                        "secondary_password_confirmation", "force", "v4_warning"}),
         )
         self.assertEqual(visible_hse2_gui_field_keys("v4-open"),
                          frozenset({"input_path", "output_path", "archive_password", "v4_warning"}))
+
+    def test_v4_capacity_estimate_matches_fixed_container_layout(self) -> None:
+        self.assertEqual(estimate_v4_container_size(2), 136_315_050)
+        self.assertIn("136,315,050 字节（130.0 MiB）", format_v4_capacity_summary(2))
+        self.assertIn("每个视图可用 1 条记录", format_v4_capacity_summary(2))
+
+    def test_v4_capacity_estimate_rejects_invalid_values(self) -> None:
+        for capacity in (True, 0, 1, 3, 65_538):
+            with self.subTest(capacity=capacity):
+                with self.assertRaises(ValueError):
+                    estimate_v4_container_size(capacity)
+
+    def test_v4_capacity_summary_warns_when_target_disk_is_too_small(self) -> None:
+        with patch("high_security_encryptor.hse2_gui_tab._available_bytes_for_output", return_value=1):
+            summary = format_v4_capacity_summary(2, "archive.hse2")
+        self.assertIn("目标磁盘可用", summary)
+        self.assertIn("少于预计输出大小", summary)
 
     def test_archive_validate_shows_input_and_unlock_controls(self) -> None:
         self.assertEqual(

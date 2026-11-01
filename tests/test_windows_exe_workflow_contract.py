@@ -72,6 +72,16 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
         self.assertIn("--password-stdin", build_job)
         self.assertIn("peer-restored-after-update", build_job)
 
+    def test_release_includes_beginner_resources_opened_by_main_gui(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "windows-exe.yml").read_text(encoding="utf-8")
+        for resource in (
+            'Copy-Item "docs\\beginner_gui_usage.md"',
+            'Copy-Item "examples\\beginner_encrypt_config.json"',
+            'Copy-Item "examples\\beginner_multi_file_encrypt_config.json"',
+        ):
+            with self.subTest(resource=resource):
+                self.assertIn(resource, workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
