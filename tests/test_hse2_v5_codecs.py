@@ -17,6 +17,8 @@ from high_security_encryptor.hse2.container_v5_descriptor import (
     seal_v5_descriptor,
 )
 from high_security_encryptor.hse2.container_v5_crypto import (
+    V5_GCM_NONCE_SIZE,
+    V5_HKDF_SALT_SIZE,
     V5_MAX_DESCRIPTOR_SIZE,
     V5Sealed,
     derive_v5_key,
@@ -108,6 +110,17 @@ class HSE2V5CodecTests(unittest.TestCase):
         self.assertEqual(len(blob), V5_RECORD_OVERHEAD + len(plaintext))
         self.assertEqual(open_v5_record(root_key=root, archive_id=archive_id, slot=1, sequence=7,
                                         offset=4096, plaintext_length=len(plaintext), blob=blob), plaintext)
+        for position in (0, V5_HKDF_SALT_SIZE,
+                         V5_HKDF_SALT_SIZE + V5_GCM_NONCE_SIZE, len(blob) - 1):
+            damaged = bytearray(blob)
+            damaged[position] ^= 1
+            with self.subTest(damaged_component=position), self.assertRaisesRegex(
+                HSE2ModelError, "authentication failed"
+            ):
+                open_v5_record(
+                    root_key=root, archive_id=archive_id, slot=1, sequence=7,
+                    offset=4096, plaintext_length=len(plaintext), blob=bytes(damaged),
+                )
         for view, sequence, offset, archive in ((0, 7, 4096, archive_id),
                                                 (1, 8, 4096, archive_id),
                                                 (1, 7, 4097, archive_id),
@@ -202,6 +215,17 @@ class HSE2V5CodecTests(unittest.TestCase):
         with self.assertRaisesRegex(HSE2ModelError, "authentication failed"):
             open_v5_descriptor(root_key=root, archive_id=archive_id, slot=1,
                                generation=1, offset=4096, blob=damaged)
+        for position in (0, V5_HKDF_SALT_SIZE,
+                         V5_HKDF_SALT_SIZE + V5_GCM_NONCE_SIZE, len(blob) - 1):
+            damaged = bytearray(blob)
+            damaged[position] ^= 1
+            with self.subTest(damaged_descriptor_component=position), self.assertRaisesRegex(
+                HSE2ModelError, "authentication failed"
+            ):
+                open_v5_descriptor(
+                    root_key=root, archive_id=archive_id, slot=1, generation=1,
+                    offset=4096, blob=bytes(damaged),
+                )
         with self.assertRaises(HSE2ModelError):
             seal_v5_descriptor(root_key=root, archive_id=archive_id, view=empty, offset=1 << 64)
 
