@@ -10,6 +10,8 @@ from high_security_encryptor.hse2.container_v5_credentials import (
 )
 from high_security_encryptor.hse2.container_v5_descriptor import (
     V5_DESCRIPTOR_OVERHEAD,
+    V5_MAX_FILES_PER_VIEW,
+    V5_MAX_PATH_BYTES,
     V5ChunkReference,
     V5FileEntry,
     V5ViewDescriptor,
@@ -21,6 +23,7 @@ from high_security_encryptor.hse2.container_v5_crypto import (
     V5_GCM_NONCE_SIZE,
     V5_HKDF_SALT_SIZE,
     V5_MAX_DESCRIPTOR_SIZE,
+    V5_MAX_LIVE_CHUNKS_PER_VIEW,
     V5Sealed,
     derive_v5_key,
     open_v5,
@@ -264,6 +267,38 @@ class HSE2V5CodecTests(unittest.TestCase):
         for view in bad_views:
             with self.subTest(view=view), self.assertRaises(HSE2ModelError):
                 seal_v5_descriptor(root_key=root, archive_id=archive_id, view=view, offset=4096)
+
+    def test_descriptor_enforces_file_path_and_live_chunk_limits(self) -> None:
+        root = bytes(range(32))
+        archive_id = bytes(range(16))
+        empty_file = V5FileEntry("empty.txt", 0, ())
+        too_many_files = V5ViewDescriptor(
+            0, 1, 0, (empty_file,) * (V5_MAX_FILES_PER_VIEW + 1)
+        )
+        with self.assertRaisesRegex(HSE2ModelError, "file list"):
+            seal_v5_descriptor(root_key=root, archive_id=archive_id, view=too_many_files, offset=4096)
+
+        too_long_path = V5ViewDescriptor(
+            0, 1, 0, (V5FileEntry("a" * (V5_MAX_PATH_BYTES + 1), 0, ()),)
+        )
+        with self.assertRaises(HSE2ModelError):
+            seal_v5_descriptor(root_key=root, archive_id=archive_id, view=too_long_path, offset=4096)
+
+        chunk_count = V5_MAX_LIVE_CHUNKS_PER_VIEW + 1
+        chunks = tuple(
+            V5ChunkReference(index, V5_HEADER_SIZE + index * 61, 1)
+            for index in range(chunk_count)
+        )
+        too_many_chunks = V5ViewDescriptor(
+            0, 1, chunk_count,
+            (V5FileEntry("many-chunks.bin", chunk_count, chunks),),
+        )
+        descriptor_offset = V5_HEADER_SIZE + chunk_count * 61
+        with self.assertRaisesRegex(HSE2ModelError, "live chunk limit"):
+            seal_v5_descriptor(
+                root_key=root, archive_id=archive_id, view=too_many_chunks,
+                offset=descriptor_offset,
+            )
 
     def test_bounded_deterministic_malformed_input_fuzz(self) -> None:
         rng = random.Random(0x48534532)
