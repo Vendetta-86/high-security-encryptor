@@ -6,6 +6,8 @@ import json
 import secrets
 import struct
 from dataclasses import dataclass
+from pathlib import PurePosixPath
+import unicodedata
 
 from .archive_manifest import validate_archive_path
 from .container_v5_crypto import (
@@ -77,6 +79,7 @@ def _validate_descriptor(view: V5ViewDescriptor, *, offset: int) -> None:
         raise HSE2ModelError("invalid v5 descriptor file list")
 
     paths: set[str] = set()
+    portable_paths: set[str] = set()
     spans: list[tuple[int, int]] = []
     sequences: set[int] = set()
     chunk_count = 0
@@ -87,13 +90,17 @@ def _validate_descriptor(view: V5ViewDescriptor, *, offset: int) -> None:
         validate_archive_path(item.path)
         if "\x00" in item.path:
             raise HSE2ModelError("v5 archive path contains a NUL character")
+        if unicodedata.normalize("NFC", item.path) != item.path:
+            raise HSE2ModelError("v5 archive path must use NFC Unicode")
         path_bytes = item.path.encode("utf-8")
-        if len(path_bytes) > V5_MAX_PATH_BYTES or item.path in paths:
+        portable_path = unicodedata.normalize("NFC", item.path.casefold())
+        if len(path_bytes) > V5_MAX_PATH_BYTES or item.path in paths or portable_path in portable_paths:
             raise HSE2ModelError("invalid or duplicate v5 archive path")
         if previous_path is not None and path_bytes <= previous_path:
             raise HSE2ModelError("v5 descriptor paths are not in canonical order")
         previous_path = path_bytes
         paths.add(item.path)
+        portable_paths.add(portable_path)
         if not isinstance(item.chunks, tuple):
             raise HSE2ModelError("invalid v5 file chunk list")
         file_size = 0
@@ -121,6 +128,10 @@ def _validate_descriptor(view: V5ViewDescriptor, *, offset: int) -> None:
             raise HSE2ModelError("v5 file size does not match its chunks")
     if chunk_count > V5_MAX_LIVE_CHUNKS_PER_VIEW:
         raise HSE2ModelError("v5 live chunk limit exceeded")
+    for path_key in portable_paths:
+        parts = PurePosixPath(path_key).parts
+        if any("/".join(parts[:depth]) in portable_paths for depth in range(1, len(parts))):
+            raise HSE2ModelError("v5 file path conflicts with a parent file")
     spans.sort()
     if any(current[0] < previous[1] for previous, current in zip(spans, spans[1:])):
         raise HSE2ModelError("overlapping v5 chunk records")

@@ -45,6 +45,8 @@ from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_access_cli import run_destroy as run_hse2_access_destroy
 from .hse2.container_v4_workflows import create_v4_archive, replace_v4_view, restore_v4_archive
+from .hse2.container_v5_workflows import create_v5_archive, replace_v5_view, restore_v5_archive
+from .hse2.container_v5_migration import compact_v5_archive, export_v4_to_v5
 from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
 from .hse2.keyfile_safety import keyfile_colocation_warning
 from .hse2_archive_validate_cli import validate_archive_from_files
@@ -109,6 +111,11 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_v4_create_handler=_handle_hse2_v4_create,
         hse2_v4_restore_handler=_handle_hse2_v4_restore,
         hse2_v4_replace_handler=_handle_hse2_v4_replace,
+        hse2_v5_create_handler=_handle_hse2_v5_create,
+        hse2_v5_restore_handler=_handle_hse2_v5_restore,
+        hse2_v5_replace_handler=_handle_hse2_v5_replace,
+        hse2_v5_compact_handler=_handle_hse2_v5_compact,
+        hse2_v4_export_v5_handler=_handle_hse2_v4_export_v5,
         generate_keyfile_handler=_handle_generate_keyfile,
         hse2_keyfile_inspect_handler=_handle_hse2_keyfile_inspect,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
@@ -386,6 +393,77 @@ def _handle_hse2_v4_replace(args: argparse.Namespace) -> dict[str, Any]:
         overwrite=bool(args.force),
     )
     return {"command": "hse2 v4-replace", "format_version": 4, "output": str(output)}
+
+
+def _parse_v5_file_specs(values: list[str]) -> list[tuple[str, Path]]:
+    result: list[tuple[str, Path]] = []
+    for value in values:
+        archive_path, separator, source_path = value.partition("=")
+        if not separator or not archive_path or not source_path:
+            raise CliConfigError("v5 file arguments must use ARCHIVE_PATH=SOURCE_PATH")
+        result.append((archive_path, Path(source_path)))
+    return result
+
+
+def _handle_hse2_v5_create(args: argparse.Namespace) -> dict[str, Any]:
+    if args.passwords_stdin:
+        primary_password, primary_confirmation, secondary_password, secondary_confirmation = _read_v4_password_stdin(4)
+    else:
+        primary_password = getpass.getpass("Primary view password: ")
+        primary_confirmation = getpass.getpass("Confirm primary view password: ")
+        secondary_password = getpass.getpass("Secondary view password: ")
+        secondary_confirmation = getpass.getpass("Confirm secondary view password: ")
+    if primary_confirmation != primary_password:
+        raise CliConfigError("primary view password confirmation does not match")
+    if secondary_confirmation != secondary_password:
+        raise CliConfigError("secondary view password confirmation does not match")
+    output = create_v5_archive(
+        output_path=args.output,
+        view_passwords=(primary_password, secondary_password),
+        view_files=(_parse_v5_file_specs(args.primary_file), _parse_v5_file_specs(args.secondary_file)),
+        profile_name=args.profile,
+        overwrite=bool(args.force),
+    )
+    return {"command": "hse2 v5-create", "format_version": 5, "output": str(output), "profile": args.profile}
+
+
+def _handle_hse2_v5_restore(args: argparse.Namespace) -> dict[str, Any]:
+    password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
+    output = restore_v5_archive(input_path=args.input, password=password, output_dir=args.output_dir)
+    return {"command": "hse2 v5-open", "format_version": 5, "output_dir": str(output)}
+
+
+def _handle_hse2_v5_replace(args: argparse.Namespace) -> dict[str, Any]:
+    password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
+    output = replace_v5_view(
+        input_path=args.input, output_path=args.output, password=password,
+        view_files=_parse_v5_file_specs(args.file), overwrite=bool(args.force),
+    )
+    return {"command": "hse2 v5-replace", "format_version": 5, "output": str(output)}
+
+
+def _read_two_view_passwords(*, stdin: bool) -> tuple[str, str]:
+    if stdin:
+        return _read_v4_password_stdin(2)  # type: ignore[return-value]
+    return getpass.getpass("Primary view password: "), getpass.getpass("Secondary view password: ")
+
+
+def _handle_hse2_v5_compact(args: argparse.Namespace) -> dict[str, Any]:
+    passwords = _read_two_view_passwords(stdin=args.passwords_stdin)
+    output = compact_v5_archive(
+        input_path=args.input, output_path=args.output, view_passwords=passwords,
+        profile_name=args.profile, overwrite=bool(args.force),
+    )
+    return {"command": "hse2 v5-compact", "format_version": 5, "output": str(output)}
+
+
+def _handle_hse2_v4_export_v5(args: argparse.Namespace) -> dict[str, Any]:
+    passwords = _read_two_view_passwords(stdin=args.passwords_stdin)
+    output = export_v4_to_v5(
+        input_path=args.input, output_path=args.output, view_passwords=passwords,
+        profile_name=args.profile, overwrite=bool(args.force),
+    )
+    return {"command": "hse2 v4-to-v5", "format_version": 5, "output": str(output)}
 
 
 def _read_v4_password_stdin(count: int) -> tuple[str, ...]:

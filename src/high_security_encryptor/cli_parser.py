@@ -42,6 +42,11 @@ def build_cli_parser(
     hse2_v4_create_handler: Handler | None = None,
     hse2_v4_restore_handler: Handler | None = None,
     hse2_v4_replace_handler: Handler | None = None,
+    hse2_v5_create_handler: Handler | None = None,
+    hse2_v5_restore_handler: Handler | None = None,
+    hse2_v5_replace_handler: Handler | None = None,
+    hse2_v5_compact_handler: Handler | None = None,
+    hse2_v4_export_v5_handler: Handler | None = None,
     hse2_plan_archive_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
     hse2_keyfile_inspect_handler: Handler | None = None,
@@ -74,7 +79,7 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_archive_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler, hse2_v4_create_handler, hse2_v4_restore_handler, hse2_v4_replace_handler)):
+    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_archive_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler, hse2_v4_create_handler, hse2_v4_restore_handler, hse2_v4_replace_handler, hse2_v5_create_handler, hse2_v5_restore_handler, hse2_v5_replace_handler, hse2_v5_compact_handler, hse2_v4_export_v5_handler)):
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
         if hse2_inspect_handler is not None:
@@ -154,6 +159,63 @@ def build_cli_parser(
                                            help="Read the view password from redirected stdin (never from a terminal).")
             v4_replace_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
             v4_replace_parser.set_defaults(handler=hse2_v4_replace_handler)
+        if hse2_v5_create_handler is not None:
+            v5_create_parser = hse2_subparsers.add_parser(
+                "v5-create", help="EXPERIMENTAL: Create a compact, explicitly disclosed v5 alternate-view container; no deniability claim."
+            )
+            v5_create_parser.add_argument("--output", required=True, help="New output container path.")
+            v5_create_parser.add_argument("--profile", choices=("compatible", "hardened"),
+                                          default="compatible", help="Shared Argon2id profile for both views.")
+            v5_create_parser.add_argument("--passwords-stdin", action="store_true",
+                                          help="Read four password/confirmation lines from redirected stdin (never from a terminal).")
+            v5_create_parser.add_argument("--primary-file", action="append", default=[], metavar="ARCHIVE_PATH=SOURCE_PATH")
+            v5_create_parser.add_argument("--secondary-file", action="append", default=[], metavar="ARCHIVE_PATH=SOURCE_PATH")
+            v5_create_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
+            v5_create_parser.set_defaults(handler=hse2_v5_create_handler)
+        if hse2_v5_restore_handler is not None:
+            v5_open_parser = hse2_subparsers.add_parser(
+                "v5-open", help="EXPERIMENTAL: Restore one explicitly disclosed v5 alternate view (no deniability claim)."
+            )
+            v5_open_parser.add_argument("--input", required=True, help="Input v5 container path.")
+            v5_open_parser.add_argument("--output-dir", required=True, help="New restore directory; must not exist.")
+            v5_open_parser.add_argument("--password-stdin", action="store_true",
+                                        help="Read the view password from redirected stdin (never from a terminal).")
+            v5_open_parser.set_defaults(handler=hse2_v5_restore_handler)
+        if hse2_v5_replace_handler is not None:
+            v5_replace_parser = hse2_subparsers.add_parser(
+                "v5-replace", help="EXPERIMENTAL: Replace one explicitly disclosed v5 view in a new copy; peer bytes are preserved (no deniability claim)."
+            )
+            v5_replace_parser.add_argument("--input", required=True, help="Input v5 container path.")
+            v5_replace_parser.add_argument("--output", required=True, help="New output container path.")
+            v5_replace_parser.add_argument("--file", action="append", default=[], metavar="ARCHIVE_PATH=SOURCE_PATH")
+            v5_replace_parser.add_argument("--password-stdin", action="store_true",
+                                           help="Read the selected view password from redirected stdin (never from a terminal).")
+            v5_replace_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
+            v5_replace_parser.set_defaults(handler=hse2_v5_replace_handler)
+        if hse2_v5_compact_handler is not None:
+            compact_parser = hse2_subparsers.add_parser(
+                "v5-compact", help="EXPERIMENTAL: Rebuild a v5 archive from current views; requires both view passwords."
+            )
+            compact_parser.add_argument("--input", required=True, help="Input v5 container path.")
+            compact_parser.add_argument("--output", required=True, help="New compacted v5 container path.")
+            compact_parser.add_argument("--passwords-stdin", action="store_true",
+                                        help="Read primary and secondary view passwords from redirected stdin.")
+            compact_parser.add_argument("--profile", choices=("compatible", "hardened"),
+                                        default="compatible", help="Argon2id profile for the new credential slots.")
+            compact_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
+            compact_parser.set_defaults(handler=hse2_v5_compact_handler)
+        if hse2_v4_export_v5_handler is not None:
+            export_parser = hse2_subparsers.add_parser(
+                "v4-to-v5", help="Export both authenticated v4 views into a new compact v5 container; requires both passwords."
+            )
+            export_parser.add_argument("--input", required=True, help="Input v4 container path.")
+            export_parser.add_argument("--output", required=True, help="New v5 container path.")
+            export_parser.add_argument("--passwords-stdin", action="store_true",
+                                       help="Read primary and secondary view passwords from redirected stdin.")
+            export_parser.add_argument("--profile", choices=("compatible", "hardened"),
+                                       default="compatible", help="Argon2id profile for the new credential slots.")
+            export_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
+            export_parser.set_defaults(handler=hse2_v4_export_v5_handler)
         if hse2_wrapper_add_handler is not None or hse2_wrapper_manage_handler is not None:
             wrapper_parser = hse2_subparsers.add_parser("wrapper", help="Manage HSE2 unlock wrappers.")
             wrapper_subparsers = wrapper_parser.add_subparsers(dest="wrapper_command", required=True)
