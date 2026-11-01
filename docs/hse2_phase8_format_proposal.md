@@ -34,17 +34,32 @@ fixed preamble | fixed-size public header | fixed-capacity record area
 ```
 
 - The public header contains only magic/version, fixed header length, public capacity, fixed record size, and two structurally identical credential slots.
-- Each credential slot contains a random salt, fixed Argon2id profile metadata, one random nonce, and a fixed-length AEAD ciphertext wrapping one 32-byte view root key. No labels, timestamps, view names, or wrapper types are present.
-- Each view descriptor occupies one fixed-size record at a fixed public position. It is AEAD ciphertext under a key derived from that view's root key. It contains that view's encrypted manifest, its record-index map, and authenticated logical length.
+- Each credential slot contains a random salt, fixed Argon2id profile metadata, one random nonce, and a fixed-length AEAD ciphertext wrapping one 32-byte view root key. No labels, timestamps, view names, or wrapper types are present. The two passwords must differ; creation rejects identical normalized UTF-8 password bytes, and unlock rejects the unexpected case where both slots authenticate.
+- Each view descriptor occupies a fixed 64 MiB region at a fixed public position. Its first 32 bytes are a random HKDF salt, followed by a 12-byte GCM nonce; the rest is one AES-256-GCM ciphertext and 16-byte tag under a one-use descriptor key derived from that view root. The private descriptor contains the encrypted manifest, record-index map, and authenticated logical length; random plaintext padding fills the region to its fixed public size.
 - The remaining area consists only of fixed-size records. Records referenced by either view contain AEAD ciphertext; unallocated records contain cryptographically random bytes. No plaintext occupied/free marker or per-view record count is stored.
-- The total file size is selected at creation and does not grow during updates. An update that cannot fit must fail without modifying the original. A larger capacity requires explicit export to a new archive and must be documented as creating a snapshot-visible operation.
+- The total file size is selected at creation and does not grow during updates. Proposed cap: 65,536 records of 1 MiB each (64 GiB record area); proposed manifest cap: 64 MiB. These are parser/resource ceilings, not promised device requirements. An update that cannot fit must fail without modifying the original. A larger capacity requires explicit export to a new archive and must be documented as a snapshot-visible operation.
 
 ### Key derivation and encryption constraints
 
 - Each of the two view root keys is generated independently with a CSPRNG; credentials never directly encrypt content.
 - Argon2id derives one KEK per password using independent 16-byte random salts and the existing bounded profile allowlist. Both slots always serialize the same profile and lengths.
 - AEAD wraps each root key with AAD binding format version, public capacity, slot index, and the complete immutable public header fields. The exact encoding must be canonical and covered by test vectors.
-- A reviewed, standard HKDF-SHA-256 implementation derives per-view manifest and per-record keys using distinct labels and indices. No key is reused between views, records, or purposes. Nonce generation and maximum invocation counts must be written as explicit invariants before coding.
+- Use PyCryptodome's RFC 5869 HKDF-SHA-256 primitive, already supplied by the pinned dependency family. HKDF info strings are `HSE2:v4:view:<slot>:manifest:v1` and `HSE2:v4:view:<slot>:record-wrap:<record-index>:v1`; public capacity and archive identifier are included in the HKDF salt/context. View roots and derived keys are never shared across slots or purposes.
+- Each descriptor is encrypted once per output generation with a fresh 96-bit random GCM nonce; cap descriptor rewrites to 2^20 per archive and document this as below the current random-IV invocation limit. Each data record gets a fresh random 256-bit content key, used for exactly one AES-256-GCM encryption; its key is wrapped under an HKDF-derived per-record wrapping key using a fixed all-zero 96-bit nonce and AAD binding version, slot, index, and record size. The HKDF salt is 32 fresh random bytes per record. Never re-encrypt different plaintext under the same record key.
+- Each password slot uses existing Argon2id profiles, but v4 permits only compatible/hardened (no 1 GiB profile for routine dual unlock); profile and parameters are authenticated by the slot's wrapped-key AEAD. The two slots must use the same profile and fixed lengths. Argon2 work happens only after caller explicitly enters a password; the application attempts both same-shaped slots and reports one generic unlock failure if neither authenticates.
+
+### Fixed record bytes
+
+Each 1 MiB record is exactly:
+
+```text
+hkdf_salt:32 | wrapped_record_key:32 | wrap_tag:16 | payload_nonce:12 |
+payload_ciphertext:1,048,468 | payload_tag:16
+```
+
+The record-key plaintext is a fresh random 32-byte key. The wrapped key uses AES-256-GCM under the per-view/per-index HKDF key, a fixed all-zero 96-bit nonce (one encryption per derived key), and AAD `HSE2:v4:record-key:<slot>:<index>:1048576`. The payload uses AES-256-GCM under the random record key and fresh random 96-bit `payload_nonce`; its plaintext is always exactly 1,048,468 bytes. Short final chunks are padded with cryptographically random bytes, and true lengths exist only in the encrypted descriptor. A record key is never reused for another payload encryption.
+
+Each view descriptor has a fresh 32-byte HKDF salt and derives its descriptor key with info `HSE2:v4:view:<slot>:descriptor:v1`; it is used for exactly one 64 MiB AES-GCM encryption with a fresh random 96-bit nonce. Its ciphertext is padded to exactly 64 MiB minus the salt, nonce, and tag fields. Descriptor salts and nonces are generated together from the CSPRNG and must not repeat within an archive; a new descriptor key is derived on every update. The descriptor AEAD AAD binds format version, public capacity, slot index, record size, and descriptor-region size.
 - The public header is not authenticated globally. Each credential slot authenticates its own root key; each descriptor and data record authenticates its own contents and index. Parsers must reject any malformed length or index before allocating from attacker-controlled values.
 
 ### Read/write behavior
@@ -55,12 +70,30 @@ fixed preamble | fixed-size public header | fixed-capacity record area
 - Adding or replacing content allocates random unused record indices and atomically writes a new fixed-size file. Existing unreferenced records are overwritten with fresh random bytes in the new output. The original remains intact on any failure.
 - This design does not protect against repeated snapshots, host artifacts, file-size comparison across exports, opened plaintext traces, timing/memory observation, or an attacker who knows the application. It must not be marketed as coercion-safe or as general plausible deniability.
 
+### Deterministic primitive vector (primitive check only)
+
+Generated with the installed PyCryptodome 4.2.0; this is a regression vector for HKDF and AES-GCM composition, not a full container vector. All values below are fixed test inputs and must never be used for real archives.
+
+| Input/output | Hex or value |
+|---|---|
+| IKM | `000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f` |
+| HKDF salt | `202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f` |
+| HKDF info | ASCII `HSE2:v4:view:0:record-wrap:7:v1` |
+| derived 32-byte key | `1f357c1b5768c99fd7d2211a92193393d8e02c80cd246ce4e9f34e0b6c55c0fe` |
+| GCM nonce | 12 zero bytes (test-only) |
+| GCM AAD | ASCII `HSE2:v4:slot:0:index:7:size:1048576` |
+| plaintext | `000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f` |
+| ciphertext | `9fc1f749c79556f60a2d490714566a538a72dadeb61517ab9aa26ea86667dbbb` |
+| tag | `761fa63653ab7d9d2595ad795da3c149` |
+
+The repository's `atomic_output_path` uses a same-directory temporary file followed by `os.replace`; this gives atomic replacement semantics where the filesystem supports them, but does not promise power-loss durability unless `HSE_FSYNC=1`. V4 must preserve the input and publish a new fixed-size output; it must never update an archive in place.
+
 ### Local review questions that remain before implementation
 
-1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model, including a one-view baseline? The proposed baseline is exactly two valid views, so the claim must not imply otherwise.
-2. What fixed record size, maximum capacity, and manifest size bounds allow safe parsing and bounded memory on supported Windows systems?
-3. Which AEAD is already supported by the dependency set, and what nonce construction meets its per-key usage limits without random-collision ambiguity?
-4. Can updates be made atomic on supported filesystems without leaving observable partial output or modifying the input file?
+1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model? The baseline is always exactly two valid views; an empty secondary view is permitted, and the feature never claims that an observer cannot distinguish meaningful from empty plaintext after credential disclosure.
+2. Are the 1 MiB record, 65,536-record, 64 GiB record area, two 64 MiB descriptor regions, and 64 MiB private manifest ceiling acceptable on supported Windows systems, including full-file atomic rewrite costs?
+3. Validate HKDF-SHA-256 and AES-GCM API behavior in the supported PyCryptodome versions and generate byte-exact vectors. Confirm the one-use random data-key rule and per-generation descriptor key in code/tests.
+4. Can updates be made atomically on supported filesystems without leaving observable partial output or modifying the input file?
 5. What property tests and fuzz limits demonstrate fail-closed behavior? Which claims remain assumptions rather than tests?
 
 **Decision:** this is now a concrete candidate for local design review, not an approved cryptographic construction. Resolve the five questions, write byte-exact vectors and validate dependency primitives before implementing a v4 parser or writer.
