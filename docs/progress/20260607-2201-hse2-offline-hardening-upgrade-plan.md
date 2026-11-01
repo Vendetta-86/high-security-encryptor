@@ -74,7 +74,7 @@
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
-| Phase 8 | [!] | Decoy / Duress | 继续延后 |
+| Phase 8 | [~] | Alternate-view design review | 已启动新格式审查草案；尚未通过独立密码学审查，禁止实现或宣称可否认性；见 `docs/hse2_phase8_format_proposal.md` |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
 | Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；alpha.9 打包版的 GUI 负向/正向 destroy-access 验收及 v3 元数据检查均通过 |

@@ -70,7 +70,7 @@ Relevant implementation points include `hse2/models.py` (`WrapperRecord.VALID_TY
 
 ## Decision
 
-Phase 8 remains deferred. The next safe action is independent design and cryptographic review against the gates above, not a patch to `WrapperRecord` or the current v2/v3 wire format. The existing invariant remains: no automatic deletion of real data or wrapper material.
+Phase 8 design work has resumed at the proposal stage. The current v2/v3 no-go remains in force: no patch to `WrapperRecord` or existing wire formats, no implementation before the independent review gates above, and no automatic deletion of real data or wrapper material. The proposal draft is [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md); it is not an approved construction.
 
 ## References
 
