@@ -74,11 +74,11 @@
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
-| Phase 8 | [~] | Alternate-view design review | v4 本地提案、公有头/双密码槽/描述符/记录 codecs、固定容量文件工作流及 Python CLI 创建/恢复/单视图替换已实现；18 项 v4 定向测试通过，含篡改恢复/临时输出清理和更新失败保留输入；PyInstaller 6.22.3 onefile CLI 实际创建 136,315,050 字节双视图容器并分别恢复两侧，字节比较通过；GUI、完整资源/损坏输入/中断测试及正式 Windows Release ZIP 十个 EXE 验收仍未完成，不宣称可否认性；v2/v3 保持不变 |
+| Phase 8 | [~] | Alternate-view design review | v4 本地提案、公有头/双密码槽/描述符/记录 codecs、固定容量文件工作流、Python CLI 及实验 GUI 创建/恢复/单视图替换已实现；24 项 v4 定向测试通过，含容量边界、64 个确定性畸形头样本、清单路径/记录/长度异常、篡改/恢复清理与原子发布中断；GUI create/open/replace 集成测试通过；PyInstaller 6.22.3 onefile CLI 实际创建 136,315,050 字节双视图容器、分别恢复并替换视图，对侧内容保持不变；更广资源/模糊测试及正式 Windows Release ZIP 十个 EXE 验收仍未完成，不宣称可否认性；v2/v3 保持不变 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
 | Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；alpha.9 打包版的 GUI 负向/正向 destroy-access 验收及 v3 元数据检查均通过 |
-| Phase 12 | [x] | 测试计划 | alpha.9 发布时全量回归为 681 项通过、4 项跳过；2026-11-01 当前全量回归 699 项通过、6 项跳过（`work/hse2-test-venv/Scripts/python.exe -m unittest discover -s tests`）；新增 v4 codec/file/workflow/CLI 定向测试 18 项通过；依赖审计、语法检查、Windows EXE 构建与打包 smoke、流式基准及 Windows Python 3.11/3.12/3.13 CI 已通过 |
+| Phase 12 | [x] | 测试计划 | alpha.9 发布时全量回归为 681 项通过、4 项跳过；2026-11-01 全量回归 711 项通过、6 项跳过（`work/hse2-test-venv/Scripts/python.exe -m unittest discover -s tests`）；v4 codec/file/workflow/CLI 24 项定向测试通过，v4/GUI/release-contract 119 项在 PyCryptodome 3.20.0 通过；依赖审计、语法检查、Windows EXE 构建与打包 smoke、流式基准及 Windows Python 3.11/3.12/3.13 CI 已通过 |
 
 ---
 
@@ -400,7 +400,7 @@ python -m pip_audit . --progress-spinner off
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
 | `v0.6.3` | [~] | DPAPI wrapper 与 GUI 加密/恢复向导已在当前源码实现并有自动化覆盖；该版本尚未单独打包、打 tag 或发布 |
 | `v0.6.4` | [~] | HSE2 manifest 加密和元数据最小化已在当前源码实现并有自动化覆盖；该版本尚未单独打包、打 tag 或发布 |
-| `v0.7.0` | [~] | Phase 8 自用 two-view v4 候选已实现隔离格式、文件工作流与 Python CLI；需完成资源/损坏输入/中断测试、GUI 接入和正式 Windows Release ZIP 验收；v2/v3 不扩展，不承诺可否认性 |
+| `v0.7.0` | [~] | Phase 8 自用 two-view v4 候选已实现隔离格式、文件工作流、Python CLI 和实验 GUI；需完成更广资源/property/fuzz 测试及正式 Windows Release ZIP 验收；v2/v3 不扩展，不承诺可否认性 |
 
 ---
 
@@ -426,7 +426,7 @@ python -m pip_audit . --progress-spinner off
 18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
 20. [x] alpha.9 精确 tag 构建、工件检查、预发布 Release 与资产摘要核对均已完成；`v0.6.0` 至 `v0.6.4` 稳定版本仍待按版本规划分别打包、测试和发布
-21. [~] Phase 8 自用 two-view v4 候选：完成隔离格式、文件工作流与 Python CLI；下一步补齐资源上限与 malformed-input/property 覆盖，执行中断恢复测试，再完成 GUI/Windows Release ZIP 验收；不宣称可否认性，不改写 v2/v3
+21. [~] Phase 8 自用 two-view v4 候选：已完成隔离格式、文件工作流、Python CLI 与实验 GUI；已有容量边界、确定性畸形头/清单/长度、记录篡改及原子发布失败测试；下一步补齐更广资源/fuzz 覆盖，再完成正式 Windows Release ZIP 验收；不宣称可否认性，不改写 v2/v3
 
 ---
 
@@ -505,6 +505,8 @@ python -m pip_audit . --progress-spinner off
 - 2026-11-01：Phase 8 Python CLI 集成：新增 `hse2 v4-create/v4-open/v4-replace`，使用隐藏密码提示，不在 argv/JSON 摘要中暴露密码；完成双视图端到端创建/恢复、单视图替换及对侧内容保留测试。全量 699 项通过、6 项跳过；18 项 v4 定向测试通过。GUI、Windows release-package、完整故障/资源测试仍未完成。Commit: 待提交
 - 2026-11-01：Phase 8 CLI 包装 smoke 与恢复故障清理：PyInstaller 6.22.3 本地构建 `high-security-encryptor` onefile 候选；打包 EXE 的 v4-create/open/replace `--help` 均以退出码 0 启动。增加记录 tag 篡改后恢复拒绝且临时明文目录清理、更新记录源异常时不产生目标文件且原输入保持不变的测试。全量回归 699 项通过、6 项跳过；尚未执行正式 Release ZIP/tag 构建。Commit: 待提交
 - 2026-11-01：打包 v4 双视图烟测：PyInstaller 6.22.3 onefile CLI 以临时密码创建 136,315,050 字节固定容量容器；EXE 分别通过 primary/secondary 密码恢复，输出与输入字节完全一致。仅覆盖主 CLI EXE 和两条解锁路径；未验证官方 Release ZIP 的其余九个 EXE。Commit: 待提交
+- 2026-11-01：Phase 8 GUI 集成与本地边界验证：HSE2 实验 GUI 增加 v4 双视图创建、密码选择恢复和单视图替换；密码不进入 argv/日志，恢复/替换执行前确认，创建显示固定容量估算。新增 GUI 往返与替换测试、畸形头/长度边界及模拟 atomic replace 中断测试。全量 705 项通过、6 项跳过；GUI/v4 定向 111 项在 PyCryptodome 3.20.0 通过。pre-commit 通过。正式 Windows Release ZIP 与更广 resource/property/fuzz 测试仍待完成。Commit: 待提交
+- 2026-11-01：Phase 8 packaged stdin smoke 与 malformed-input 覆盖：Windows PyInstaller CLI/HSE2 GUI 当前源码 onefile 构建成功；发现并修复 Windows 控制台 `getpass` 与 PowerShell 非交互管道不兼容，v4 CLI 增加仅接受重定向 stdin 的口令选项。打包 EXE 实测双视图创建/恢复、视图替换和对侧视图保持；新增 64 个确定性畸形头输入及 manifest 结构拒绝测试。全量 711 项通过、6 项跳过；v4/GUI/release-contract 119 项在 PyCryptodome 3.20.0 通过；`pip-audit` 未发现已知漏洞。正式 Windows Release ZIP Actions 验收及更广资源/fuzz 覆盖仍待完成。Commit: 待提交
 - 2026-10-31：Phase 12 restore-path hardening：HSE2 manifest 创建及恢复现在拒绝会被 POSIX 路径解析静默归一化的非规范路径；Windows 恢复预检以路径前缀树拒绝大小写归一化后的同目标及文件/子路径冲突，避免条目顺序决定覆盖结果，同时令额外索引随路径段数线性增长。新增 manifest 与 v3 open 回归；定向 26 项、最终全量 677 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。格式 framing 文档已同步。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：刷新 restore-path hardening 后的 Windows 候选构建：PyInstaller 6.22.3 从提交 `4c3bb09` 构建 10 个 EXE；8 个 CLI `--help`、主 GUI smoke、打包 v3 create/validate/open、字节哈希还原及两类恶意路径拒绝均通过。独立刷新 ZIP 为 16 项，10 个 EXE 内容哈希与构建输出一致；记录在 `docs/progress/20261031-alpha8-prep-status.md`。CI run `41196270229` 三版本全通过。产物留在本地隔离目录，未覆盖旧候选或发布 tag。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：Phase 12 Windows restore filename hardening：解档路径共用 `validate_archive_path`，在 Windows 拒绝 ADS 冒号、控制/保留字符、DOS 设备名（含扩展名与上标 COM/LPT 变体）及尾随 ASCII 空格/句点；manifest 认证后、输出目录创建前执行。28 项定向测试、全量 679 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。Framing 与 alpha.8 发布说明已更新，并依据 Microsoft Win32 文件命名规则记录范围。Commit: 待提交

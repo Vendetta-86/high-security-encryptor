@@ -61,6 +61,9 @@ Before publishing or announcing the Windows zip:
 - confirm all executables listed above are present;
 - run `high-security-encryptor.exe --help`;
 - run `high-security-encryptor-gui.exe --smoke-test`;
+- run `high-security-encryptor-hse2-gui.exe --smoke-test`;
+- confirm the build workflow exercised packaged v4 create, primary/secondary restore, and single-view replacement with byte-for-byte comparisons;
+- run `high-security-encryptor.exe hse2 v4-create --help`, `v4-open --help`, and `v4-replace --help`;
 - run each HSE2 helper executable with `--help`;
 - run `high-security-encryptor-hse2-inspect.exe --help`;
 - run `high-security-encryptor-hse2-archive-validate.exe --help`;

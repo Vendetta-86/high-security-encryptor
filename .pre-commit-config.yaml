@@ -6,4 +6,4 @@ repos:
         entry: detect-secrets-hook --baseline .secrets.baseline
         language: system
         types: [text]
-        exclude: ^\.secrets\.baseline$
+        exclude: ^(\.secrets\.baseline|tests/fixtures/hse2/archive-v2\.hse2)$

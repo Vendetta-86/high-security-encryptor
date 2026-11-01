@@ -69,6 +69,9 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "access-destroy": frozenset(
         {"input_path", "output_path", "password_file", "keyfile_path", "allow_dpapi", "access_confirmation_phrase", "danger_text", "force", "paranoid_warning"}
     ),
+    "v4-create": frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "capacity_records", "primary_password", "primary_password_confirmation", "secondary_password", "secondary_password_confirmation", "force", "v4_warning"}),
+    "v4-open": frozenset({"input_path", "output_path", "archive_password", "v4_warning"}),
+    "v4-replace": frozenset({"input_path", "output_path", "replace_file_spec", "archive_password", "force", "v4_warning"}),
 }
 
 _OPTION_FIELD_ORDER = (
@@ -161,6 +164,14 @@ class HSE2GuiTabState:
     archive_password: str = field(default="", repr=False)
     archive_password_confirmation: str = field(default="", repr=False)
     access_confirmation_phrase: str = ""
+    primary_file_spec: str = ""
+    secondary_file_spec: str = ""
+    capacity_records: int = 2
+    primary_password: str = field(default="", repr=False)
+    primary_password_confirmation: str = field(default="", repr=False)
+    secondary_password: str = field(default="", repr=False)
+    secondary_password_confirmation: str = field(default="", repr=False)
+    replace_file_spec: str = ""
 
 
 def hse2_gui_action_display_values() -> tuple[str, ...]:
@@ -234,6 +245,14 @@ def build_hse2_plan_from_tab_state(state: HSE2GuiTabState) -> HSE2GuiCommandPlan
         archive_password=state.archive_password,
         archive_password_confirmation=state.archive_password_confirmation,
         access_confirmation_phrase=state.access_confirmation_phrase,
+        primary_file_spec=state.primary_file_spec,
+        secondary_file_spec=state.secondary_file_spec,
+        capacity_records=state.capacity_records,
+        primary_password=state.primary_password,
+        primary_password_confirmation=state.primary_password_confirmation,
+        secondary_password=state.secondary_password,
+        secondary_password_confirmation=state.secondary_password_confirmation,
+        replace_file_spec=state.replace_file_spec,
     )
     return plan
 
@@ -277,6 +296,14 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.archive_validate_after_create = tk.BooleanVar(value=True)
         self.archive_validate_before_open = tk.BooleanVar(value=False)
         self.access_confirmation_phrase = tk.StringVar()
+        self.primary_file_spec = tk.StringVar()
+        self.secondary_file_spec = tk.StringVar()
+        self.capacity_records = tk.IntVar(value=2)
+        self.primary_password = tk.StringVar()
+        self.primary_password_confirmation = tk.StringVar()
+        self.secondary_password = tk.StringVar()
+        self.secondary_password_confirmation = tk.StringVar()
+        self.replace_file_spec = tk.StringVar()
 
         self._field_widgets: dict[str, FieldWidgets] = {}
         self._option_widgets: dict[str, ttk.Checkbutton] = {}
@@ -326,6 +353,14 @@ class HSE2ExperimentalTab(ttk.Frame):
             archive_chunk_size=int(self.archive_chunk_size.get()),
             archive_pad_last_chunk=bool(self.archive_pad_last_chunk.get()),
             access_confirmation_phrase=self.access_confirmation_phrase.get(),
+            primary_file_spec=self.primary_file_spec.get(),
+            secondary_file_spec=self.secondary_file_spec.get(),
+            capacity_records=int(self.capacity_records.get()),
+            primary_password=self.primary_password.get(),
+            primary_password_confirmation=self.primary_password_confirmation.get(),
+            secondary_password=self.secondary_password.get(),
+            secondary_password_confirmation=self.secondary_password_confirmation.get(),
+            replace_file_spec=self.replace_file_spec.get(),
         )
 
     def build_command(self) -> list[str]:
@@ -359,6 +394,13 @@ class HSE2ExperimentalTab(ttk.Frame):
         finally:
             self.archive_password.set("")
             self.archive_password_confirmation.set("")
+            for secret_name in (
+                "primary_password", "primary_password_confirmation",
+                "secondary_password", "secondary_password_confirmation",
+            ):
+                secret_var = getattr(self, secret_name, None)
+                if secret_var is not None:
+                    secret_var.set("")
 
     def _build_widgets(self) -> None:
         ttk.Label(
@@ -464,6 +506,17 @@ class HSE2ExperimentalTab(ttk.Frame):
         self._field_widgets["archive_password_confirmation"] = _add_secret_row(
             self, 27, "确认归档密码", self.archive_password_confirmation
         )
+        self._field_widgets["primary_file_spec"] = _add_text_row(self, 30, "Primary 文件映射（归档路径=源文件）", self.primary_file_spec)
+        self._field_widgets["secondary_file_spec"] = _add_text_row(self, 31, "Secondary 文件映射（归档路径=源文件）", self.secondary_file_spec)
+        self._field_widgets["capacity_records"] = _add_spin_row(self, 32, "v4 固定记录容量（偶数，最小 2）", self.capacity_records)
+        self._field_widgets["primary_password"] = _add_secret_row(self, 33, "Primary 视图密码", self.primary_password)
+        self._field_widgets["primary_password_confirmation"] = _add_secret_row(self, 34, "确认 Primary 密码", self.primary_password_confirmation)
+        self._field_widgets["secondary_password"] = _add_secret_row(self, 35, "Secondary 视图密码", self.secondary_password)
+        self._field_widgets["secondary_password_confirmation"] = _add_secret_row(self, 36, "确认 Secondary 密码", self.secondary_password_confirmation)
+        self._field_widgets["replace_file_spec"] = _add_text_row(self, 37, "替换视图文件映射（归档路径=源文件）", self.replace_file_spec)
+        v4_warning = ttk.Label(self, text="v4 为实验性双视图格式；固定容量将分配给两个视图，文件记录按 1 MiB 分块。最小容量 2 对应约 130 MiB 容器。此功能不提供可否认性保证，v2/v3 文件不会被此功能改写。", wraplength=780, justify=tk.LEFT)
+        self._field_widgets["v4_warning"] = (v4_warning,)
+        v4_warning.grid(row=38, column=0, columnspan=3, sticky="ew", pady=(4, 0))
 
         self._options_frame = ttk.Frame(self)
         self._options_frame.grid(row=28, column=0, columnspan=3, sticky="w", pady=(8, 0))

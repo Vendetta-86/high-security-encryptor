@@ -122,7 +122,7 @@ def create_v4_archive(
     """Create a v4 archive holding two independent file sets.
 
     Each view receives half the public record capacity. This remains an
-    experimental API and is not connected to the application's CLI or GUI.
+    experimental API used by the isolated v4 CLI and GUI actions.
     """
 
     if not isinstance(view_passwords, tuple) or len(view_passwords) != 2:

@@ -338,11 +338,16 @@ def _parse_v4_file_specs(values: list[str]) -> list[tuple[str, Path]]:
 
 
 def _handle_hse2_v4_create(args: argparse.Namespace) -> dict[str, Any]:
-    primary_password = getpass.getpass("Primary view password: ")
-    if getpass.getpass("Confirm primary view password: ") != primary_password:
+    if args.passwords_stdin:
+        primary_password, primary_confirmation, secondary_password, secondary_confirmation = _read_v4_password_stdin(4)
+    else:
+        primary_password = getpass.getpass("Primary view password: ")
+        primary_confirmation = getpass.getpass("Confirm primary view password: ")
+        secondary_password = getpass.getpass("Secondary view password: ")
+        secondary_confirmation = getpass.getpass("Confirm secondary view password: ")
+    if primary_confirmation != primary_password:
         raise CliConfigError("primary view password confirmation does not match")
-    secondary_password = getpass.getpass("Secondary view password: ")
-    if getpass.getpass("Confirm secondary view password: ") != secondary_password:
+    if secondary_confirmation != secondary_password:
         raise CliConfigError("secondary view password confirmation does not match")
     output = create_v4_archive(
         output_path=args.output,
@@ -366,13 +371,13 @@ def _handle_hse2_v4_create(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _handle_hse2_v4_restore(args: argparse.Namespace) -> dict[str, Any]:
-    password = getpass.getpass("View password: ")
+    password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
     output = restore_v4_archive(input_path=args.input, password=password, output_dir=args.output_dir)
     return {"command": "hse2 v4-open", "format_version": 4, "output_dir": str(output)}
 
 
 def _handle_hse2_v4_replace(args: argparse.Namespace) -> dict[str, Any]:
-    password = getpass.getpass("View password: ")
+    password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
     output = replace_v4_view(
         input_path=args.input,
         output_path=args.output,
@@ -381,6 +386,25 @@ def _handle_hse2_v4_replace(args: argparse.Namespace) -> dict[str, Any]:
         overwrite=bool(args.force),
     )
     return {"command": "hse2 v4-replace", "format_version": 4, "output": str(output)}
+
+
+def _read_v4_password_stdin(count: int) -> tuple[str, ...]:
+    """Read a fixed number of secret lines from redirected stdin without echo."""
+
+    if sys.stdin.isatty():
+        raise CliConfigError("password stdin mode requires redirected, non-terminal stdin")
+    values: list[str] = []
+    for _ in range(count):
+        line = sys.stdin.readline()
+        if not line:
+            raise CliConfigError("password stdin ended before all required lines were read")
+        value = line.rstrip("\r\n")
+        if not value:
+            raise CliConfigError("password stdin lines must not be empty")
+        values.append(value)
+    if sys.stdin.readline():
+        raise CliConfigError("password stdin contains more lines than expected")
+    return tuple(values)
 
 
 def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:

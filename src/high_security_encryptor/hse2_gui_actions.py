@@ -29,6 +29,9 @@ HSE2_GUI_ACTIONS = (
     "wrapper-remove",
     "wrapper-rewrap",
     "access-destroy",
+    "v4-create",
+    "v4-open",
+    "v4-replace",
 )
 
 HSE2_GUI_ACTION_LABELS = {
@@ -48,6 +51,9 @@ HSE2_GUI_ACTION_LABELS = {
     "wrapper-remove": "移除指定 HSE2 wrapper",
     "wrapper-rewrap": "更换 HSE2 wrapper",
     "access-destroy": "永久禁用 HSE2 访问",
+    "v4-create": "实验性 HSE2 v4 双视图创建",
+    "v4-open": "实验性 HSE2 v4 单视图恢复",
+    "v4-replace": "实验性 HSE2 v4 单视图替换",
 }
 
 
@@ -60,6 +66,7 @@ class HSE2GuiCommandPlan:
     description: str
     experimental: bool = True
     secret_input: str | None = field(default=None, repr=False, compare=False)
+    secret_inputs: tuple[str, ...] = field(default=(), repr=False, compare=False)
 
 
 def build_hse2_gui_command(
@@ -94,11 +101,20 @@ def build_hse2_gui_command(
     archive_password: str = "",
     archive_password_confirmation: str = "",
     access_confirmation_phrase: str = "",
+    primary_file_spec: str = "",
+    secondary_file_spec: str = "",
+    capacity_records: int = 2,
+    primary_password: str = "",
+    primary_password_confirmation: str = "",
+    secondary_password: str = "",
+    secondary_password_confirmation: str = "",
+    replace_file_spec: str = "",
 ) -> HSE2GuiCommandPlan:
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
 
     normalized_action = _require_action(action)
     plan_secret: str | None = None
+    plan_secrets: tuple[str, ...] = ()
     if normalized_action == "encrypt-config":
         argv = ("hse2-encrypt-config", "--config", _require_text(config_path, "请选择 HSE2 加密配置文件。"))
     elif normalized_action == "decrypt-config":
@@ -361,6 +377,36 @@ def build_hse2_gui_command(
         if force:
             args.append("--overwrite")
         argv = tuple(args)
+    elif normalized_action == "v4-create":
+        if (not primary_password or primary_password != primary_password_confirmation
+                or not secondary_password or secondary_password != secondary_password_confirmation):
+            raise ValueError("请分别填写并确认两个 v4 视图密码。")
+        if primary_password == secondary_password:
+            raise ValueError("两个 v4 视图密码必须不同。")
+        if type(capacity_records) is not int or capacity_records < 2 or capacity_records > 65536 or capacity_records % 2:
+            raise ValueError("v4 固定记录容量必须为 2 到 65536 之间的偶数。")
+        primary_spec = _require_text(primary_file_spec, "请提供 primary 文件映射，格式为归档路径=源文件路径。")
+        secondary_spec = _require_text(secondary_file_spec, "请提供 secondary 文件映射，格式为归档路径=源文件路径。")
+        args = ["hse2", "v4-create", "--output", _require_text(output_path, "请选择 v4 输出路径。"),
+                "--capacity-records", str(capacity_records), "--primary-file", primary_spec,
+                "--secondary-file", secondary_spec]
+        if force:
+            args.append("--force")
+        plan_secrets = (primary_password, primary_password_confirmation, secondary_password, secondary_password_confirmation)
+        argv = tuple(args)
+    elif normalized_action == "v4-open":
+        args = ["hse2", "v4-open", "--input", _require_text(input_path, "请选择 v4 容器。"),
+                "--output-dir", _require_text(output_path, "请选择新的恢复目录。")]
+        plan_secrets = (_require_text(archive_password, "请输入视图密码。"),)
+        argv = tuple(args)
+    elif normalized_action == "v4-replace":
+        args = ["hse2", "v4-replace", "--input", _require_text(input_path, "请选择 v4 容器。"),
+                "--output", _require_text(output_path, "请选择新的 v4 输出路径。"),
+                "--file", _require_text(replace_file_spec, "请提供文件映射，格式为归档路径=源文件路径。")]
+        if force:
+            args.append("--force")
+        plan_secrets = (_require_text(archive_password, "请输入需要替换的视图密码。"),)
+        argv = tuple(args)
     else:  # pragma: no cover - guarded by _require_action.
         raise ValueError(f"unsupported HSE2 GUI action: {action}")
     return HSE2GuiCommandPlan(
@@ -368,6 +414,7 @@ def build_hse2_gui_command(
         argv=argv,
         description=HSE2_GUI_ACTION_LABELS[normalized_action],
         secret_input=plan_secret,
+        secret_inputs=plan_secrets,
     )
 
 

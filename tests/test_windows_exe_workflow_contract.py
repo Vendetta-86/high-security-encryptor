@@ -40,6 +40,20 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
         self.assertIn("release_flags+=(--prerelease)", publish_job)
         self.assertIn('--notes-file "$release_notes"', publish_job)
 
+    def test_release_smokes_v4_cli_and_hse2_gui_without_publishing(self) -> None:
+        workflow = (REPO_ROOT / ".github" / "workflows" / "windows-exe.yml").read_text(encoding="utf-8")
+        build_job = workflow.split("\n  publish:\n", maxsplit=1)[0]
+
+        for command in ("v4-create", "v4-open", "v4-replace"):
+            self.assertIn(f"hse2 {command} --help", build_job)
+        self.assertIn("high-security-encryptor-hse2-gui.exe --smoke-test", build_job)
+        self.assertIn("Packaged v4-create smoke failed", build_job)
+        self.assertIn("Packaged v4-replace smoke failed", build_job)
+        self.assertIn("secondary-restored", build_job)
+        self.assertIn("--passwords-stdin", build_job)
+        self.assertIn("--password-stdin", build_job)
+        self.assertIn("peer-restored-after-update", build_job)
+
 
 if __name__ == "__main__":
     unittest.main()

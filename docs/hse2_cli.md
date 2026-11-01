@@ -147,9 +147,10 @@ Not implemented yet:
 
 ## Experimental v4 alternate views
 
-The isolated v4 candidate is available in the current Python CLI, but it has not completed release packaging or full malformed-input/resource testing. It must not be treated as a plausible-deniability or coercion-safety feature. V2/v3 behavior is unchanged. See [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md).
+The isolated v4 candidate is available in the Python CLI and the separate HSE2 experimental GUI. The GUI currently accepts one file mapping for each view per operation; the CLI supports repeated mappings. Resource, malformed-input, interruption, and official Windows Release ZIP acceptance are still being completed. V4 must not be treated as a plausible-deniability or coercion-safety feature. V2/v3 behavior is unchanged. See [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md).
 
 Create a two-view container. Passwords are entered through masked prompts and never passed as command-line arguments. Each `ARCHIVE_PATH=SOURCE_PATH` pair maps one input file into that view; repeat the option for additional files. Empty views are allowed.
+For redirected automation, `--passwords-stdin` reads exactly four lines (primary password and confirmation, then secondary password and confirmation). The `v4-open` and `v4-replace` commands accept `--password-stdin` for one line. These options reject terminal stdin; otherwise interactive passwords continue to use hidden prompts.
 
 ```text
 high-security-encryptor hse2 v4-create \
@@ -178,8 +179,8 @@ high-security-encryptor hse2 v4-replace \
   --file docs/main.txt=C:\private\updated-main.txt
 ```
 
-The new output path must differ from the input path. The v4 implementation currently has no GUI path, and its fixed-layout file helpers remain experimental.
+The new output path must differ from the input path. GUI v4 operations ask for explicit confirmation before restore or replacement; credentials stay outside the command line and logs. The fixed-layout format and GUI remain experimental.
 
 ## 2026-11-01 Current CLI Status
 
-The earlier scope list above records an older implementation snapshot. The current unified `hse2` command tree includes inspect, validation, wrapper management, explicit access destruction, keyfile operations, and experimental v4 create/open/replace. Dedicated `high-security-encryptor-hse2-*` helper commands cover archive creation/open and related workflows. The local PyInstaller CLI EXE has passed create and both-view restore smoke tests; v4 is not in the GUI or a verified full Windows Release ZIP.
+The earlier scope list above records an older implementation snapshot. The current unified `hse2` command tree includes inspect, validation, wrapper management, explicit access destruction, keyfile operations, and experimental v4 create/open/replace. Dedicated `high-security-encryptor-hse2-*` helper commands cover archive creation/open and related workflows. The local PyInstaller CLI EXE has passed create and both-view restore smoke tests; GUI create/open/replace now have automated integration coverage. The official full Windows Release ZIP has not yet passed v4 acceptance.

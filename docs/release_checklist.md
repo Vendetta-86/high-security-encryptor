@@ -193,6 +193,9 @@ For releases that include a Windows executable:
 - Run `high-security-encryptor.exe --help`.
 - Run `high-security-encryptor-gui.exe --smoke-test`.
 - Confirm `high-security-encryptor-hse2-gui.exe` exists in the extracted zip.
+- Confirm `high-security-encryptor-hse2-gui.exe --smoke-test` exits successfully without opening a window.
+- Confirm the workflow's packaged v4 smoke creates a two-view container, restores each view, replaces one view into a new copy, and byte-compares the restored files.
+- Confirm the workflow runs `high-security-encryptor.exe hse2 v4-create/open/replace --help` successfully.
 - Confirm `high-security-encryptor-hse2-create.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-open.exe` exists and supports `--help`.
 - Confirm `high-security-encryptor-hse2-header-backup.exe` exists and supports `--help`.

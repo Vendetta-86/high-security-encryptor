@@ -128,6 +128,8 @@ def build_cli_parser(
                                           help="Even fixed record capacity, 2 through 65536; each view gets half.")
             v4_create_parser.add_argument("--profile", choices=("compatible", "hardened"),
                                           default="compatible", help="Shared Argon2id profile for both slots.")
+            v4_create_parser.add_argument("--passwords-stdin", action="store_true",
+                                          help="Read four password/confirmation lines from redirected stdin (never from a terminal).")
             v4_create_parser.add_argument("--primary-file", action="append", default=[], metavar="ARCHIVE_PATH=SOURCE_PATH")
             v4_create_parser.add_argument("--secondary-file", action="append", default=[], metavar="ARCHIVE_PATH=SOURCE_PATH")
             v4_create_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
@@ -138,6 +140,8 @@ def build_cli_parser(
             )
             v4_open_parser.add_argument("--input", required=True, help="Input v4 container path.")
             v4_open_parser.add_argument("--output-dir", required=True, help="New restore directory; must not exist.")
+            v4_open_parser.add_argument("--password-stdin", action="store_true",
+                                        help="Read the view password from redirected stdin (never from a terminal).")
             v4_open_parser.set_defaults(handler=hse2_v4_restore_handler)
         if hse2_v4_replace_handler is not None:
             v4_replace_parser = hse2_subparsers.add_parser(
@@ -146,6 +150,8 @@ def build_cli_parser(
             v4_replace_parser.add_argument("--input", required=True, help="Input v4 container path.")
             v4_replace_parser.add_argument("--output", required=True, help="New output container path.")
             v4_replace_parser.add_argument("--file", action="append", required=True, metavar="ARCHIVE_PATH=SOURCE_PATH")
+            v4_replace_parser.add_argument("--password-stdin", action="store_true",
+                                           help="Read the view password from redirected stdin (never from a terminal).")
             v4_replace_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
             v4_replace_parser.set_defaults(handler=hse2_v4_replace_handler)
         if hse2_wrapper_add_handler is not None or hse2_wrapper_manage_handler is not None:

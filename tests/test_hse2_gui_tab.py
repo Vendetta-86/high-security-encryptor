@@ -222,6 +222,16 @@ class HSE2GuiTabTests(unittest.TestCase):
             }),
         )
 
+    def test_v4_actions_expose_only_their_required_controls(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("v4-create"),
+            frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "capacity_records",
+                       "primary_password", "primary_password_confirmation", "secondary_password",
+                       "secondary_password_confirmation", "force", "v4_warning"}),
+        )
+        self.assertEqual(visible_hse2_gui_field_keys("v4-open"),
+                         frozenset({"input_path", "output_path", "archive_password", "v4_warning"}))
+
     def test_archive_validate_shows_input_and_unlock_controls(self) -> None:
         self.assertEqual(
             visible_hse2_gui_field_keys("archive-validate"),

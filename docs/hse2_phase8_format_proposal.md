@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-**Status: self-use candidate; isolated codecs, fixed-layout file workflows, and experimental Python CLI commands exist. The local PyInstaller CLI EXE has passed create and both-view restore smoke tests; GUI and full Release ZIP integration remain incomplete.** This proposal explores an explicitly limited alternate-view feature in a new container version. It does not authorize changes to HSE2 v2/v3 or any claim of plausible deniability. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
+**Status: experimental self-use candidate; isolated codecs, fixed-layout file workflows, Python CLI commands, and GUI create/open/replace actions exist.** The local PyInstaller CLI EXE passed create and both-view restore smoke tests. Local automated coverage includes bounded header mutations, invalid container lengths, tampered records, cleanup, and failed atomic publication. Broader resource/fuzz coverage and official full Windows Release ZIP acceptance remain open. This candidate does not change HSE2 v2/v3 and makes no plausible-deniability or coercion-safety claim. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
 
 The current Phase 8 design review correctly rejects a visible `duress` wrapper, a second manifest/payload family, and reuse of v2/v3 for a deniability claim. This draft preserves those findings and turns the next review questions into explicit gates.
 
@@ -88,19 +88,19 @@ Generated with the installed PyCryptodome 4.2.0; this is a regression vector for
 
 The file helper copies to a same-directory temporary output and patches only the selected view; a round-trip test confirms that input and peer-view bytes remain unchanged. This has not been interruption-tested at each write boundary. The repository's `atomic_output_path` uses `os.replace`, which gives atomic replacement semantics where the filesystem supports them but does not promise power-loss durability unless `HSE_FSYNC=1`. Updates always publish to a different path and preserve the input.
 
-### Local review questions that remain before release integration
+### Local validation boundaries before stable release
 
-1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model? The baseline is always exactly two valid views; an empty secondary view is permitted, and the feature never claims to hide that two-view support exists or to conceal content after credential disclosure.
-2. Are the 1 MiB record, 65,536-record, 64 GiB record area, two 64 MiB descriptor regions, and 63 MiB private manifest ceiling acceptable on supported Windows systems, including full-file atomic rewrite costs?
-3. **Resolved locally for isolated codecs:** HKDF-SHA-256 and AES-256-GCM primitive behavior and the byte-exact vector pass on PyCryptodome 3.20.0 (declared minimum) and 4.2.0. Record-key wrapping, fixed-size record parsing, dual credential slots, descriptor encryption, and public-header size checks have local round-trip/tamper tests. These do not validate whole-file I/O, update atomicity, or alternate-view indistinguishability.
-4. **Partially tested locally:** the file helper preserves the input and publishes through the repository's atomic replacement helper. Process interruption at every write boundary, power-loss durability, and all supported filesystem behavior remain untested.
-5. What property tests and fuzz limits demonstrate fail-closed behavior? Which claims remain assumptions rather than tests?
+1. The format publicly reveals its v4 marker and two credential slots. It does not claim that the presence or existence of two-view support is hidden, and it does not conceal content after credential disclosure.
+2. The fixed cap is 65,536 records (up to 64 GiB of record slots), two 64 MiB descriptors, and a 63 MiB private manifest ceiling. Large-file throughput and full-copy update costs remain environment dependent; do not allocate maximum-size containers without a disk-capacity check.
+3. HKDF-SHA-256 and AES-256-GCM vectors, codecs, dual credential slots, descriptor authentication, and public-header bounds pass local tests on PyCryptodome 3.20.0 and 4.2.0. CLI and GUI workflows now have local integration coverage.
+4. Atomic source/target behavior is tested for input-reader failure, tag tampering, and simulated publish failure. This does not establish power-loss durability or behavior on every filesystem.
+5. Deterministic malformed-header and file-size cases now fail closed. Broader property/fuzz coverage and resource ceilings under hostile inputs are still open.
 
-**Decision:** this remains an experimental self-use candidate, not an approved cryptographic construction. Primitive compatibility, byte layout, AAD, record partitioning, file workflows, and Python CLI paths have local tests. Questions 1, 2, and 5 remain open; interruption and filesystem coverage in question 4 are partial. Before stable release packaging, the project must validate resource use, add bounded malformed-input/property tests, and evaluate the narrowly scoped claim. The current implementation does not establish container safety or plausible deniability.
+**Decision:** this remains an experimental self-use candidate, not a claim of plausible deniability. Local testing is the project's release gate; third-party certification and independent review are not roadmap requirements. Remaining work is broader resource/property/fuzz coverage and official Windows Release ZIP acceptance. The current implementation does not establish real-world deniability or coercion safety.
 
-## Local review package
+## Local self-review record
 
-Before implementation, the project owner must review the exact versioned wire proposal, reference parser/writer, threat model, test corpus, and list of excluded claims. The recorded self-review must cover:
+The local review record covers the versioned wire proposal, parser/writer, threat model, test corpus, and excluded claims. It should cover:
 
 - cryptographic construction and key hierarchy, domain separation, nonce generation, AEAD limits, and authentication coverage;
 - distinguishability from public fields, ciphertext length, malformed inputs, errors, timing, backups, and repeated snapshots within the stated scope;
@@ -111,7 +111,7 @@ The review result must identify the reviewed commit/digest, findings, severity, 
 
 ## Implementation gates
 
-No production code until the local review records and resolves blocking findings. Implementation must use a new format version and separate modules; v2/v3 readers must continue to reject it as unsupported. Required tests include positive and negative credential paths, tampering, truncation, field mutation, generic failure behavior, fuzzing, memory/time limits, interrupted updates, backup/restore, downgrade attempts, and a separately written local reference implementation. These tests can find defects but cannot establish real-world deniability outside the stated model.
+The candidate uses a new format version and separate modules; v2/v3 readers continue to reject it. Remaining local validation covers positive and negative credential paths, tampering, truncation, field mutation, generic failure behavior, bounded fuzz/property inputs, memory/time limits, interrupted updates, and downgrade attempts. These tests can find defects but cannot establish real-world deniability outside the stated model.
 
 ## Source basis and limitations
 

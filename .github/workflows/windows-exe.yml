@@ -66,6 +66,9 @@ jobs:
           high-security-encryptor-hse2-inspect --help
           high-security-encryptor-hse2-wrapper --help
           high-security-encryptor-hse2-access --help
+          high-security-encryptor hse2 v4-create --help
+          high-security-encryptor hse2 v4-open --help
+          high-security-encryptor hse2 v4-replace --help
 
       - name: Build CLI executable
         run: >
@@ -141,6 +144,41 @@ jobs:
           dist\hse-windows-x64\high-security-encryptor.exe --help
           dist\hse-windows-x64\high-security-encryptor.exe validate-config --kind encrypt --config examples\hardened_encrypt.json --report
           dist\hse-windows-x64\high-security-encryptor-gui.exe --smoke-test
+          dist\hse-windows-x64\high-security-encryptor-hse2-gui.exe --smoke-test
+          $exe = "dist\hse-windows-x64\high-security-encryptor.exe"
+          $smokeRoot = Join-Path $env:RUNNER_TEMP ("hse2-v4-smoke-" + [guid]::NewGuid())
+          New-Item -ItemType Directory -Path $smokeRoot | Out-Null
+          $primary = Join-Path $smokeRoot "primary.txt"
+          $secondary = Join-Path $smokeRoot "secondary.txt"
+          $replacement = Join-Path $smokeRoot "replacement.txt"
+          Set-Content -LiteralPath $primary -Value "primary package smoke" -NoNewline
+          Set-Content -LiteralPath $secondary -Value "secondary package smoke" -NoNewline
+          Set-Content -LiteralPath $replacement -Value "updated package smoke" -NoNewline
+          $primaryPassword = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)) # pragma: allowlist secret
+          $secondaryPassword = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)) # pragma: allowlist secret
+          @($primaryPassword, $primaryPassword, $secondaryPassword, $secondaryPassword) |
+            & $exe hse2 v4-create --passwords-stdin --output (Join-Path $smokeRoot "candidate.hse2") --capacity-records 2 --primary-file "primary.txt=$primary" --secondary-file "secondary.txt=$secondary"
+          if ($LASTEXITCODE -ne 0) { throw "Packaged v4-create smoke failed" }
+          $container = Join-Path $smokeRoot "candidate.hse2"
+          $primaryOutput = Join-Path $smokeRoot "primary-restored"
+          $secondaryOutput = Join-Path $smokeRoot "secondary-restored"
+          $primaryPassword | & $exe hse2 v4-open --password-stdin --input $container --output-dir $primaryOutput
+          if ($LASTEXITCODE -ne 0) { throw "Packaged v4 primary-open smoke failed" }
+          $secondaryPassword | & $exe hse2 v4-open --password-stdin --input $container --output-dir $secondaryOutput
+          if ($LASTEXITCODE -ne 0) { throw "Packaged v4 secondary-open smoke failed" }
+          if ((Get-FileHash (Join-Path $primaryOutput "primary.txt")).Hash -ne (Get-FileHash $primary).Hash) { throw "Packaged v4 primary bytes differ" }
+          if ((Get-FileHash (Join-Path $secondaryOutput "secondary.txt")).Hash -ne (Get-FileHash $secondary).Hash) { throw "Packaged v4 secondary bytes differ" }
+          $updatedContainer = Join-Path $smokeRoot "updated.hse2"
+          $primaryPassword | & $exe hse2 v4-replace --password-stdin --input $container --output $updatedContainer --file "primary.txt=$replacement"
+          if ($LASTEXITCODE -ne 0) { throw "Packaged v4-replace smoke failed" }
+          $updatedOutput = Join-Path $smokeRoot "updated-restored"
+          $primaryPassword | & $exe hse2 v4-open --password-stdin --input $updatedContainer --output-dir $updatedOutput
+          if ($LASTEXITCODE -ne 0) { throw "Packaged v4 updated-open smoke failed" }
+          if ((Get-FileHash (Join-Path $updatedOutput "primary.txt")).Hash -ne (Get-FileHash $replacement).Hash) { throw "Packaged v4 replacement bytes differ" }
+          $peerOutput = Join-Path $smokeRoot "peer-restored-after-update"
+          $secondaryPassword | & $exe hse2 v4-open --password-stdin --input $updatedContainer --output-dir $peerOutput
+          if ($LASTEXITCODE -ne 0) { throw "Packaged v4 peer-open smoke failed" }
+          if ((Get-FileHash (Join-Path $peerOutput "secondary.txt")).Hash -ne (Get-FileHash $secondary).Hash) { throw "Packaged v4 peer view changed" }
           $expected = @(
             "high-security-encryptor-hse2-gui.exe",
             "high-security-encryptor-hse2-create.exe",

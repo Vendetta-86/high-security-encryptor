@@ -58,6 +58,33 @@ class HSE2GuiActionTests(unittest.TestCase):
         self.assertNotIn(secret, " ".join(plan.argv))
         self.assertNotIn(secret, repr(plan))
 
+    def test_v4_gui_creation_keeps_both_passwords_out_of_argv_and_repr(self) -> None:
+        secret0, secret1 = "primary-secret", "secondary-secret"
+        plan = build_hse2_gui_command(
+            action="v4-create", output_path="archive.v4",
+            primary_file_spec="a.txt=C:/source/a.txt", secondary_file_spec="b.txt=C:/source/b.txt",
+            primary_password=secret0, primary_password_confirmation=secret0,
+            secondary_password=secret1, secondary_password_confirmation=secret1,
+        )
+        self.assertEqual(plan.secret_inputs, (secret0, secret0, secret1, secret1))
+        self.assertNotIn(secret0, repr(plan) + " ".join(plan.argv))
+        self.assertNotIn(secret1, repr(plan) + " ".join(plan.argv))
+        self.assertEqual(plan.argv[0:2], ("hse2", "v4-create"))
+
+    def test_v4_gui_creation_requires_distinct_passwords_and_bounded_capacity(self) -> None:
+        kwargs = dict(
+            action="v4-create", output_path="archive.v4",
+            primary_file_spec="a.txt=a.txt", secondary_file_spec="b.txt=b.txt",
+            primary_password="same", primary_password_confirmation="same",
+            secondary_password="same", secondary_password_confirmation="same",
+        )
+        with self.assertRaisesRegex(ValueError, "必须不同"):
+            build_hse2_gui_command(**kwargs)
+        kwargs["secondary_password"] = kwargs["secondary_password_confirmation"] = "different"
+        kwargs["capacity_records"] = 3
+        with self.assertRaisesRegex(ValueError, "偶数"):
+            build_hse2_gui_command(**kwargs)
+
     def test_typed_archive_password_requires_matching_confirmation(self) -> None:
         with self.assertRaisesRegex(ValueError, "两次输入"):
             build_hse2_gui_command(

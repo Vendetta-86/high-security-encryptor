@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from contextlib import redirect_stderr, redirect_stdout
+import argparse
 import io
 import json
 import shlex
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, ttk
 from typing import Any, Callable
+from unittest.mock import patch
 
 from .gui import GuiCommandResult, invoke_cli_command
 from .hse2_access_cli import main as hse2_access_main
@@ -16,7 +18,7 @@ from .hse2_create_cli import main as hse2_create_main
 from .hse2_open_cli import main as hse2_open_main
 from .hse2_archive_validate_cli import main as hse2_archive_validate_main
 from .hse2_gui_actions import HSE2GuiCommandPlan
-from .hse2_gui_tab import build_hse2_experimental_tab
+from .hse2_gui_tab import build_hse2_experimental_tab, hse2_gui_action_display_values
 from .hse2_header_backup_cli import main as hse2_header_backup_main
 from .hse2_inspect_cli import main as hse2_inspect_main
 from .hse2_quickstart_gui_tab import build_hse2_quickstart_tab
@@ -112,6 +114,8 @@ class HSE2ExperimentalApp(ttk.Frame):
         try:
             if plan.action == "archive-open" and not self._confirm_archive_open(plan):
                 return
+            if plan.action in {"v4-create", "v4-open", "v4-replace"} and not self._confirm_v4_action(plan):
+                return
             result = _invoke_hse2_gui_command(plan)
             if result.stdout:
                 self._append_log(result.stdout)
@@ -183,6 +187,36 @@ class HSE2ExperimentalApp(ttk.Frame):
             return False
         return True
 
+    def _confirm_v4_action(self, plan: HSE2GuiCommandPlan) -> bool:
+        argv = list(plan.argv)
+        input_path = _option_value(argv, "--input")
+        output_path = _option_value(argv, "--output-dir") or _option_value(argv, "--output")
+        if plan.action == "v4-create":
+            output_path = output_path or _option_value(argv, "--output")
+            records = _option_value(argv, "--capacity-records")
+            if not output_path or not records:
+                messagebox.showerror("无法确认 v4 操作", "创建操作缺少输出路径或固定记录容量。")
+                return False
+            try:
+                size_mib = 128 + int(records)
+            except ValueError:
+                messagebox.showerror("无法确认 v4 操作", "固定记录容量无效。")
+                return False
+            return messagebox.askyesno(
+                "确认创建实验性 HSE2 v4",
+                f"将创建新的双视图 v4 容器。\n\n输出：{output_path}\n固定容量：{records} 条记录（约 {size_mib} MiB）\n\n"
+                "此实验格式不保证可否认性。确认后才会执行。",
+            )
+        if not input_path or not output_path:
+            messagebox.showerror("无法确认 v4 操作", "操作缺少输入容器或输出路径。")
+            return False
+        description = "恢复密码对应的一个视图到新目录" if plan.action == "v4-open" else "使用密码对应的视图创建一个新容器副本"
+        return messagebox.askyesno(
+            "确认实验性 HSE2 v4 操作",
+            f"{description}。\n\n输入：{input_path}\n输出：{output_path}\n\n"
+            "此实验格式不保证可否认性。确认后才会执行。",
+        )
+
     def _append_log(self, text: str) -> None:
         self.log.insert(tk.END, text)
         self.log.see(tk.END)
@@ -193,6 +227,19 @@ def _invoke_hse2_gui_command(command: list[str] | HSE2GuiCommandPlan) -> GuiComm
 
     plan = command if isinstance(command, HSE2GuiCommandPlan) else None
     argv = list(plan.argv) if plan is not None else command
+    if argv and argv[0] == "hse2" and plan is not None and plan.secret_inputs:
+        from . import cli as cli_module
+
+        stdout_buffer = io.StringIO()
+        stderr_buffer = io.StringIO()
+        secret_iterator = iter(plan.secret_inputs)
+        with (
+            redirect_stdout(stdout_buffer),
+            redirect_stderr(stderr_buffer),
+            patch("high_security_encryptor.cli.getpass.getpass", side_effect=lambda _prompt="": next(secret_iterator)),
+        ):
+            exit_code = cli_module.main(argv)
+        return GuiCommandResult(exit_code=exit_code, stdout=stdout_buffer.getvalue(), stderr=stderr_buffer.getvalue())
     if argv and argv[0] in HSE2_STANDALONE_HELPER_COMMANDS:
         return _invoke_standalone_helper(
             HSE2_STANDALONE_HELPER_COMMANDS[argv[0]], argv[1:],
@@ -422,12 +469,23 @@ def _quote_argv(argv: list[str]) -> str:
     return " ".join(shlex.quote(part) for part in argv)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     """Launch the standalone HSE2 experimental GUI."""
+
+    parser = argparse.ArgumentParser(prog="high-security-encryptor-hse2-gui")
+    parser.add_argument("--smoke-test", action="store_true", help="Verify GUI modules and v4 actions without opening a window.")
+    args = parser.parse_args(argv)
+    if args.smoke_test:
+        required = ("实验性 HSE2 v4 双视图创建", "实验性 HSE2 v4 单视图恢复", "实验性 HSE2 v4 单视图替换")
+        labels = hse2_gui_action_display_values()
+        if any(label not in labels for label in required):
+            raise RuntimeError("HSE2 v4 GUI actions are unavailable")
+        return 0
 
     root = tk.Tk()
     HSE2ExperimentalApp(root)
     root.mainloop()
+    return 0
 
 
 if __name__ == "__main__":

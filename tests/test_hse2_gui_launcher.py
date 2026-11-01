@@ -27,6 +27,11 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertTrue(callable(HSE2QuickstartTab))
         self.assertTrue(callable(build_hse2_quickstart_tab))
 
+    def test_launcher_smoke_test_verifies_v4_actions_without_creating_a_window(self) -> None:
+        with patch("high_security_encryptor.hse2_gui_launcher.tk.Tk") as create_root:
+            self.assertEqual(main(["--smoke-test"]), 0)
+            create_root.assert_not_called()
+
     def test_launcher_wires_quickstart_tab_to_sequential_runner(self) -> None:
         init_source = inspect.getsource(HSE2ExperimentalApp.__init__)
         runner_source = inspect.getsource(HSE2ExperimentalApp._execute_quickstart_steps)
@@ -401,6 +406,55 @@ class HSE2GuiLauncherTests(unittest.TestCase):
             restored_files = list(output_dir.rglob("payload.txt"))
             self.assertEqual(len(restored_files), 1)
             self.assertEqual(restored_files[0].read_bytes(), expected)
+
+    def test_v4_gui_create_and_open_keep_passwords_out_of_cli_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            primary = base / "primary.bin"
+            secondary = base / "secondary.bin"
+            primary_bytes = b"primary view GUI smoke"
+            secondary_bytes = b"secondary view GUI smoke"
+            primary.write_bytes(primary_bytes)
+            secondary.write_bytes(secondary_bytes)
+            container = base / "candidate.v4"
+            primary_password, secondary_password = "p-gui-test-secret", "s-gui-test-secret"
+            create_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v4-create", output_path=str(container), capacity_records=2,
+                primary_file_spec=f"primary.bin={primary}", secondary_file_spec=f"secondary.bin={secondary}",
+                primary_password=primary_password, primary_password_confirmation=primary_password,
+                secondary_password=secondary_password, secondary_password_confirmation=secondary_password,
+            ))
+            create_result = _invoke_hse2_gui_command(create_plan)
+            self.assertEqual(create_result.exit_code, 0, create_result.stderr)
+            self.assertNotIn(primary_password, create_result.stdout + create_result.stderr)
+            self.assertNotIn(secondary_password, create_result.stdout + create_result.stderr)
+            restored = base / "restored-primary"
+            open_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v4-open", input_path=str(container), output_path=str(restored),
+                archive_password=primary_password,
+            ))
+            open_result = _invoke_hse2_gui_command(open_plan)
+            self.assertEqual(open_result.exit_code, 0, open_result.stderr)
+            self.assertEqual((restored / "primary.bin").read_bytes(), primary_bytes)
+            replacement = base / "replacement.bin"
+            replacement_bytes = b"replacement view from GUI smoke"
+            replacement.write_bytes(replacement_bytes)
+            updated_container = base / "updated.v4"
+            replace_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v4-replace", input_path=str(container), output_path=str(updated_container),
+                replace_file_spec=f"primary.bin={replacement}", archive_password=primary_password,
+            ))
+            replace_result = _invoke_hse2_gui_command(replace_plan)
+            self.assertEqual(replace_result.exit_code, 0, replace_result.stderr)
+            restored_replacement = base / "restored-replacement"
+            verify_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v4-open", input_path=str(updated_container), output_path=str(restored_replacement),
+                archive_password=primary_password,
+            ))
+            verify_result = _invoke_hse2_gui_command(verify_plan)
+            self.assertEqual(verify_result.exit_code, 0, verify_result.stderr)
+            self.assertEqual((restored_replacement / "primary.bin").read_bytes(), replacement_bytes)
+            self.assertTrue(container.exists())
 
     def test_result_summary_ignores_non_json_stdout(self) -> None:
         self.assertEqual(_build_hse2_result_summary("not json"), "")

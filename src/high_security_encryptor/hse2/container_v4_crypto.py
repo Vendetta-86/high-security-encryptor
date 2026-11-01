@@ -1,7 +1,8 @@
 """Cryptographic building blocks for the experimental HSE2 v4 prototype.
 
-This module is not wired into normal HSE2 create/open workflows. It implements
-only the versioned HKDF and AES-GCM operations from the local v4 design draft.
+This module is isolated from normal HSE2 v2/v3 create/open workflows. It
+implements the versioned HKDF and AES-GCM operations used by the experimental
+v4 two-view CLI and GUI candidate.
 """
 
 from __future__ import annotations

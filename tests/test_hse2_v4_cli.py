@@ -47,6 +47,41 @@ class HSE2V4CliTests(unittest.TestCase):
         self.assertEqual(kwargs["view_files"][0][0][0], "main.txt")
         self.assertEqual(kwargs["view_files"][1][0][0], "notes.txt")
 
+    def test_v4_create_can_read_exact_password_lines_from_redirected_stdin(self) -> None:
+        passwords = ["primary stdin test", "primary stdin test", "secondary stdin test", "secondary stdin test"]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "candidate.hse2"
+            with patch("sys.stdin", io.StringIO("\n".join(passwords) + "\n")), \
+                    patch("high_security_encryptor.cli.create_v4_archive", return_value=output) as create, \
+                    contextlib.redirect_stdout(io.StringIO()):
+                result = main([
+                    "hse2", "v4-create", "--passwords-stdin", "--output", str(output),
+                    "--capacity-records", "2", "--primary-file", "a.txt=C:/a.txt",
+                    "--secondary-file", "b.txt=C:/b.txt",
+                ])
+        self.assertEqual(result, 0)
+        self.assertEqual(create.call_args.kwargs["view_passwords"],
+                         ("primary stdin test", "secondary stdin test"))
+
+    def test_v4_stdin_mode_rejects_terminal_and_extra_password_lines(self) -> None:
+        terminal = io.StringIO("one\ntwo\nthree\nfour\n")
+        terminal.isatty = lambda: True  # type: ignore[method-assign]
+        with patch("sys.stdin", terminal), contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            result = main([
+                "hse2", "v4-create", "--passwords-stdin", "--output", "candidate.hse2",
+                "--capacity-records", "2", "--primary-file", "a=a", "--secondary-file", "b=b",
+            ])
+        self.assertEqual(result, 3)
+
+        with patch("sys.stdin", io.StringIO("one\ntwo\nthree\nfour\nextra\n")), \
+                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            result = main([
+                "hse2", "v4-create", "--passwords-stdin", "--output", "candidate.hse2",
+                "--capacity-records", "2", "--primary-file", "a=a", "--secondary-file", "b=b",
+            ])
+        self.assertEqual(result, 3)
+
 
 if __name__ == "__main__":
     unittest.main()
