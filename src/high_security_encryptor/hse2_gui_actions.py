@@ -32,6 +32,11 @@ HSE2_GUI_ACTIONS = (
     "v4-create",
     "v4-open",
     "v4-replace",
+    "v5-create",
+    "v5-open",
+    "v5-replace",
+    "v5-compact",
+    "v4-to-v5",
 )
 
 HSE2_GUI_ACTION_LABELS = {
@@ -54,6 +59,11 @@ HSE2_GUI_ACTION_LABELS = {
     "v4-create": "实验性 HSE2 v4 双视图创建",
     "v4-open": "实验性 HSE2 v4 单视图恢复",
     "v4-replace": "实验性 HSE2 v4 单视图替换",
+    "v5-create": "实验性 HSE2 v5 双视图创建",
+    "v5-open": "实验性 HSE2 v5 单视图恢复",
+    "v5-replace": "实验性 HSE2 v5 单视图替换",
+    "v5-compact": "实验性 HSE2 v5 双密码压缩",
+    "v4-to-v5": "实验性 HSE2 v4 导出到 v5",
 }
 
 
@@ -406,6 +416,50 @@ def build_hse2_gui_command(
         if force:
             args.append("--force")
         plan_secrets = (_require_text(archive_password, "请输入需要替换的视图密码。"),)
+        argv = tuple(args)
+    elif normalized_action == "v5-create":
+        if (not primary_password or primary_password != primary_password_confirmation
+                or not secondary_password or secondary_password != secondary_password_confirmation):
+            raise ValueError("请分别填写并确认两个 v5 视图密码。")
+        if primary_password == secondary_password:
+            raise ValueError("两个 v5 视图密码必须不同。")
+        primary_spec = _require_text(primary_file_spec, "请提供 primary 文件映射，格式为归档路径=源文件路径。")
+        secondary_spec = _require_text(secondary_file_spec, "请提供 secondary 文件映射，格式为归档路径=源文件路径。")
+        args = ["hse2", "v5-create", "--output", _require_text(output_path, "请选择 v5 输出路径。"),
+                "--primary-file", primary_spec, "--secondary-file", secondary_spec]
+        if force:
+            args.append("--force")
+        plan_secrets = (primary_password, primary_password_confirmation, secondary_password, secondary_password_confirmation)
+        argv = tuple(args)
+    elif normalized_action == "v5-open":
+        args = ["hse2", "v5-open", "--input", _require_text(input_path, "请选择 v5 容器。"),
+                "--output-dir", _require_text(output_path, "请选择新的恢复目录。")]
+        plan_secrets = (_require_text(archive_password, "请输入视图密码。"),)
+        argv = tuple(args)
+    elif normalized_action == "v5-replace":
+        args = ["hse2", "v5-replace", "--input", _require_text(input_path, "请选择 v5 容器。"),
+                "--output", _require_text(output_path, "请选择新的 v5 输出路径。")]
+        if replace_file_spec.strip():
+            args.extend(["--file", replace_file_spec.strip()])
+        if force:
+            args.append("--force")
+        plan_secrets = (_require_text(archive_password, "请输入需要替换的视图密码。"),)
+        argv = tuple(args)
+    elif normalized_action in {"v5-compact", "v4-to-v5"}:
+        command = normalized_action
+        input_label = "v5" if command == "v5-compact" else "v4"
+        args = [
+            "hse2", command, "--input", _require_text(input_path, f"请选择 {input_label} 容器。"),
+            "--output", _require_text(output_path, "请选择新的 v5 输出路径。"),
+        ]
+        if force:
+            args.append("--force")
+        plan_secrets = (
+            _require_text(primary_password, "请输入 primary 视图密码。"),
+            _require_text(secondary_password, "请输入 secondary 视图密码。"),
+        )
+        if plan_secrets[0] == plan_secrets[1]:
+            raise ValueError("两个视图密码必须不同。")
         argv = tuple(args)
     else:  # pragma: no cover - guarded by _require_action.
         raise ValueError(f"unsupported HSE2 GUI action: {action}")

@@ -75,6 +75,11 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "v4-create": frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "capacity_records", "v4_capacity_summary", "primary_password", "primary_password_confirmation", "secondary_password", "secondary_password_confirmation", "force", "v4_warning"}),
     "v4-open": frozenset({"input_path", "output_path", "archive_password", "v4_warning"}),
     "v4-replace": frozenset({"input_path", "output_path", "replace_file_spec", "archive_password", "force", "v4_warning"}),
+    "v5-create": frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "primary_password", "primary_password_confirmation", "secondary_password", "secondary_password_confirmation", "force", "v5_warning"}),
+    "v5-open": frozenset({"input_path", "output_path", "archive_password", "v5_warning"}),
+    "v5-replace": frozenset({"input_path", "output_path", "replace_file_spec", "archive_password", "force", "v5_warning"}),
+    "v5-compact": frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),
+    "v4-to-v5": frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),
 }
 
 _OPTION_FIELD_ORDER = (
@@ -585,6 +590,17 @@ class HSE2ExperimentalTab(ttk.Frame):
         )
         self._field_widgets["v4_warning"] = (v4_warning,)
         v4_warning.grid(row=38, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        v5_warning = ttk.Label(
+            self,
+            text=(
+                "v5 是实验性、公开披露双视图的紧凑格式，不承诺可否认性。创建/替换/压缩/迁移均写入新输出文件；"
+                "压缩和 v4→v5 导出必须提供两个不同视图密码。GUI 每个视图每次只接受一个文件映射；需要多个文件请用 CLI。"
+            ),
+            wraplength=780,
+            justify=tk.LEFT,
+        )
+        self._field_widgets["v5_warning"] = (v5_warning,)
+        v5_warning.grid(row=40, column=0, columnspan=3, sticky="ew", pady=(4, 0))
 
         self._options_frame = ttk.Frame(self)
         self._options_frame.grid(row=28, column=0, columnspan=3, sticky="w", pady=(8, 0))

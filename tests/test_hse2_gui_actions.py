@@ -85,6 +85,50 @@ class HSE2GuiActionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "偶数"):
             build_hse2_gui_command(**kwargs)
 
+    def test_v5_gui_actions_keep_passwords_out_of_argv(self) -> None:
+        create = build_hse2_gui_command(
+            action="v5-create", output_path="new.hse2", primary_file_spec="a.txt=a.txt",
+            secondary_file_spec="b.txt=b.txt", primary_password="GUI-PASSWORD-ALPHA", primary_password_confirmation="GUI-PASSWORD-ALPHA",
+            secondary_password="GUI-PASSWORD-BETA", secondary_password_confirmation="GUI-PASSWORD-BETA",
+        )
+        self.assertEqual(create.argv[:2], ("hse2", "v5-create"))
+        self.assertEqual(create.secret_inputs, ("GUI-PASSWORD-ALPHA", "GUI-PASSWORD-ALPHA", "GUI-PASSWORD-BETA", "GUI-PASSWORD-BETA"))
+        self.assertNotIn("GUI-PASSWORD-ALPHA", repr(create) + " ".join(create.argv))
+        self.assertNotIn("GUI-PASSWORD-BETA", repr(create) + " ".join(create.argv))
+
+        opened = build_hse2_gui_command(
+            action="v5-open", input_path="archive.hse2", output_path="restored", archive_password="view-pass",
+        )
+        replaced = build_hse2_gui_command(
+            action="v5-replace", input_path="archive.hse2", output_path="updated.hse2",
+            archive_password="view-pass",
+        )
+        compacted = build_hse2_gui_command(
+            action="v5-compact", input_path="archive.hse2", output_path="compact.hse2",
+            primary_password="first", secondary_password="second",
+        )
+        exported = build_hse2_gui_command(
+            action="v4-to-v5", input_path="old-v4.hse2", output_path="new-v5.hse2",
+            primary_password="first", secondary_password="second",
+        )
+        self.assertEqual(opened.secret_inputs, ("view-pass",))
+        self.assertEqual(replaced.secret_inputs, ("view-pass",))
+        self.assertEqual(compacted.secret_inputs, ("first", "second"))
+        self.assertEqual(exported.secret_inputs, ("first", "second"))
+
+    def test_v5_creation_requires_distinct_confirmed_view_passwords(self) -> None:
+        kwargs = dict(
+            action="v5-create", output_path="new.hse2", primary_file_spec="a=a", secondary_file_spec="b=b",
+            primary_password="first", primary_password_confirmation="first",
+            secondary_password="first", secondary_password_confirmation="first",
+        )
+        with self.assertRaisesRegex(ValueError, "必须不同"):
+            build_hse2_gui_command(**kwargs)
+        kwargs["secondary_password"] = kwargs["secondary_password_confirmation"] = "second"
+        kwargs["primary_password_confirmation"] = "mismatch"
+        with self.assertRaisesRegex(ValueError, "确认"):
+            build_hse2_gui_command(**kwargs)
+
     def test_typed_archive_password_requires_matching_confirmation(self) -> None:
         with self.assertRaisesRegex(ValueError, "两次输入"):
             build_hse2_gui_command(

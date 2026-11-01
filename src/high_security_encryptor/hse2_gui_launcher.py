@@ -116,6 +116,8 @@ class HSE2ExperimentalApp(ttk.Frame):
                 return
             if plan.action in {"v4-create", "v4-open", "v4-replace"} and not self._confirm_v4_action(plan):
                 return
+            if plan.action in {"v5-create", "v5-open", "v5-replace", "v5-compact", "v4-to-v5"} and not self._confirm_v5_action(plan):
+                return
             result = _invoke_hse2_gui_command(plan)
             if result.stdout:
                 self._append_log(result.stdout)
@@ -215,6 +217,36 @@ class HSE2ExperimentalApp(ttk.Frame):
             "确认实验性 HSE2 v4 操作",
             f"{description}。\n\n输入：{input_path}\n输出：{output_path}\n\n"
             "此实验格式不保证可否认性。确认后才会执行。",
+        )
+
+    def _confirm_v5_action(self, plan: HSE2GuiCommandPlan) -> bool:
+        argv = list(plan.argv)
+        input_path = _option_value(argv, "--input")
+        output_path = _option_value(argv, "--output-dir") or _option_value(argv, "--output")
+        action_details = {
+            "v5-create": ("创建一个公开披露双视图的紧凑 v5 容器。", "创建实验性 HSE2 v5"),
+            "v5-open": ("恢复密码对应的一个 v5 视图到新目录。", "恢复实验性 HSE2 v5 视图"),
+            "v5-replace": ("将密码对应视图写入一个新容器副本；原容器和另一视图会保留。", "替换实验性 HSE2 v5 视图"),
+            "v5-compact": ("使用两个视图密码重建新容器，以回收历史记录占用空间。", "压缩实验性 HSE2 v5"),
+            "v4-to-v5": ("使用两个视图密码将 v4 两个视图显式导出到一个新的 v5 容器。", "导出 HSE2 v4 到 v5"),
+        }
+        description, title = action_details[plan.action]
+        if plan.action == "v5-create":
+            if not output_path:
+                messagebox.showerror("无法确认 v5 操作", "创建操作缺少输出路径。")
+                return False
+        elif not input_path or not output_path:
+            messagebox.showerror("无法确认 v5 操作", "操作缺少输入容器或输出路径。")
+            return False
+        elif plan.action == "v5-replace" and "--file" not in argv:
+            description += " 未指定文件映射，目标视图将被清空。"
+        paths = f"\n\n输出：{output_path}"
+        if input_path:
+            paths = f"\n\n输入：{input_path}" + paths
+        return messagebox.askyesno(
+            title,
+            f"{description}{paths}\n\n"
+            "v5 是实验格式，公开披露双视图，不承诺可否认性。确认后才会执行。",
         )
 
     def _append_log(self, text: str) -> None:

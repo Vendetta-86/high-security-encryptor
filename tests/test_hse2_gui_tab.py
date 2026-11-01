@@ -234,6 +234,22 @@ class HSE2GuiTabTests(unittest.TestCase):
         self.assertEqual(visible_hse2_gui_field_keys("v4-open"),
                          frozenset({"input_path", "output_path", "archive_password", "v4_warning"}))
 
+    def test_v5_actions_expose_required_fields_and_disclosure_warning(self) -> None:
+        self.assertEqual(
+            visible_hse2_gui_field_keys("v5-create"),
+            frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "primary_password",
+                       "primary_password_confirmation", "secondary_password", "secondary_password_confirmation",
+                       "force", "v5_warning"}),
+        )
+        self.assertEqual(
+            visible_hse2_gui_field_keys("v5-compact"),
+            frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),
+        )
+        self.assertEqual(
+            visible_hse2_gui_field_keys("v4-to-v5"),
+            frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),
+        )
+
     def test_v4_capacity_estimate_matches_fixed_container_layout(self) -> None:
         self.assertEqual(estimate_v4_container_size(2), 136_315_050)
         self.assertIn("136,315,050 字节（130.0 MiB）", format_v4_capacity_summary(2))

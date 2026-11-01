@@ -456,6 +456,81 @@ class HSE2GuiLauncherTests(unittest.TestCase):
             self.assertEqual((restored_replacement / "primary.bin").read_bytes(), replacement_bytes)
             self.assertTrue(container.exists())
 
+    def test_v5_gui_create_open_replace_and_compact_keep_passwords_private(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            primary = base / "primary.txt"
+            secondary = base / "secondary.txt"
+            replacement = base / "replacement.txt"
+            primary.write_bytes(b"GUI primary original")
+            secondary.write_bytes(b"GUI secondary stays")
+            replacement.write_bytes(b"GUI primary updated")
+            archive = base / "created-v5.hse2"
+            updated = base / "updated-v5.hse2"
+            compacted = base / "compacted-v5.hse2"
+            primary_password, secondary_password = "v5-primary-test", "v5-secondary-test"
+
+            create_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v5-create", output_path=str(archive),
+                primary_file_spec=f"primary.txt={primary}", secondary_file_spec=f"secondary.txt={secondary}",
+                primary_password=primary_password, primary_password_confirmation=primary_password,
+                secondary_password=secondary_password, secondary_password_confirmation=secondary_password,
+            ))
+            create_result = _invoke_hse2_gui_command(create_plan)
+            self.assertEqual(create_result.exit_code, 0, create_result.stderr)
+            self.assertNotIn(primary_password, create_result.stdout + create_result.stderr)
+            self.assertNotIn(secondary_password, create_result.stdout + create_result.stderr)
+
+            primary_restore = base / "primary-restore"
+            secondary_restore = base / "secondary-restore"
+            for password, output_dir, expected in (
+                (primary_password, primary_restore, b"GUI primary original"),
+                (secondary_password, secondary_restore, b"GUI secondary stays"),
+            ):
+                plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                    action="v5-open", input_path=str(archive), output_path=str(output_dir), archive_password=password,
+                ))
+                result = _invoke_hse2_gui_command(plan)
+                self.assertEqual(result.exit_code, 0, result.stderr)
+                self.assertTrue(any(path.read_bytes() == expected for path in output_dir.rglob("*.txt")))
+
+            replace_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v5-replace", input_path=str(archive), output_path=str(updated),
+                replace_file_spec=f"replacement.txt={replacement}", archive_password=primary_password,
+            ))
+            replace_result = _invoke_hse2_gui_command(replace_plan)
+            self.assertEqual(replace_result.exit_code, 0, replace_result.stderr)
+
+            compact_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v5-compact", input_path=str(updated), output_path=str(compacted),
+                primary_password=primary_password, secondary_password=secondary_password,
+            ))
+            compact_result = _invoke_hse2_gui_command(compact_plan)
+            self.assertEqual(compact_result.exit_code, 0, compact_result.stderr)
+            self.assertNotIn(primary_password, compact_result.stdout + compact_result.stderr)
+            self.assertNotIn(secondary_password, compact_result.stdout + compact_result.stderr)
+
+            peer_restore = base / "peer-after-compact"
+            peer_plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v5-open", input_path=str(compacted), output_path=str(peer_restore),
+                archive_password=secondary_password,
+            ))
+            peer_result = _invoke_hse2_gui_command(peer_plan)
+            self.assertEqual(peer_result.exit_code, 0, peer_result.stderr)
+            self.assertEqual((peer_restore / "secondary.txt").read_bytes(), b"GUI secondary stays")
+
+    def test_v5_confirmation_discloses_format_limits_and_empty_replacement(self) -> None:
+        plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+            action="v5-replace", input_path="old.hse2", output_path="new.hse2", archive_password="secret",
+        ))
+        with patch("high_security_encryptor.hse2_gui_launcher.messagebox.askyesno", return_value=True) as ask:
+            self.assertTrue(HSE2ExperimentalApp._confirm_v5_action(object(), plan))
+        message = ask.call_args.args[1]
+        self.assertIn("目标视图将被清空", message)
+        self.assertIn("不承诺可否认性", message)
+        self.assertIn("old.hse2", message)
+        self.assertIn("new.hse2", message)
+
     def test_result_summary_ignores_non_json_stdout(self) -> None:
         self.assertEqual(_build_hse2_result_summary("not json"), "")
 
