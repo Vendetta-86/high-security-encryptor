@@ -144,3 +144,42 @@ Not implemented yet:
 - GUI integration;
 - migration from HSE1 to HSE2;
 - making HSE2 the default format.
+
+## Experimental v4 alternate views
+
+The isolated v4 candidate is available in the current Python CLI, but it has not completed release packaging or full malformed-input/resource testing. It must not be treated as a plausible-deniability or coercion-safety feature. V2/v3 behavior is unchanged. See [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md).
+
+Create a two-view container. Passwords are entered through masked prompts and never passed as command-line arguments. Each `ARCHIVE_PATH=SOURCE_PATH` pair maps one input file into that view; repeat the option for additional files. Empty views are allowed.
+
+```text
+high-security-encryptor hse2 v4-create \
+  --output <NEW_CONTAINER> \
+  --capacity-records 16 \
+  --primary-file docs/main.txt=C:\private\main.txt \
+  --secondary-file notes/cover.txt=C:\private\cover.txt
+```
+
+The capacity must be even (2 through 65,536), and each view gets half of the fixed record slots. A minimum-capacity container is about 130 MiB because the format reserves two 64 MiB descriptors.
+
+Restore the view selected by one password:
+
+```text
+high-security-encryptor hse2 v4-open \
+  --input <CONTAINER> \
+  --output-dir <NEW_DIRECTORY>
+```
+
+Replace one selected view in a new container copy. The peer view and input container are preserved:
+
+```text
+high-security-encryptor hse2 v4-replace \
+  --input <CONTAINER> \
+  --output <NEW_CONTAINER_COPY> \
+  --file docs/main.txt=C:\private\updated-main.txt
+```
+
+The new output path must differ from the input path. The v4 implementation currently has no GUI path, and its fixed-layout file helpers remain experimental.
+
+## 2026-11-01 Current CLI Status
+
+The earlier scope list above records an older implementation snapshot. The current unified `hse2` command tree includes inspect, validation, wrapper management, explicit access destruction, keyfile operations, and experimental v4 create/open/replace. Dedicated `high-security-encryptor-hse2-*` helper commands cover archive creation/open and related workflows. The local PyInstaller CLI EXE has passed create and both-view restore smoke tests; v4 is not in the GUI or a verified full Windows Release ZIP.

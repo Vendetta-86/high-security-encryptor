@@ -39,6 +39,9 @@ def build_cli_parser(
     hse2_wrapper_add_handler: Handler | None = None,
     hse2_wrapper_manage_handler: Handler | None = None,
     hse2_access_destroy_handler: Handler | None = None,
+    hse2_v4_create_handler: Handler | None = None,
+    hse2_v4_restore_handler: Handler | None = None,
+    hse2_v4_replace_handler: Handler | None = None,
     hse2_plan_archive_handler: Handler | None = None,
     generate_keyfile_handler: Handler | None = None,
     hse2_keyfile_inspect_handler: Handler | None = None,
@@ -71,7 +74,7 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_archive_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler)):
+    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_archive_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler, hse2_v4_create_handler, hse2_v4_restore_handler, hse2_v4_replace_handler)):
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
         if hse2_inspect_handler is not None:
@@ -115,6 +118,36 @@ def build_cli_parser(
             destroy_parser.add_argument("--dpapi", action="store_true", help="Allow Windows DPAPI to unlock the source container.")
             destroy_parser.add_argument("--overwrite", action="store_true")
             destroy_parser.set_defaults(handler=hse2_access_destroy_handler)
+        if hse2_v4_create_handler is not None:
+            v4_create_parser = hse2_subparsers.add_parser(
+                "v4-create",
+                help="EXPERIMENTAL: Create an isolated two-view v4 container (minimum size about 130 MiB).",
+            )
+            v4_create_parser.add_argument("--output", required=True, help="New output container path.")
+            v4_create_parser.add_argument("--capacity-records", type=int, required=True,
+                                          help="Even fixed record capacity, 2 through 65536; each view gets half.")
+            v4_create_parser.add_argument("--profile", choices=("compatible", "hardened"),
+                                          default="compatible", help="Shared Argon2id profile for both slots.")
+            v4_create_parser.add_argument("--primary-file", action="append", default=[], metavar="ARCHIVE_PATH=SOURCE_PATH")
+            v4_create_parser.add_argument("--secondary-file", action="append", default=[], metavar="ARCHIVE_PATH=SOURCE_PATH")
+            v4_create_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
+            v4_create_parser.set_defaults(handler=hse2_v4_create_handler)
+        if hse2_v4_restore_handler is not None:
+            v4_open_parser = hse2_subparsers.add_parser(
+                "v4-open", help="EXPERIMENTAL: Restore the view selected by one v4 password."
+            )
+            v4_open_parser.add_argument("--input", required=True, help="Input v4 container path.")
+            v4_open_parser.add_argument("--output-dir", required=True, help="New restore directory; must not exist.")
+            v4_open_parser.set_defaults(handler=hse2_v4_restore_handler)
+        if hse2_v4_replace_handler is not None:
+            v4_replace_parser = hse2_subparsers.add_parser(
+                "v4-replace", help="EXPERIMENTAL: Replace one password-selected view in a new output copy."
+            )
+            v4_replace_parser.add_argument("--input", required=True, help="Input v4 container path.")
+            v4_replace_parser.add_argument("--output", required=True, help="New output container path.")
+            v4_replace_parser.add_argument("--file", action="append", required=True, metavar="ARCHIVE_PATH=SOURCE_PATH")
+            v4_replace_parser.add_argument("--force", action="store_true", help="Replace an existing output file.")
+            v4_replace_parser.set_defaults(handler=hse2_v4_replace_handler)
         if hse2_wrapper_add_handler is not None or hse2_wrapper_manage_handler is not None:
             wrapper_parser = hse2_subparsers.add_parser("wrapper", help="Manage HSE2 unlock wrappers.")
             wrapper_subparsers = wrapper_parser.add_subparsers(dest="wrapper_command", required=True)

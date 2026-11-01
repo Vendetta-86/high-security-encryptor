@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import sys
@@ -43,6 +44,7 @@ from .hse2_batch_config import HSE2BatchDecryptConfig, HSE2BatchEncryptConfig, H
 from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_access_cli import run_destroy as run_hse2_access_destroy
+from .hse2.container_v4_workflows import create_v4_archive, replace_v4_view, restore_v4_archive
 from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
 from .hse2.keyfile_safety import keyfile_colocation_warning
 from .hse2_archive_validate_cli import validate_archive_from_files
@@ -104,6 +106,9 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_wrapper_add_handler=_handle_hse2_wrapper_add,
         hse2_wrapper_manage_handler=_handle_hse2_wrapper_manage,
         hse2_access_destroy_handler=_handle_hse2_access_destroy,
+        hse2_v4_create_handler=_handle_hse2_v4_create,
+        hse2_v4_restore_handler=_handle_hse2_v4_restore,
+        hse2_v4_replace_handler=_handle_hse2_v4_replace,
         generate_keyfile_handler=_handle_generate_keyfile,
         hse2_keyfile_inspect_handler=_handle_hse2_keyfile_inspect,
         hse2_rotate_keyfile_handler=_handle_hse2_rotate_keyfile,
@@ -320,6 +325,62 @@ def _handle_hse2_wrapper_manage(args: argparse.Namespace) -> dict[str, Any]:
 
 def _handle_hse2_access_destroy(args: argparse.Namespace) -> dict[str, Any]:
     return run_hse2_access_destroy(args)
+
+
+def _parse_v4_file_specs(values: list[str]) -> list[tuple[str, Path]]:
+    result: list[tuple[str, Path]] = []
+    for value in values:
+        archive_path, separator, source_path = value.partition("=")
+        if not separator or not archive_path or not source_path:
+            raise CliConfigError("v4 file arguments must use ARCHIVE_PATH=SOURCE_PATH")
+        result.append((archive_path, Path(source_path)))
+    return result
+
+
+def _handle_hse2_v4_create(args: argparse.Namespace) -> dict[str, Any]:
+    primary_password = getpass.getpass("Primary view password: ")
+    if getpass.getpass("Confirm primary view password: ") != primary_password:
+        raise CliConfigError("primary view password confirmation does not match")
+    secondary_password = getpass.getpass("Secondary view password: ")
+    if getpass.getpass("Confirm secondary view password: ") != secondary_password:
+        raise CliConfigError("secondary view password confirmation does not match")
+    output = create_v4_archive(
+        output_path=args.output,
+        view_passwords=(primary_password, secondary_password),
+        view_files=(
+            _parse_v4_file_specs(args.primary_file),
+            _parse_v4_file_specs(args.secondary_file),
+        ),
+        capacity_records=args.capacity_records,
+        profile_name=args.profile,
+        overwrite=bool(args.force),
+    )
+    return {
+        "command": "hse2 v4-create",
+        "format_version": 4,
+        "output": str(output),
+        "capacity_records": args.capacity_records,
+        "records_per_view": args.capacity_records // 2,
+        "profile": args.profile,
+    }
+
+
+def _handle_hse2_v4_restore(args: argparse.Namespace) -> dict[str, Any]:
+    password = getpass.getpass("View password: ")
+    output = restore_v4_archive(input_path=args.input, password=password, output_dir=args.output_dir)
+    return {"command": "hse2 v4-open", "format_version": 4, "output_dir": str(output)}
+
+
+def _handle_hse2_v4_replace(args: argparse.Namespace) -> dict[str, Any]:
+    password = getpass.getpass("View password: ")
+    output = replace_v4_view(
+        input_path=args.input,
+        output_path=args.output,
+        password=password,
+        view_files=_parse_v4_file_specs(args.file),
+        overwrite=bool(args.force),
+    )
+    return {"command": "hse2 v4-replace", "format_version": 4, "output": str(output)}
 
 
 def _handle_dpapi_protect(args: argparse.Namespace) -> dict[str, Any]:

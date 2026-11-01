@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-**Status: self-use candidate; isolated codecs and fixed-layout file create/read/update primitives exist, product workflows are not integrated.** This proposal explores an explicitly limited alternate-view feature in a new container version. It does not authorize changes to HSE2 v2/v3 or any claim of plausible deniability. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
+**Status: self-use candidate; isolated codecs, fixed-layout file workflows, and experimental Python CLI commands exist. The local PyInstaller CLI EXE has passed create and both-view restore smoke tests; GUI and full Release ZIP integration remain incomplete.** This proposal explores an explicitly limited alternate-view feature in a new container version. It does not authorize changes to HSE2 v2/v3 or any claim of plausible deniability. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
 
 The current Phase 8 design review correctly rejects a visible `duress` wrapper, a second manifest/payload family, and reuse of v2/v3 for a deniability claim. This draft preserves those findings and turns the next review questions into explicit gates.
 
@@ -88,7 +88,7 @@ Generated with the installed PyCryptodome 4.2.0; this is a regression vector for
 
 The file helper copies to a same-directory temporary output and patches only the selected view; a round-trip test confirms that input and peer-view bytes remain unchanged. This has not been interruption-tested at each write boundary. The repository's `atomic_output_path` uses `os.replace`, which gives atomic replacement semantics where the filesystem supports them but does not promise power-loss durability unless `HSE_FSYNC=1`. Updates always publish to a different path and preserve the input.
 
-### Local review questions that remain before implementation
+### Local review questions that remain before release integration
 
 1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model? The baseline is always exactly two valid views; an empty secondary view is permitted, and the feature never claims to hide that two-view support exists or to conceal content after credential disclosure.
 2. Are the 1 MiB record, 65,536-record, 64 GiB record area, two 64 MiB descriptor regions, and 63 MiB private manifest ceiling acceptable on supported Windows systems, including full-file atomic rewrite costs?
@@ -96,7 +96,7 @@ The file helper copies to a same-directory temporary output and patches only the
 4. **Partially tested locally:** the file helper preserves the input and publishes through the repository's atomic replacement helper. Process interruption at every write boundary, power-loss durability, and all supported filesystem behavior remain untested.
 5. What property tests and fuzz limits demonstrate fail-closed behavior? Which claims remain assumptions rather than tests?
 
-**Decision:** this is a concrete candidate for local design review, not an approved cryptographic construction. Primitive compatibility, byte layout, AAD, record partitioning, and local fixed-file I/O tests are implemented. Questions 1, 2, and 5 remain open; interruption and filesystem coverage in question 4 are partial. Before product workflows, the project must validate resource use, establish bounded malformed-input/property tests, and decide how much local evidence is sufficient for the narrowly scoped claim. The current prototype does not establish container safety or plausible deniability.
+**Decision:** this remains an experimental self-use candidate, not an approved cryptographic construction. Primitive compatibility, byte layout, AAD, record partitioning, file workflows, and Python CLI paths have local tests. Questions 1, 2, and 5 remain open; interruption and filesystem coverage in question 4 are partial. Before stable release packaging, the project must validate resource use, add bounded malformed-input/property tests, and evaluate the narrowly scoped claim. The current implementation does not establish container safety or plausible deniability.
 
 ## Local review package
 

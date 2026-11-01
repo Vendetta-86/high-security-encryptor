@@ -74,7 +74,7 @@ Phase 8 design work has resumed at the proposal stage. The current v2/v3 no-go r
 
 ## 2026-11-01 Current Status
 
-The user authorized continued local implementation for self-use without third-party or independent-review gates. Work is now limited to isolated v4 wire codecs in `container_v4_*.py`; there is still no file-level reader/writer or product integration. The v2/v3 no-go and all exclusions in this review remain in force. The current proposal records the implementation boundary and open resource, atomicity, and parser-test questions.
+The user authorized continued local implementation for self-use without third-party or independent-review gates. V4 now has isolated wire codecs, fixed-layout file create/read/update workflows, and experimental Python CLI commands. A local PyInstaller CLI EXE passed create and both-view restore checks; GUI and full Windows Release ZIP acceptance remain open. The v2/v3 no-go and all exclusions in this review remain in force. The current proposal records the implementation boundary and open resource, atomicity, and malformed-input-test questions.
 
 ## References
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from io import BytesIO
 
 from high_security_encryptor.hse2.container_v4_credentials import V4CredentialSlot
 from high_security_encryptor.hse2.container_v4_header import (
@@ -9,6 +10,8 @@ from high_security_encryptor.hse2.container_v4_header import (
     v4_container_size,
     validate_v4_container_size,
 )
+from high_security_encryptor.hse2.container_codec import HSE2Preamble
+from high_security_encryptor.hse2.container_stream import read_v3_header_frame
 from high_security_encryptor.hse2.models import HSE2ModelError
 
 
@@ -36,6 +39,13 @@ class HSE2V4HeaderTests(unittest.TestCase):
             V4PublicHeader.from_bytes(bytes(encoded))
         with self.assertRaises(HSE2ModelError):
             V4PublicHeader.from_bytes(bytes(encoded[:-1]))
+
+    def test_legacy_v2_and_v3_header_readers_reject_v4_marker(self) -> None:
+        encoded = self.header.to_bytes()
+        with self.assertRaises(HSE2ModelError):
+            HSE2Preamble.from_bytes(encoded[:16])
+        with self.assertRaises(HSE2ModelError):
+            read_v3_header_frame(BytesIO(encoded))
 
 
 if __name__ == "__main__":

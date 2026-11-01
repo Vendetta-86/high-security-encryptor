@@ -62,6 +62,21 @@ class HSE2V4FileTests(unittest.TestCase):
                 self.assertEqual(reader.read_record(slot=1, index=1), original_record1)
             with V4ContainerReader(path) as reader:
                 self.assertEqual(reader.read_descriptor(0), empty_descriptor_region)
+            failed_output = Path(directory) / "failed-update.hse2"
+
+            def fail_record_source() -> bytes:
+                raise RuntimeError("simulated source failure")
+
+            with self.assertRaisesRegex(RuntimeError, "simulated source failure"):
+                update_v4_view(
+                    input_path=path, output_path=failed_output, slot=0,
+                    new_descriptor=replacement_descriptor,
+                    previous_record_indices=set(), new_record_indices={0},
+                    new_record_sources={0: fail_record_source},
+                )
+            self.assertFalse(failed_output.exists())
+            with V4ContainerReader(path) as reader:
+                self.assertEqual(reader.read_descriptor(0), empty_descriptor_region)
 
 
 if __name__ == "__main__":
