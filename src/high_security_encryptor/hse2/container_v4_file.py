@@ -148,7 +148,6 @@ def create_v4_container(
             flush_file(file_obj)
     return target
 
-
 def update_v4_view(
     *, input_path: str | Path, output_path: str | Path, slot: int,
     new_descriptor: bytes, previous_record_indices: Set[int],
