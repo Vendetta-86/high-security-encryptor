@@ -4,7 +4,7 @@
 
 **Decision: no-go for a deniability feature in the current HSE2 format.** This document records the pre-implementation review required by Phase 8. It does not define a cryptographic construction and does not authorize adding a duress wrapper or decoy payload to v2/v3.
 
-The current format can support ordinary alternate archives or an explicitly disclosed decoy workflow, but it cannot honestly claim that a decoy unlock hides the existence of other content. A separate format proposal and independent cryptographic review are required before implementation work resumes.
+The current format can support ordinary alternate archives or an explicitly disclosed alternate-view workflow, but it cannot honestly claim that an alternate unlock hides the existence of other content. A separate format proposal and local cryptographic/design review are required before implementation; third-party review is not a project gate.
 
 ## Security goal under review
 
@@ -63,14 +63,14 @@ Relevant implementation points include `hse2/models.py` (`WrapperRecord.VALID_TY
 2. Write a versioned wire-format proposal covering header, key derivation, record allocation, padding, updates, backups, compatibility, and all parser failure modes.
 3. Define externally observable behavior for both credentials, including inspect output, errors, timings, logs, GUI summaries, and restore paths.
 4. Prove by construction which archive-only observations are intended to be indistinguishable; identify the observations the format cannot hide.
-5. Obtain independent cryptographic review before implementation and independent implementation review before release.
+5. Complete a documented local cryptographic/design review before implementation and a separate code review plus regression suite before release. Record that this is self-review, not external certification.
 6. Keep all destructive behavior out of ordinary open. A credential must never silently delete real content, wrappers, or evidence.
 7. Test legacy readers, malformed and truncated records, wrong credentials, tampering, repeated snapshots, equal-size view constraints, backup/restore, and GUI/CLI side channels. These tests can falsify claims but cannot prove real-world deniability by themselves.
 8. Use an explicit limited-feature name and warning if the eventual implementation only offers alternate-content unlock. Do not imply legal, forensic, or coercion safety.
 
 ## Decision
 
-Phase 8 design work has resumed at the proposal stage. The current v2/v3 no-go remains in force: no patch to `WrapperRecord` or existing wire formats, no implementation before the independent review gates above, and no automatic deletion of real data or wrapper material. The proposal draft is [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md); it is not an approved construction.
+Phase 8 design work has resumed at the proposal stage. The current v2/v3 no-go remains in force: no patch to `WrapperRecord` or existing wire formats, no implementation before the local review gates above, and no automatic deletion of real data or wrapper material. The proposal draft is [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md); it is not yet an approved construction.
 
 ## References
 

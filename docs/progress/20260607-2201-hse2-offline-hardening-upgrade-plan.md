@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：Phase 10–12 已完成。`v0.6.0-alpha.9` 精确 tag Windows 构建、下载工件校验和本地打包验收均通过，维护者已批准并发布为 GitHub 预发布；发布资产 SHA-256 与验收工件一致。alpha.8 工件过时，未替代 alpha.9 发布。Phase 8 维持 no-go；用户同意第三方认证稍缓，HSE2 稳定格式冻结的第三方互操作/独立审查仍未满足。
+- **当前状态**：Phase 10–12 已完成。`v0.6.0-alpha.9` 精确 tag Windows 构建、下载工件校验和本地打包验收均通过，维护者已批准并发布为 GitHub 预发布；发布资产 SHA-256 与验收工件一致。alpha.8 工件过时，未替代 alpha.9 发布。自用项目按本地设计审查、测试和明确风险边界推进，不将第三方认证或独立审查作为路线图门槛。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -67,14 +67,14 @@
 | 阶段 | 状态 | 名称 | 当前判断 |
 |---|---|---|---|
 | Phase 0 | [x] | 升级计划建立 | 本进度文档已建立 |
-| Phase 1 | [~] | HSE2 格式冻结 | v2/v3 格式及 framing 文档、实现均已存在；本地独立代码路径现覆盖 keyfile、password、password+keyfile 的双向互读写（password KDF 限 compatible）；第三方 v3 互操作和独立格式审查仍待完成 |
-| Phase 2 | [~] | DEK + Wrapper 架构 | DEK/MEK、wrapper add/remove/rewrap 及文档已实现；稳定兼容契约需随 Phase 1 审查冻结 |
+| Phase 1 | [~] | HSE2 格式冻结 | v2/v3 格式与 framing 已实现并有文档；本地独立代码路径覆盖 keyfile、password、password+keyfile 的双向互读写（password KDF 限 compatible）；剩余工作为本地规范一致性复核、测试向量与兼容性说明 |
+| Phase 2 | [x] | DEK + Wrapper 架构 | DEK/MEK、wrapper add/remove/rewrap 及本地兼容行为已实现；稳定契约以仓库格式文档和回归向量为准 |
 | Phase 3 | [x] | KDF Profiles 正式化 | 三档 profile 可由 CLI 选择；GUI 的 wrapper add/rewrap 流程提供中文档位及 paranoid 性能提示 |
 | Phase 4 | [x] | Keyfile 双因子 | inspect、paranoid 双因子策略、丢失与同目录风险提示均已实现并验收 |
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
-| Phase 8 | [~] | Alternate-view design review | 已启动新格式审查草案；尚未通过独立密码学审查，禁止实现或宣称可否认性；见 `docs/hse2_phase8_format_proposal.md` |
+| Phase 8 | [~] | Alternate-view design review | 自用项目按本地威胁模型、设计复核及回归测试推进新格式草案；仍禁止 v2/v3 原格式扩展，不宣称可否认性；见 `docs/hse2_phase8_format_proposal.md` |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
 | Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；alpha.9 打包版的 GUI 负向/正向 destroy-access 验收及 v3 元数据检查均通过 |

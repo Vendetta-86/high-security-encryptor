@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-**Status: design draft for independent review; not an approved construction.** This proposal explores an explicitly limited alternate-view feature in a new container version. It does not authorize changes to HSE2 v2/v3, implementation, or any claim of plausible deniability. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
+**Status: self-use design draft; local review required before implementation.** This proposal explores an explicitly limited alternate-view feature in a new container version. It does not authorize changes to HSE2 v2/v3 or any claim of plausible deniability. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
 
 The current Phase 8 design review correctly rejects a visible `duress` wrapper, a second manifest/payload family, and reuse of v2/v3 for a deniability claim. This draft preserves those findings and turns the next review questions into explicit gates.
 
@@ -23,20 +23,20 @@ This claim is not made yet. Repeated snapshots, host artifacts, application exec
 
 These constraints do not prove indistinguishability. In particular, simple concatenation, a visible second wrapper, or one-time equal-size output does not meet the proposed claim.
 
-## Required independent review package
+## Local review package
 
-The external reviewer must receive the exact versioned wire proposal, reference parser/writer, threat model, test corpus, and a list of excluded claims. Review must cover:
+Before implementation, the project owner must review the exact versioned wire proposal, reference parser/writer, threat model, test corpus, and list of excluded claims. The recorded self-review must cover:
 
 - cryptographic construction and key hierarchy, domain separation, nonce generation, AEAD limits, and authentication coverage;
 - distinguishability from public fields, ciphertext length, malformed inputs, errors, timing, backups, and repeated snapshots within the stated scope;
 - parser safety, downgrade behavior, resource limits, atomic updates, and recovery after partial writes;
-- independent implementation feasibility and a test vector format.
+- independent implementation feasibility and a test vector format, as local analysis only.
 
-The review result must identify reviewer independence, reviewed commit/digest, findings, severity, and unresolved assumptions. An internal review or test-only reference implementation is not third-party review.
+The review result must identify the reviewed commit/digest, findings, severity, and unresolved assumptions. This is an internal self-use review, not third-party certification.
 
 ## Implementation gates
 
-No production code until the external reviewer accepts the construction or all blocking findings are resolved and re-reviewed. After that gate, implementation must use a new format version and separate modules; v2/v3 readers must continue to reject it as unsupported. Required tests include positive and negative credential paths, tampering, truncation, field mutation, generic failure behavior, fuzzing, memory/time limits, interrupted updates, backup/restore, downgrade attempts, and independent cross-implementation vectors. These tests can find defects but cannot establish real-world deniability outside the stated model.
+No production code until the local review records and resolves blocking findings. Implementation must use a new format version and separate modules; v2/v3 readers must continue to reject it as unsupported. Required tests include positive and negative credential paths, tampering, truncation, field mutation, generic failure behavior, fuzzing, memory/time limits, interrupted updates, backup/restore, downgrade attempts, and a separately written local reference implementation. These tests can find defects but cannot establish real-world deniability outside the stated model.
 
 ## Source basis and limitations
 
@@ -44,4 +44,4 @@ No production code until the external reviewer accepts the construction or all b
 - RFC 9106 specifies Argon2; it informs password KDF requirements but does not solve alternate-view indistinguishability: https://www.rfc-editor.org/rfc/rfc9106
 - VeraCrypt's own hidden-volume guidance documents operational limits and host-system exposure. It is a product-specific reference, not evidence that this file-container design inherits VeraCrypt's properties: https://veracrypt.io/en/Security%20Requirements%20for%20Hidden%20Volumes.html
 
-This draft is an internal design artifact, not an independent cryptographic certification.
+This draft is an internal design artifact and has not been externally certified.
