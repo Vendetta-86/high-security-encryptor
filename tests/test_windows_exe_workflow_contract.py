@@ -24,7 +24,8 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
 
     def test_release_upload_requires_explicit_dispatch_on_matching_tag(self) -> None:
         workflow = (REPO_ROOT / ".github" / "workflows" / "windows-exe.yml").read_text(encoding="utf-8")
-        build_job, publish_job = workflow.split("\n  publish:\n", maxsplit=1)
+        build_job, downstream_jobs = workflow.split("\n  verify_artifact:\n", maxsplit=1)
+        verify_job, publish_job = downstream_jobs.split("\n  publish:\n", maxsplit=1)
 
         self.assertIn("contents: read", workflow)
         self.assertIn("type: boolean\n        default: false", workflow)
@@ -33,7 +34,10 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
         self.assertIn("github.event_name == 'workflow_dispatch' && inputs.publish_release", publish_job)
         self.assertIn("contents: write", publish_job)
         self.assertIn('"$GITHUB_REF_TYPE" != "tag" || "$RELEASE_TAG" != "$GITHUB_REF_NAME"', publish_job)
-        self.assertIn("actions/download-artifact@v8", publish_job)
+        self.assertIn("actions/download-artifact@v8", verify_job)
+        self.assertIn("needs: [build, verify_artifact]", publish_job)
+        self.assertIn('test -s "dist/$ASSET_NAME"', verify_job)
+        self.assertIn('unzip -t "dist/$ASSET_NAME"', verify_job)
         self.assertIn('release_notes="docs/releases/$RELEASE_TAG.md"', publish_job)
         self.assertIn('[[ "$RELEASE_TAG" =~ -(alpha|beta|rc)([.-]|$) ]]', publish_job)
         self.assertEqual(publish_job.count('"${release_flags[@]}"'), 2)

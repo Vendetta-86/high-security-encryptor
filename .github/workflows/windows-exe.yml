@@ -240,12 +240,30 @@ jobs:
         with:
           name: ${{ env.ASSET_NAME }}
           path: ${{ env.ASSET_PATH }}
+  verify_artifact:
+    name: Verify downloaded Windows artifact
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      ASSET_NAME: ${{ needs.build.outputs.asset_name }}
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.asset_name }}
+          path: dist
 
+      - name: Verify packaged ZIP
+        shell: bash
+        run: |
+          test -s "dist/$ASSET_NAME"
+          unzip -t "dist/$ASSET_NAME"
+          sha256sum "dist/$ASSET_NAME"
 
   publish:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish_release }}
     name: Publish approved Windows release
-    needs: build
+    needs: [build, verify_artifact]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -261,12 +279,6 @@ jobs:
             echo "Publishing requires workflow_dispatch on the exact release tag ref." >&2
             exit 1
           fi
-
-      - name: Download verified build artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: ${{ needs.build.outputs.asset_name }}
-          path: dist
 
       - name: Upload release asset
         shell: bash
