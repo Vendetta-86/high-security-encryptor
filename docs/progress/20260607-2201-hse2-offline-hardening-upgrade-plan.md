@@ -74,11 +74,11 @@
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
-| Phase 8 | [x] | Alternate-view design review | v4 本地提案、公有头/双密码槽/描述符/记录 codecs、固定容量文件工作流、Python CLI 及实验 GUI 创建/恢复/单视图替换已实现；固定种子往返及 40 个密文位置篡改样本、64 个确定性畸形头、清单/记录边界、恢复清理和原子发布中断覆盖；全量 712 项通过/6 项跳过，120 项 v4/GUI/release-contract 定向测试在 PyCryptodome 3.20.0 通过；Windows Actions run 41277639032 构建及发布成功，十个 EXE 检查和 v4 包装往返通过；不宣称可否认性，v2/v3 保持不变 |
+| Phase 8 | [x] | Alternate-view design review | v4 本地提案、公有头/双密码槽/描述符/记录 codecs、固定容量文件工作流、Python CLI 及实验 GUI 创建/恢复/单视图替换已实现；固定种子往返及 40 个密文位置篡改样本、64 个确定性畸形头、清单/记录边界、恢复清理和原子发布中断覆盖；发布时全量 712 项通过/6 项跳过、120 项 v4/GUI/release-contract 定向测试通过；之后补充容量边界/最大容量截断测试，当前全量 714 项通过/6 项跳过；Windows Actions run 41277639032 构建及发布成功，下载 ZIP 16 项、十个 EXE 清单与 GitHub SHA-256 均复核通过；不宣称可否认性，v2/v3 保持不变 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
 | Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；alpha.9 打包版的 GUI 负向/正向 destroy-access 验收及 v3 元数据检查均通过 |
-| Phase 12 | [x] | 测试计划 | alpha.9 发布时全量回归为 681 项通过、4 项跳过；2026-11-01 全量回归 712 项通过、6 项跳过（`work/hse2-test-venv/Scripts/python.exe -m unittest discover -s tests`）；v4/GUI/release-contract 120 项在 PyCryptodome 3.20.0 通过；依赖审计、语法检查、Windows EXE 构建与打包 smoke、流式基准、Windows Python 3.11/3.12/3.13 CI 和 v0.7.0 精确 tag 发布流水线均通过 |
+| Phase 12 | [x] | 测试计划 | alpha.9 发布时全量回归为 681 项通过、4 项跳过；v0.7.0 发布时全量 712 项通过、6 项跳过；之后添加工作流 Node 24 兼容契约和 v4 容量截断回归，当前全量 714 项通过、6 项跳过；v4/GUI/release-contract 120 项在 PyCryptodome 3.20.0 通过；依赖审计、语法检查、Windows EXE 构建与打包 smoke、流式基准、Windows Python 3.11/3.12/3.13 CI 和 v0.7.0 精确 tag 发布流水线均通过 |
 
 ---
 
@@ -505,6 +505,7 @@ python -m pip_audit . --progress-spinner off
 - 2026-11-01：Phase 8 packaged stdin smoke 与 malformed-input 覆盖：Windows PyInstaller CLI/HSE2 GUI 当前源码 onefile 构建成功；发现并修复 Windows 控制台 `getpass` 与 PowerShell 非交互管道不兼容，v4 CLI 增加仅接受重定向 stdin 的口令选项。打包 EXE 实测双视图创建/恢复、视图替换和对侧视图保持；新增 64 个确定性畸形头输入及 manifest 结构拒绝测试。全量 711 项通过、6 项跳过；v4/GUI/release-contract 119 项在 PyCryptodome 3.20.0 通过；`pip-audit` 未发现已知漏洞。正式 Windows Release ZIP Actions 验收及更广资源/fuzz 覆盖仍待完成。Commit: 待提交
 - 2026-11-01：Phase 8 资源边界/变异覆盖：对固定种子的空、边界和最大长度 v4 载荷执行往返，并在每个密文样本的盐、封装密钥、nonce、密文和标签位置做篡改拒绝；v4/GUI/release-contract 定向测试 120 项在 PyCryptodome 3.20.0 通过，全量 712 项通过、6 项跳过。将累积发布版本方案收敛为一个 `v0.7.0` 稳定版本，更新包版本及发布说明，避免为相同累计源码重复发布 `v0.6.0`–`v0.6.4` 工件。官方十 EXE ZIP 尚待精确 tag Actions 构建与验收。Commit: 待提交
 - 2026-11-01：v0.7.0 稳定版验收并发布：GitHub Actions run [41277639032](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41277639032) 的 Windows 构建与发布 jobs 均成功；全量测试、十个 EXE 存在性/CLI-GUI smoke、v4 双视图创建/恢复/替换及对侧视图保留均通过。GitHub Release 已发布 `high-security-encryptor-v0.7.0-windows-x64.zip`，147,337,120 字节。Decoy/Duress 仍暂缓。发布记录见 `docs/releases/v0.7.0.md`。Commit: 后续状态更新提交
+- 2026-11-01：发布后维护：Windows Actions 工作流改用支持 Node 24 的 checkout/setup-python/upload-artifact/download-artifact 主版本；新增工作流版本契约、v4 容量边界与最大容量截断输入测试。全量 714 项通过、6 项跳过；下载实际 v0.7.0 Release ZIP 核对 16 个条目、十个 EXE 和 GitHub SHA-256。Commit: 待提交
 - 2026-10-31：Phase 12 restore-path hardening：HSE2 manifest 创建及恢复现在拒绝会被 POSIX 路径解析静默归一化的非规范路径；Windows 恢复预检以路径前缀树拒绝大小写归一化后的同目标及文件/子路径冲突，避免条目顺序决定覆盖结果，同时令额外索引随路径段数线性增长。新增 manifest 与 v3 open 回归；定向 26 项、最终全量 677 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。格式 framing 文档已同步。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：刷新 restore-path hardening 后的 Windows 候选构建：PyInstaller 6.22.3 从提交 `4c3bb09` 构建 10 个 EXE；8 个 CLI `--help`、主 GUI smoke、打包 v3 create/validate/open、字节哈希还原及两类恶意路径拒绝均通过。独立刷新 ZIP 为 16 项，10 个 EXE 内容哈希与构建输出一致；记录在 `docs/progress/20261031-alpha8-prep-status.md`。CI run `41196270229` 三版本全通过。产物留在本地隔离目录，未覆盖旧候选或发布 tag。Commit: 本提交（SHA 见 Git 历史）
 - 2026-10-31：Phase 12 Windows restore filename hardening：解档路径共用 `validate_archive_path`，在 Windows 拒绝 ADS 冒号、控制/保留字符、DOS 设备名（含扩展名与上标 COM/LPT 变体）及尾随 ASCII 空格/句点；manifest 认证后、输出目录创建前执行。28 项定向测试、全量 679 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。Framing 与 alpha.8 发布说明已更新，并依据 Microsoft Win32 文件命名规则记录范围。Commit: 待提交

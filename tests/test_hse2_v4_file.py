@@ -6,7 +6,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from high_security_encryptor.hse2.container_v4_credentials import V4CredentialSlot
-from high_security_encryptor.hse2.container_v4_crypto import V4_DESCRIPTOR_SIZE, V4_RECORD_SIZE
+from high_security_encryptor.hse2.container_v4_crypto import (
+    V4_DESCRIPTOR_SIZE,
+    V4_MAX_RECORDS,
+    V4_RECORD_SIZE,
+)
 from high_security_encryptor.hse2.container_v4_file import (
     V4ContainerReader,
     create_v4_container,
@@ -30,6 +34,12 @@ class HSE2V4FileTests(unittest.TestCase):
                     with self.assertRaisesRegex(HSE2ModelError, "invalid v4 container size"):
                         with V4ContainerReader(path):
                             self.fail("reader accepted an invalid container size")
+
+            maximum_header = V4PublicHeader(V4_MAX_RECORDS, (slot0, slot1)).to_bytes()
+            path.write_bytes(maximum_header)
+            with self.assertRaisesRegex(HSE2ModelError, "invalid v4 container size"):
+                with V4ContainerReader(path):
+                    self.fail("reader accepted a truncated maximum-capacity container")
 
     def test_create_and_read_fixed_regions_without_loading_record_area(self) -> None:
         slot0 = V4CredentialSlot(1, bytes(16), bytes(12), bytes(32), bytes(16))

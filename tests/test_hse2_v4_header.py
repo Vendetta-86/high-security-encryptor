@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import random
 import unittest
 from io import BytesIO
-import random
 
 from high_security_encryptor.hse2.container_v4_credentials import V4CredentialSlot
+from high_security_encryptor.hse2.container_v4_crypto import V4_DESCRIPTOR_SIZE, V4_RECORD_SIZE
 from high_security_encryptor.hse2.container_v4_header import (
     V4_PUBLIC_HEADER_SIZE,
     V4_PUBLIC_HEADER_STRUCT,
@@ -33,6 +34,21 @@ class HSE2V4HeaderTests(unittest.TestCase):
         validate_v4_container_size(self.header, expected)
         with self.assertRaises(HSE2ModelError):
             validate_v4_container_size(self.header, expected - 1)
+
+    def test_capacity_size_boundaries_are_exact_and_reject_mismatches(self) -> None:
+        capacities = (2, 4, 6, 256, 4096, 65534, 65536)
+        previous_size = 0
+        for capacity in capacities:
+            header = V4PublicHeader(capacity, self.header.credential_slots)
+            expected = V4_PUBLIC_HEADER_SIZE + 2 * V4_DESCRIPTOR_SIZE + capacity * V4_RECORD_SIZE
+            with self.subTest(capacity=capacity):
+                self.assertEqual(v4_container_size(capacity), expected)
+                self.assertGreater(expected, previous_size)
+                validate_v4_container_size(header, expected)
+                for incorrect_size in (expected - 1, expected + 1, True):
+                    with self.subTest(actual_size=incorrect_size), self.assertRaises(HSE2ModelError):
+                        validate_v4_container_size(header, incorrect_size)
+            previous_size = expected
 
     def test_public_header_rejects_mutation_and_bad_length(self) -> None:
         encoded = bytearray(self.header.to_bytes())
@@ -72,6 +88,12 @@ class HSE2V4HeaderTests(unittest.TestCase):
             v4_container_size(65538)
         with self.assertRaises(HSE2ModelError):
             v4_container_size(True)
+
+        for capacity in (1, 3, 5, 65535, 65537, 0xFFFFFFFF):
+            malformed = bytearray(encoded)
+            malformed[8:12] = capacity.to_bytes(4, "big")
+            with self.subTest(capacity=capacity), self.assertRaises(HSE2ModelError):
+                V4PublicHeader.from_bytes(bytes(malformed))
 
     def test_public_header_rejects_deterministic_random_malformed_inputs(self) -> None:
         generator = random.Random(0x48325634)
