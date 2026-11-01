@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import unittest
 
 from high_security_encryptor.hse2.container_v4_crypto import V4_RECORD_SIZE
@@ -58,6 +59,35 @@ class HSE2V4RecordTests(unittest.TestCase):
         with self.assertRaises(HSE2ModelError):
             open_v4_record(view_root_key=root, slot=0, index=0, record=record,
                            plaintext_length=V4_RECORD_PAYLOAD_SIZE + 1)
+
+    def test_deterministic_payload_length_round_trips_and_mutation_fuzz(self) -> None:
+        generator = random.Random(0x48325634524543)
+        root = bytes(range(32))
+        lengths = (0, 1, 15, 16, 17, 255, 4096, V4_RECORD_PAYLOAD_SIZE)
+        for sample, length in enumerate(lengths):
+            with self.subTest(sample=sample, length=length):
+                plaintext = generator.randbytes(length)
+                slot, index = sample % 2, sample * 2 + sample % 2
+                record = seal_v4_record(
+                    view_root_key=root, slot=slot, index=index, plaintext=plaintext
+                )
+                encoded = record.to_bytes()
+                self.assertEqual(len(encoded), V4_RECORD_SIZE)
+                self.assertEqual(
+                    open_v4_record(
+                        view_root_key=root, slot=slot, index=index,
+                        record=encoded, plaintext_length=length,
+                    ),
+                    plaintext,
+                )
+                for offset in (0, 16, 48, len(encoded) // 2, len(encoded) - 1):
+                    mutated = bytearray(encoded)
+                    mutated[offset] ^= 1 << (sample % 8)
+                    with self.subTest(offset=offset), self.assertRaises(HSE2ModelError):
+                        open_v4_record(
+                            view_root_key=root, slot=slot, index=index,
+                            record=bytes(mutated), plaintext_length=length,
+                        )
 
 
 if __name__ == "__main__":
