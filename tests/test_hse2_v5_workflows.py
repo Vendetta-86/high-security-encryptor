@@ -304,12 +304,19 @@ workflows.restore_v5_archive(input_path=archive, password=password, output_dir=o
                 process.wait(timeout=5)
                 stale_stage = active_stages[0]
                 probe = _FileLock(_stage_lock_path(stale_stage), blocking=False)
-                try:
-                    probe.acquire()
-                except OSError as exc:
-                    self.fail(f"restore stage lease stayed locked after worker exit: {exc}")
-                else:
-                    probe.release()
+                deadline = time.monotonic() + 2
+                while True:
+                    try:
+                        probe.acquire()
+                    except BlockingIOError:
+                        if time.monotonic() >= deadline:
+                            self.fail("restore stage lease stayed locked after worker exit")
+                        time.sleep(0.02)
+                    except OSError as exc:
+                        self.fail(f"could not verify restore stage lease release: {exc}")
+                    else:
+                        probe.release()
+                        break
                 with self.assertRaisesRegex(HSE2ModelError, "restore output already exists"):
                     restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)
                 self.assertEqual(list(root.glob(".restored.v5-restore-*")), [])

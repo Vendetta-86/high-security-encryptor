@@ -5,8 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from high_security_encryptor.hse2.restore_staging import cleanup_stale_restore_stages
+from high_security_encryptor.hse2.restore_staging import (
+    _remove_stage_with_windows_retry,
+    cleanup_stale_restore_stages,
+)
 
 
 class HSE2V5RestoreStagingTests(unittest.TestCase):
@@ -33,6 +37,33 @@ class HSE2V5RestoreStagingTests(unittest.TestCase):
             cleanup_stale_restore_stages(target)
 
             self.assertFalse(stale_stage.exists())
+
+    def test_transient_windows_sharing_violation_retries_stale_stage_removal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            stage = Path(directory) / "stale-stage"
+            stage.mkdir()
+            (stage / "partial.txt").write_bytes(b"stale staging data")
+            sharing_violation = PermissionError("file is temporarily in use")
+            sharing_violation.winerror = 32
+            real_rmtree = __import__("shutil").rmtree
+            attempts = 0
+
+            def transient_rmtree(path: Path) -> None:
+                nonlocal attempts
+                attempts += 1
+                if attempts == 1:
+                    raise sharing_violation
+                real_rmtree(path)
+
+            with patch(
+                "high_security_encryptor.hse2.restore_staging.shutil.rmtree",
+                side_effect=transient_rmtree,
+            ) as remove:
+                _remove_stage_with_windows_retry(stage)
+
+            self.assertEqual(remove.call_count, 2)
+            self.assertEqual(attempts, 2)
+            self.assertFalse(stage.exists())
 
 
 if __name__ == "__main__":

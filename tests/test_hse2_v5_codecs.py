@@ -9,6 +9,7 @@ from high_security_encryptor.hse2.container_v5_credentials import (
     unlock_v5_credentials,
 )
 from high_security_encryptor.hse2.container_v5_descriptor import (
+    V5_DESCRIPTOR_OVERHEAD,
     V5ChunkReference,
     V5FileEntry,
     V5ViewDescriptor,
@@ -120,6 +121,64 @@ class HSE2V5CodecTests(unittest.TestCase):
         with self.assertRaises(HSE2ModelError):
             seal_v5_record(root_key=root, archive_id=archive_id, slot=1, sequence=0, offset=0, plaintext=b"")
 
+    def test_record_round_trips_deterministic_varied_lengths_and_locations(self) -> None:
+        rng = random.Random(0x56355243)
+        root = bytes(range(32))
+        archive_id = bytes(range(16))
+        boundary_lengths = (1, 15, 16, 17, 1023, 1024, 1025, 65535, 65536, 65537,
+                            1_048_575, 1_048_576)
+        for index in range(48):
+            slot = index % 2
+            sequence = index * 3
+            offset = V5_HEADER_SIZE + index * 8192
+            length = boundary_lengths[index] if index < len(boundary_lengths) else 1 + rng.randrange(8192)
+            plaintext = rng.randbytes(length)
+            with self.subTest(index=index, length=len(plaintext)):
+                blob = seal_v5_record(
+                    root_key=root, archive_id=archive_id, slot=slot, sequence=sequence,
+                    offset=offset, plaintext=plaintext,
+                )
+                self.assertEqual(
+                    open_v5_record(
+                        root_key=root, archive_id=archive_id, slot=slot, sequence=sequence,
+                        offset=offset, plaintext_length=len(plaintext), blob=blob,
+                    ),
+                    plaintext,
+                )
+
+    def test_manifest_round_trips_seeded_file_chunk_shapes(self) -> None:
+        rng = random.Random(0x56354D46)
+        root = bytes(range(32))
+        archive_id = bytes(range(16))
+        cursor = V5_HEADER_SIZE
+        sequence = 0
+        files = []
+        for file_index in range(48):
+            chunks = []
+            file_size = 0
+            chunk_count = 0 if file_index % 7 == 0 else 1 + rng.randrange(3)
+            for _ in range(chunk_count):
+                length = 1 + rng.randrange(4096)
+                chunks.append(V5ChunkReference(sequence, cursor, length))
+                cursor += V5_RECORD_OVERHEAD + length
+                file_size += length
+                sequence += 1
+            files.append(V5FileEntry(
+                f"folder-{file_index:03}/file-{file_index:03}.bin", file_size, tuple(chunks)
+            ))
+
+        descriptor = V5ViewDescriptor(1, 3, sequence, tuple(files))
+        blob = seal_v5_descriptor(
+            root_key=root, archive_id=archive_id, view=descriptor, offset=cursor
+        )
+        decoded = open_v5_descriptor(
+            root_key=root, archive_id=archive_id, slot=1, generation=3,
+            offset=cursor, blob=blob,
+        )
+        self.assertEqual(decoded, descriptor)
+        self.assertTrue(any(not item.chunks for item in decoded.files))
+        self.assertGreater(len(blob), V5_DESCRIPTOR_OVERHEAD)
+
     def test_empty_and_populated_descriptors_are_compact_and_authenticated(self) -> None:
         root = bytes(range(32))
         archive_id = bytes(range(16))
@@ -158,6 +217,24 @@ class HSE2V5CodecTests(unittest.TestCase):
                 V5ChunkReference(0, V5_HEADER_SIZE, 3),
             )),)),
             V5ViewDescriptor(0, 1, 0, (V5FileEntry("bad\x00path", 0, ()),)),
+            V5ViewDescriptor(0, 1, 0, (
+                V5FileEntry("z.txt", 0, ()), V5FileEntry("a.txt", 0, ()),
+            )),
+            V5ViewDescriptor(0, 1, 0, (
+                V5FileEntry("A.txt", 0, ()), V5FileEntry("a.txt", 0, ()),
+            )),
+            V5ViewDescriptor(0, 1, 0, (
+                V5FileEntry("folder", 0, ()), V5FileEntry("folder/child", 0, ()),
+            )),
+            V5ViewDescriptor(0, 1, 1, (
+                V5FileEntry("a", 1, (V5ChunkReference(0, V5_HEADER_SIZE, 1),)),
+                V5FileEntry("b", 1, (V5ChunkReference(0, V5_HEADER_SIZE + 61, 1),)),
+            )),
+            V5ViewDescriptor(0, 1, 2, (V5FileEntry("a", 2, (
+                V5ChunkReference(1, V5_HEADER_SIZE, 1),
+                V5ChunkReference(0, V5_HEADER_SIZE + 61, 1),
+            )),)),
+            V5ViewDescriptor(0, 1, 0, (V5FileEntry("e\u0301.txt", 0, ()),)),
         )
         for view in bad_views:
             with self.subTest(view=view), self.assertRaises(HSE2ModelError):

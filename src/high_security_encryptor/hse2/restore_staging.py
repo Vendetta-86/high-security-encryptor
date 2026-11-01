@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import shutil
 import tempfile
+import time
 from typing import Iterator
 
 _LEASED_STAGE_MARKER = "v5-restore-lease1-"
@@ -135,6 +136,17 @@ def _manager_lock(target: Path) -> Iterator[None]:
         lock.release()
 
 
+def _remove_stage_with_windows_retry(candidate: Path) -> None:
+    for attempt in range(6):
+        try:
+            shutil.rmtree(candidate)
+            return
+        except PermissionError as exc:
+            if getattr(exc, "winerror", None) != 32 or attempt == 5:
+                raise
+            time.sleep(0.02 * (2 ** attempt))
+
+
 def _cleanup_stale_locked(target: Path) -> None:
     parent = target.parent
     prefix = f".{target.name}.{_LEASED_STAGE_MARKER}"
@@ -150,7 +162,7 @@ def _cleanup_stale_locked(target: Path) -> None:
         except OSError:
             continue
         try:
-            shutil.rmtree(candidate)
+            _remove_stage_with_windows_retry(candidate)
         finally:
             lease.release()
         lock_path.unlink(missing_ok=True)
