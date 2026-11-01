@@ -23,6 +23,48 @@ This claim is not made yet. Repeated snapshots, host artifacts, application exec
 
 These constraints do not prove indistinguishability. In particular, simple concatenation, a visible second wrapper, or one-time equal-size output does not meet the proposed claim.
 
+## Concrete candidate: fixed-capacity two-view v4 (self-review draft)
+
+This narrows the feature to **exactly two password-selected views**. Every v4 archive has two same-shaped credential slots and two same-shaped encrypted view descriptors; the format does not support a one-view v4 archive. This removes “one vs two credential slots” as a public distinction, but does not establish that the views or file usage are indistinguishable.
+
+### Public layout
+
+```text
+fixed preamble | fixed-size public header | fixed-capacity record area
+```
+
+- The public header contains only magic/version, fixed header length, public capacity, fixed record size, and two structurally identical credential slots.
+- Each credential slot contains a random salt, fixed Argon2id profile metadata, one random nonce, and a fixed-length AEAD ciphertext wrapping one 32-byte view root key. No labels, timestamps, view names, or wrapper types are present.
+- Each view descriptor occupies one fixed-size record at a fixed public position. It is AEAD ciphertext under a key derived from that view's root key. It contains that view's encrypted manifest, its record-index map, and authenticated logical length.
+- The remaining area consists only of fixed-size records. Records referenced by either view contain AEAD ciphertext; unallocated records contain cryptographically random bytes. No plaintext occupied/free marker or per-view record count is stored.
+- The total file size is selected at creation and does not grow during updates. An update that cannot fit must fail without modifying the original. A larger capacity requires explicit export to a new archive and must be documented as creating a snapshot-visible operation.
+
+### Key derivation and encryption constraints
+
+- Each of the two view root keys is generated independently with a CSPRNG; credentials never directly encrypt content.
+- Argon2id derives one KEK per password using independent 16-byte random salts and the existing bounded profile allowlist. Both slots always serialize the same profile and lengths.
+- AEAD wraps each root key with AAD binding format version, public capacity, slot index, and the complete immutable public header fields. The exact encoding must be canonical and covered by test vectors.
+- A reviewed, standard HKDF-SHA-256 implementation derives per-view manifest and per-record keys using distinct labels and indices. No key is reused between views, records, or purposes. Nonce generation and maximum invocation counts must be written as explicit invariants before coding.
+- The public header is not authenticated globally. Each credential slot authenticates its own root key; each descriptor and data record authenticates its own contents and index. Parsers must reject any malformed length or index before allocating from attacker-controlled values.
+
+### Read/write behavior
+
+- Unlock tries only the selected credential slot. All failures, including wrong password, bad wrapped key, malformed descriptor and tampering, produce one generic error before any plaintext output path is created.
+- After unlock, the authenticated descriptor provides a set of record indices. Every listed index must be in range, unique within that view, and authenticate with the expected view/index AAD. The two views may not reference the same physical record.
+- Restore writes to staging files and commits only after the selected view has fully authenticated. The other view and its records are never modified by open or restore.
+- Adding or replacing content allocates random unused record indices and atomically writes a new fixed-size file. Existing unreferenced records are overwritten with fresh random bytes in the new output. The original remains intact on any failure.
+- This design does not protect against repeated snapshots, host artifacts, file-size comparison across exports, opened plaintext traces, timing/memory observation, or an attacker who knows the application. It must not be marketed as coercion-safe or as general plausible deniability.
+
+### Local review questions that remain before implementation
+
+1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model, including a one-view baseline? The proposed baseline is exactly two valid views, so the claim must not imply otherwise.
+2. What fixed record size, maximum capacity, and manifest size bounds allow safe parsing and bounded memory on supported Windows systems?
+3. Which AEAD is already supported by the dependency set, and what nonce construction meets its per-key usage limits without random-collision ambiguity?
+4. Can updates be made atomic on supported filesystems without leaving observable partial output or modifying the input file?
+5. What property tests and fuzz limits demonstrate fail-closed behavior? Which claims remain assumptions rather than tests?
+
+**Decision:** this is now a concrete candidate for local design review, not an approved cryptographic construction. Resolve the five questions, write byte-exact vectors and validate dependency primitives before implementing a v4 parser or writer.
+
 ## Local review package
 
 Before implementation, the project owner must review the exact versioned wire proposal, reference parser/writer, threat model, test corpus, and list of excluded claims. The recorded self-review must cover:
