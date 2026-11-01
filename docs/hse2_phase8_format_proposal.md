@@ -8,9 +8,9 @@ The current Phase 8 design review correctly rejects a visible `duress` wrapper, 
 
 ## Proposed security claim
 
-Candidate claim for review: for a **single, static copy of a new-version container**, an offline observer without either credential should not be able to distinguish a one-view container from a container configured with two independently authenticated views, beyond public fixed-format fields and total container length.
+Candidate claim for review: for a **single, static copy of a new-version container**, an offline observer without either credential should not be able to distinguish whether the secondary view is empty or contains files, beyond the public v4 format marker, the existence of two credential slots, fixed capacity, and total container length.
 
-This claim is not made yet. Repeated snapshots, host artifacts, application execution, coercion safety, key disclosure, secure deletion, and resistance to a maliciously modified application are excluded. Users must be told that filenames, logs, temporary files, backups, cloud sync, and operating-system traces can disclose opened content. No UI or documentation may promise protection from coercion.
+This claim is not made yet. The v4 marker and two credential slots publicly reveal that the format supports two views; the proposal does not hide that capability. Repeated snapshots, host artifacts, application execution, coercion safety, key disclosure, secure deletion, and resistance to a maliciously modified application are excluded. Users must be told that filenames, logs, temporary files, backups, cloud sync, and operating-system traces can disclose opened content. No UI or documentation may promise protection from coercion.
 
 ## Candidate architecture questions (deliberately unresolved)
 
@@ -25,7 +25,7 @@ These constraints do not prove indistinguishability. In particular, simple conca
 
 ## Concrete candidate: fixed-capacity two-view v4 (self-review draft)
 
-This narrows the feature to **exactly two password-selected views**. Every v4 archive has two same-shaped credential slots and two same-shaped encrypted view descriptors; the format does not support a one-view v4 archive. This removes “one vs two credential slots” as a public distinction, but does not establish that the views or file usage are indistinguishable.
+This narrows the feature to **exactly two password-selected views**. Every v4 archive has two same-shaped credential slots and two same-shaped encrypted view descriptors; the format does not support a one-view v4 archive. The public format reveals that dual-view capability exists; only whether the secondary view contains data is intended to remain private.
 
 ### Public layout
 
@@ -90,7 +90,7 @@ The repository's `atomic_output_path` uses a same-directory temporary file follo
 
 ### Local review questions that remain before implementation
 
-1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model? The baseline is always exactly two valid views; an empty secondary view is permitted, and the feature never claims that an observer cannot distinguish meaningful from empty plaintext after credential disclosure.
+1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model? The baseline is always exactly two valid views; an empty secondary view is permitted, and the feature never claims to hide that two-view support exists or to conceal content after credential disclosure.
 2. Are the 1 MiB record, 65,536-record, 64 GiB record area, two 64 MiB descriptor regions, and 64 MiB private manifest ceiling acceptable on supported Windows systems, including full-file atomic rewrite costs?
 3. Validate HKDF-SHA-256 and AES-GCM API behavior in the supported PyCryptodome versions and generate byte-exact vectors. Confirm the one-use random data-key rule and per-generation descriptor key in code/tests.
 4. Can updates be made atomically on supported filesystems without leaving observable partial output or modifying the input file?
