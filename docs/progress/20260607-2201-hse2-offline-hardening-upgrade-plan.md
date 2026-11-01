@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：Phase 10–12 已完成。`v0.6.0-alpha.9` 精确 tag Windows 构建、下载工件校验和本地打包验收均通过，维护者已批准该 alpha 预发布；公开 GitHub Release 尚未创建。alpha.8 工件过时，禁止替代 alpha.9 发布。Phase 8 维持 no-go；用户同意第三方认证稍缓，HSE2 稳定格式冻结的第三方互操作/独立审查仍未满足。
+- **当前状态**：Phase 10–12 已完成。`v0.6.0-alpha.9` 精确 tag Windows 构建、下载工件校验和本地打包验收均通过，维护者已批准并发布为 GitHub 预发布；发布资产 SHA-256 与验收工件一致。alpha.8 工件过时，未替代 alpha.9 发布。Phase 8 维持 no-go；用户同意第三方认证稍缓，HSE2 稳定格式冻结的第三方互操作/独立审查仍未满足。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -394,7 +394,7 @@ python -m pip_audit . --progress-spinner off
 | `v0.6.0-alpha.1` | [x] | HSE2 create/open 与基础 GUI/EXE 验收 |
 | `v0.6.0-alpha.2` | [x] | HSE2 helper CLI EXE 打包与 8 个 EXE 验收 |
 | `v0.6.0-alpha.8` | [!] | tag `5935f76` 的 Windows EXE 构建与 Actions 工件上传已通过；之后发现 GUI 错误短语路径缺少可见反馈，`ecea734` 已修复。旧工件不应发布，保留作为历史候选记录。 |
-| `v0.6.0-alpha.9` | [~] | 精确 tag 构建、下载工件摘要/内容校验、10 个 EXE 完整性和打包 CLI/GUI smoke 已通过；维护者批准为 alpha 预发布。GitHub Release 尚待发布工作流完成。候选记录见 `docs/releases/v0.6.0-alpha.9.md`。 |
+| `v0.6.0-alpha.9` | [x] | 精确 tag 构建、下载工件摘要/内容校验、10 个 EXE 完整性和打包 CLI/GUI smoke 已通过；维护者批准并已发布为 GitHub 预发布，资产 SHA-256 与已验收 Actions 工件一致。候选与发布记录见 `docs/releases/v0.6.0-alpha.9.md`。 |
 | `v0.6.0` | [~] | HSE2 格式冻结、DEK + wrappers、KDF profiles |
 | `v0.6.1` | [~] | keyfile 双因子、header backup |
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
