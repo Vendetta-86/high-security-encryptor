@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import os
 from pathlib import Path
 import subprocess
@@ -11,7 +12,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from high_security_encryptor.atomic_io import atomic_output_path, flush_file
+from high_security_encryptor.atomic_io import atomic_output_path, flush_file, write_bytes_atomically
 
 
 class AtomicIOTests(unittest.TestCase):
@@ -84,6 +85,21 @@ with atomic_output_path(target) as staged:
                     process.wait(timeout=5)
                 for staged_file in root.glob(f".{target.name}.*.tmp"):
                     staged_file.unlink(missing_ok=True)
+
+    def test_no_space_at_flush_preserves_existing_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "archive.hse2"
+            target.write_bytes(b"old authenticated container")
+
+            with patch("high_security_encryptor.atomic_io.flush_file",
+                       side_effect=OSError(errno.ENOSPC, "no space left on device")):
+                with self.assertRaises(OSError) as raised:
+                    write_bytes_atomically(target, b"replacement container")
+
+            self.assertEqual(raised.exception.errno, errno.ENOSPC)
+            self.assertEqual(target.read_bytes(), b"old authenticated container")
+            self.assertEqual(list(root.glob(f".{target.name}.*.tmp")), [])
 
 
 if __name__ == "__main__":

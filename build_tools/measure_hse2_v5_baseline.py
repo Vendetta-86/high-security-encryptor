@@ -17,6 +17,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -137,28 +138,37 @@ def _build_report(rows: list[dict[str, object]]) -> str:
         "- Inputs: temporary zero-filled test files; no user files are read.",
         "- Password profile: compatible; fixed test-only passwords are in the script.",
         "- Memory metric: per-worker peak process working set, including interpreter and Argon2.",
-        "- Each case measures create, replace-one-view, compact-both-views, and primary restore in one fresh worker.",
+        f"- Repeats per case: {rows[0]['repeat_count'] if rows else 0}; each repeat uses a fresh worker.",
+        "- Each case measures create, replace-one-view, compact-both-views, and primary restore in one worker.",
         "",
-        "| Case | Created bytes | Replaced bytes | Compacted bytes | Create s | Replace s | Compact s | Restore s | Peak WS MiB |",
+        "| Case | Created bytes | Replaced bytes | Compacted bytes | Create s median (min-max) | Replace s median (min-max) | Compact s median (min-max) | Restore s median (min-max) | Peak WS MiB median (min-max) |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in rows:
+        def duration(name: str) -> str:
+            samples = row[name]
+            assert isinstance(samples, list)
+            return f"{statistics.median(samples):.3f} ({min(samples):.3f}-{max(samples):.3f})"
+
+        working_sets = row["peak_working_set_bytes"]
+        assert isinstance(working_sets, list)
         lines.append(
             f"| {row['case']} | {row['created_bytes']:,} | {row['replaced_bytes']:,} | {row['compacted_bytes']:,} "
-            f"| {row['create_seconds']:.3f} | {row['replace_seconds']:.3f} | {row['compact_seconds']:.3f} "
-            f"| {row['restore_seconds']:.3f} | {_format_mib(int(row['peak_working_set_bytes']))} |"
+            f"| {duration('create_seconds')} | {duration('replace_seconds')} | {duration('compact_seconds')} "
+            f"| {duration('restore_seconds')} | {_format_mib(int(statistics.median(working_sets)))} "
+            f"({_format_mib(min(working_sets))}-{_format_mib(max(working_sets))}) |"
         )
     lines.extend([
         "",
-        "These are single-run observations, not performance guarantees or release thresholds. Compare with v4 only on the same machine, Python build, storage, and equivalent inputs. Replace always copies the existing container to a new output; compact/export re-encrypt active contents. Peak working set is the maximum over the full sequence, not an operation-specific value.",
+        "These are repeated local observations, not performance guarantees or release thresholds. The table shows the median and min-max range; three samples are too few to characterize all machine and storage noise. Compare with v4 only on the same machine, Python build, storage, and equivalent inputs. Replace always copies the existing container to a new output; compact/export re-encrypt active contents. Peak working set is the maximum over the full sequence, not an operation-specific value.",
         "",
-        "Re-run with `python build_tools/measure_hse2_v5_baseline.py` from the repository root.",
+        "Re-run with `python build_tools/measure_hse2_v5_baseline.py --repeat 3` from the repository root.",
         "",
     ])
     return "\n".join(lines)
 
 
-def _run_parent() -> None:
+def _run_parent(repeat: int) -> None:
     with tempfile.TemporaryDirectory(prefix="hse2-v5-baseline-") as temp_dir:
         root = Path(temp_dir)
         inputs = {
@@ -189,33 +199,54 @@ def _run_parent() -> None:
         ]
         rows: list[dict[str, object]] = []
         for case_name, primary, secondary in cases:
-            work_dir = root / case_name
-            work_dir.mkdir()
-            config_path = root / f"{case_name}.json"
-            config_path.write_text(json.dumps({
-                "work_dir": str(work_dir),
-                "replacement_source": str(replacement),
-                "view_files": [
-                    [[archive_path, str(source_path)] for archive_path, source_path in primary],
-                    [[archive_path, str(source_path)] for archive_path, source_path in secondary],
-                ],
-            }), encoding="utf-8")
-            completed = subprocess.run(
-                [sys.executable, str(Path(__file__).resolve()), "--worker-config", str(config_path)],
-                cwd=REPO_ROOT, check=True, capture_output=True, text=True,
-            )
-            rows.append({"case": case_name, **json.loads(completed.stdout)})
+            observations = []
+            for run_index in range(repeat):
+                work_dir = root / case_name / f"run-{run_index + 1:02}"
+                work_dir.mkdir(parents=True)
+                config_path = root / f"{case_name}-{run_index + 1:02}.json"
+                config_path.write_text(json.dumps({
+                    "work_dir": str(work_dir),
+                    "replacement_source": str(replacement),
+                    "view_files": [
+                        [[archive_path, str(source_path)] for archive_path, source_path in primary],
+                        [[archive_path, str(source_path)] for archive_path, source_path in secondary],
+                    ],
+                }), encoding="utf-8")
+                completed = subprocess.run(
+                    [sys.executable, str(Path(__file__).resolve()), "--worker-config", str(config_path)],
+                    cwd=REPO_ROOT, check=True, capture_output=True, text=True,
+                )
+                observations.append(json.loads(completed.stdout))
+            byte_fields = ("created_bytes", "replaced_bytes", "compacted_bytes")
+            for field in byte_fields:
+                if len({sample[field] for sample in observations}) != 1:
+                    raise RuntimeError(f"non-repeatable container size for {case_name}: {field}")
+            rows.append({
+                "case": case_name,
+                "repeat_count": repeat,
+                **{field: observations[0][field] for field in byte_fields},
+                **{
+                    field: [sample[field] for sample in observations]
+                    for field in (
+                        "create_seconds", "replace_seconds", "compact_seconds",
+                        "restore_seconds", "peak_working_set_bytes",
+                    )
+                },
+            })
         print(_build_report(rows))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--worker-config", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--repeat", type=int, default=3, help="fresh worker repetitions per case (default: 3)")
     args = parser.parse_args()
     if args.worker_config is not None:
         _worker(args.worker_config)
     else:
-        _run_parent()
+        if not 1 <= args.repeat <= 10:
+            parser.error("--repeat must be between 1 and 10")
+        _run_parent(args.repeat)
     return 0
 
 
