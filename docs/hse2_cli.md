@@ -147,7 +147,7 @@ Not implemented yet:
 
 ## Experimental v4 alternate views
 
-The isolated v4 candidate is available in the Python CLI and the separate HSE2 experimental GUI. The GUI currently accepts one file mapping for each view per operation; the CLI supports repeated mappings. Resource, malformed-input, interruption, and official Windows Release ZIP acceptance are still being completed. V4 must not be treated as a plausible-deniability or coercion-safety feature. V2/v3 behavior is unchanged. See [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md).
+The isolated v4 alternate-view feature is available in the Python CLI and the separate HSE2 experimental GUI. The GUI currently accepts one file mapping for each view per operation; the CLI supports repeated mappings. Local malformed-input, capacity/resource-boundary, cleanup, atomic-publication-failure, and official Windows Release ZIP checks are complete; broader fuzz/property testing remains optional follow-up hardening. V4 must not be treated as a plausible-deniability or coercion-safety feature. V2/v3 behavior is unchanged. See [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md).
 
 Create a two-view container. Passwords are entered through masked prompts and never passed as command-line arguments. Each `ARCHIVE_PATH=SOURCE_PATH` pair maps one input file into that view; repeat the option for additional files. Empty views are allowed.
 For redirected automation, `--passwords-stdin` reads exactly four lines (primary password and confirmation, then secondary password and confirmation). The `v4-open` and `v4-replace` commands accept `--password-stdin` for one line. These options reject terminal stdin; otherwise interactive passwords continue to use hidden prompts.

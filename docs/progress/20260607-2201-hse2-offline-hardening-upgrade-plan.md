@@ -3,7 +3,7 @@
 - **项目**：`Vendetta-86/high-security-encryptor`
 - **计划生成时间**：2026-06-07 22:01 Asia/Taipei
 - **文档命名时间戳**：`20260607-2201`
-- **当前状态**：所有非暂缓阶段均已完成。`v0.7.0` 精确 tag Windows 构建、十个 EXE smoke、ZIP 打包和 GitHub 稳定版发布成功；详见 `docs/releases/v0.7.0.md`。Phase 8 two-view v4 不宣称可否认性；Decoy/Duress 功能继续暂缓。
+- **当前状态**：原路线图中的可执行范围均已完成。Phase 8 已交付 HSE2 v4 双视图备用内容功能，并随 `v0.7.0` 发布；不宣称可否认性，不修改 v2/v3。真正可否认性属于后续独立研究，不是本路线图的未完成实现项。详见 `docs/hse2_phase8_format_proposal.md` 与 `docs/releases/v0.7.0.md`。
 - **进度标记规则**：
   - `[x]` = 已完成 / 仓库中已有明确实现或文档基础
   - `[~]` = 进行中 / 已有部分基础，但仍需补齐正式流程
@@ -74,7 +74,7 @@
 | Phase 5 | [x] | Header Backup | create 成功后推荐导出；GUI 常驻提示备份不能替代解锁因子；CLI/GUI 文案与恢复回归通过 |
 | Phase 6 | [x] | Destroy Access | header backup 可在 v2/v3 wrapper 区域被 access destroy 清除后恢复旧 header，并重新解密原 payload |
 | Phase 7 | [x] | DPAPI 正式化 | create/add/remove、current-user/local-machine 风险提示、独立恢复 wrapper 要求与可移植性文档均已覆盖并验收 |
-| Phase 8 | [x] | Alternate-view design review | v4 本地提案、公有头/双密码槽/描述符/记录 codecs、固定容量文件工作流、Python CLI 及实验 GUI 创建/恢复/单视图替换已实现；固定种子往返及 40 个密文位置篡改样本、64 个确定性畸形头、清单/记录边界、恢复清理和原子发布中断覆盖；发布时全量 712 项通过/6 项跳过、120 项 v4/GUI/release-contract 定向测试通过；之后补充容量边界/最大容量截断测试，当前全量 714 项通过/6 项跳过；Windows Actions run 41277639032 构建及发布成功，下载 ZIP 16 项、十个 EXE 清单与 GitHub SHA-256 均复核通过；不宣称可否认性，v2/v3 保持不变 |
+| Phase 8 | [x] | Alternate-view feature (bounded scope) | HSE2 v4 双视图备用内容功能已实现并发布：固定容量容器、双口令槽、CLI/实验 GUI 创建/恢复/单视图替换；对侧视图在替换后保留。确定性往返/篡改/畸形输入/容量边界/截断/清理/原子发布失败覆盖；当前全量 714 项通过、6 项跳过；Windows Actions run 41277639032 构建与发布成功，ZIP 清单和 SHA-256 已复核。不承诺可否认性，不修改 v2/v3。 |
 | Phase 9 | [x] | 元数据最小化 | 文件名仅存在于加密 manifest；v2/v3 可选末块 padding 与精确恢复通过验证 |
 | Phase 10 | [x] | CLI 命令体系 | 统一 inspect、validate、wrapper 管理、access destroy 与 keyfile inspect 已接入 |
 | Phase 11 | [x] | GUI 升级 | 创建、打开、校验、wrapper/access 管理及恢复向导已集成；alpha.9 打包版的 GUI 负向/正向 destroy-access 验收及 v3 元数据检查均通过 |
@@ -237,25 +237,31 @@
 
 ---
 
-## 11. Phase 8：Decoy / Duress 胁迫诱饵模式
+## 11. Phase 8：双视图备用内容（原 Decoy / Duress 范围）
 
 ### 状态
 
-`[!]` 因技术目标和格式设计尚未解决，暂不进入 `v0.7.0` 实现。当前格式与威胁模型没有定义可验证的 plausible-deniability 目标；双密码分别解锁真实/诱饵内容本身不足以隐藏诱饵区是否存在，也无法覆盖多次归档快照、文件大小变化、应用日志、备份和操作系统痕迹。格式级可观察面、候选方案与实现门槛见 [`docs/hse2_decoy_design_review.md`](../hse2_decoy_design_review.md)。只有在本地定义攻击者观察能力、可观察量、失败行为及兼容策略，并提出可验证的格式方案后，才考虑恢复；不要求第三方认证或独立审查。当前仅保留“绝不自动删除真实数据或 wrapper”的安全规则。
+**状态：[x] 已完成（限定为备用内容功能）。** HSE2 v4 允许两组凭据分别打开各自的视图；支持创建、恢复和替换单个视图，并保留另一视图。该功能是明确公开的双视图格式，不隐藏双视图能力，也不声称能抵抗取证、重复快照、主机痕迹或现实胁迫。实现位于独立 v4 格式，不扩展 v2/v3。设计背景和当前边界见 [`docs/hse2_decoy_design_review.md`](../hse2_decoy_design_review.md) 与 [`docs/hse2_phase8_format_proposal.md`](../hse2_phase8_format_proposal.md)。
 
 ### 不做项
 
 - [x] 不做输入胁迫密码后自动删除真实数据
 - [x] 不做输入胁迫密码后自动删除真实 wrapper
 - [x] 不承诺法律、取证或现实胁迫场景下的绝对可否认性
+- [x] 不把备用视图称为隐藏卷、不可检测或胁迫安全功能
 
 ### 待完成清单
 
-- [ ] 新增 decoy manifest（安全目标与可观察面尚未定义，暂缓）
-- [ ] 新增 decoy payload 区（安全目标与可观察面尚未定义，暂缓）
-- [ ] 新增 duress wrapper 类型（当前 header wrapper 类型可枚举，直接增加类型会公开暴露功能）
-- [ ] 胁迫密码只解开 decoy MEK / DEK（尚无安全的隐藏真实/诱饵密钥派生设计）
-- [ ] GUI 明确标注“这不是完整可否认性保证”（尚无可安全发布的功能入口）
+- [x] 新增隔离的 v4 固定容量双视图描述符与记录布局
+- [x] 两组独立凭据分别解锁各自视图；失败路径不输出部分明文
+- [x] 创建、恢复、替换单个视图；替换时保留另一视图并写入独立目标
+- [x] 接入 Python CLI 与实验 GUI，明确使用“alternate view / 双视图”术语
+- [x] 覆盖双视图往返、错误凭据、篡改、畸形输入、资源/容量边界、清理和失败发布
+- [x] 完成 Windows Release ZIP 十个 EXE 验收并随 `v0.7.0` 发布
+
+### 后续另行研究（不阻塞路线图完成）
+
+- `[!]` 真正的可否认性仍未实现或验证。若将来重启该目标，需另立攻击者模型、定义格式级可观察范围和兼容/更新策略；不能把现有双视图测试当成可否认性证明。
 
 ---
 
@@ -422,7 +428,7 @@ python -m pip_audit . --progress-spinner off
 18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
 20. [x] alpha.9 后累积完成的 v0.6.0–v0.6.4 功能与 v0.7.0 two-view v4 已合并为单一稳定发布；Windows ZIP 验收及 GitHub Release 已完成
-21. [x] Phase 8 自用 two-view v4 候选完成本地实现、确定性边界/变异测试、打包双视图往返及官方 Windows Release ZIP 十个 EXE 验收；不宣称可否认性，不改写 v2/v3
+21. [x] Phase 8 双视图备用内容功能完成本地实现、确定性边界/变异测试、打包双视图往返及 Windows Release ZIP 十个 EXE 验收；不宣称可否认性，不改写 v2/v3
 
 ---
 
@@ -504,7 +510,8 @@ python -m pip_audit . --progress-spinner off
 - 2026-11-01：Phase 8 GUI 集成与本地边界验证：HSE2 实验 GUI 增加 v4 双视图创建、密码选择恢复和单视图替换；密码不进入 argv/日志，恢复/替换执行前确认，创建显示固定容量估算。新增 GUI 往返与替换测试、畸形头/长度边界及模拟 atomic replace 中断测试。全量 705 项通过、6 项跳过；GUI/v4 定向 111 项在 PyCryptodome 3.20.0 通过。pre-commit 通过。正式 Windows Release ZIP 与更广 resource/property/fuzz 测试仍待完成。Commit: 待提交
 - 2026-11-01：Phase 8 packaged stdin smoke 与 malformed-input 覆盖：Windows PyInstaller CLI/HSE2 GUI 当前源码 onefile 构建成功；发现并修复 Windows 控制台 `getpass` 与 PowerShell 非交互管道不兼容，v4 CLI 增加仅接受重定向 stdin 的口令选项。打包 EXE 实测双视图创建/恢复、视图替换和对侧视图保持；新增 64 个确定性畸形头输入及 manifest 结构拒绝测试。全量 711 项通过、6 项跳过；v4/GUI/release-contract 119 项在 PyCryptodome 3.20.0 通过；`pip-audit` 未发现已知漏洞。正式 Windows Release ZIP Actions 验收及更广资源/fuzz 覆盖仍待完成。Commit: 待提交
 - 2026-11-01：Phase 8 资源边界/变异覆盖：对固定种子的空、边界和最大长度 v4 载荷执行往返，并在每个密文样本的盐、封装密钥、nonce、密文和标签位置做篡改拒绝；v4/GUI/release-contract 定向测试 120 项在 PyCryptodome 3.20.0 通过，全量 712 项通过、6 项跳过。将累积发布版本方案收敛为一个 `v0.7.0` 稳定版本，更新包版本及发布说明，避免为相同累计源码重复发布 `v0.6.0`–`v0.6.4` 工件。官方十 EXE ZIP 尚待精确 tag Actions 构建与验收。Commit: 待提交
-- 2026-11-01：v0.7.0 稳定版验收并发布：GitHub Actions run [41277639032](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41277639032) 的 Windows 构建与发布 jobs 均成功；全量测试、十个 EXE 存在性/CLI-GUI smoke、v4 双视图创建/恢复/替换及对侧视图保留均通过。GitHub Release 已发布 `high-security-encryptor-v0.7.0-windows-x64.zip`，147,337,120 字节。Decoy/Duress 仍暂缓。发布记录见 `docs/releases/v0.7.0.md`。Commit: 后续状态更新提交
+- 2026-11-01：v0.7.0 稳定版验收并发布：GitHub Actions run [41277639032](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41277639032) 的 Windows 构建与发布 jobs 均成功；全量测试、十个 EXE 存在性/CLI-GUI smoke、v4 双视图创建/恢复/替换及对侧视图保留均通过。GitHub Release 已发布 `high-security-encryptor-v0.7.0-windows-x64.zip`，147,337,120 字节。Phase 8 作为备用内容功能完成；真正可否认性不在当前范围。发布记录见 `docs/releases/v0.7.0.md`。Commit: 后续状态更新提交
+- 2026-11-01：根据用户确认的范围清理路线图：将 Phase 8 从“Decoy/Duress 暂缓”更正为已完成的双视图备用内容功能；将真正可否认性单列为未来研究且不阻塞路线图；同步核对 v4 现有实现、发布验收与测试证据。Commit: 本提交（SHA 见 Git 历史）
 - 2026-11-01：发布后维护：Windows Actions 工作流改用支持 Node 24 的 checkout/setup-python/upload-artifact/download-artifact 主版本；新增工作流版本契约、v4 容量边界与最大容量截断输入测试。全量 714 项通过、6 项跳过；下载实际 v0.7.0 Release ZIP 核对 16 个条目、十个 EXE 和 GitHub SHA-256。Commit: 待提交
 - 2026-11-01：Node 24 工作流验证：Windows EXE run [41298400473](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/41298400473) 的构建与 `upload-artifact@v7` 成功；`publish_release=false` 因而发布 job 按预期跳过。为在不发布或覆盖 Release 的前提下验证 `download-artifact@v8`，新增必经的非发布 `verify_artifact` job，下载并检查 ZIP，发布 job 改为依赖该验证。待对新提交再运行 build-only workflow。Commit: 待提交
 - 2026-10-31：Phase 12 restore-path hardening：HSE2 manifest 创建及恢复现在拒绝会被 POSIX 路径解析静默归一化的非规范路径；Windows 恢复预检以路径前缀树拒绝大小写归一化后的同目标及文件/子路径冲突，避免条目顺序决定覆盖结果，同时令额外索引随路径段数线性增长。新增 manifest 与 v3 open 回归；定向 26 项、最终全量 677 项通过（6 项跳过），compileall、pre-commit、`git diff --check` 通过。格式 framing 文档已同步。Commit: 本提交（SHA 见 Git 历史）

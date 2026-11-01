@@ -2,9 +2,9 @@
 
 ## Status
 
-**Decision: no-go for a deniability feature in the current HSE2 format.** This document records the pre-implementation review required by Phase 8. It does not define a cryptographic construction and does not authorize adding a duress wrapper or decoy payload to v2/v3.
+**Historical decision: no-go for claiming plausible deniability in HSE2 v2/v3.** This pre-implementation review correctly rejected adding a visible duress wrapper or decoy payload to those formats. It does not block the separately versioned v4 alternate-view feature, which is now implemented and released. The current feature is explicitly disclosed as two views and makes no deniability claim.
 
-The current format can support ordinary alternate archives or an explicitly disclosed alternate-view workflow, but it cannot honestly claim that an alternate unlock hides the existence of other content. A separate format proposal and local cryptographic/design review are required before implementation; third-party review is not a project gate.
+The current v4 format supports an explicitly disclosed alternate-view workflow. It does not claim that an alternate unlock hides the existence of other content. The v2/v3 format and threat-model limitations recorded below remain applicable to those formats. Third-party review is not a project gate for this self-use project.
 
 ## Security goal under review
 
@@ -57,7 +57,7 @@ Relevant implementation points include `hse2/models.py` (`WrapperRecord.VALID_TY
 
 **Reject as a duress claim.** This can be an ordinary alternate-content workflow if clearly disclosed, but the archive metadata, host state, or application behavior may reveal that multiple views exist.
 
-## Mandatory gates before any code
+## Original review gates (historical; apply only if true deniability is reconsidered)
 
 1. Approve a bounded attacker model and explicitly list excluded host/system risks.
 2. Write a versioned wire-format proposal covering header, key derivation, record allocation, padding, updates, backups, compatibility, and all parser failure modes.
@@ -68,13 +68,13 @@ Relevant implementation points include `hse2/models.py` (`WrapperRecord.VALID_TY
 7. Test legacy readers, malformed and truncated records, wrong credentials, tampering, repeated snapshots, equal-size view constraints, backup/restore, and GUI/CLI side channels. These tests can falsify claims but cannot prove real-world deniability by themselves.
 8. Use an explicit limited-feature name and warning if the eventual implementation only offers alternate-content unlock. Do not imply legal, forensic, or coercion safety.
 
-## Decision
+## Original decision (historical)
 
-Phase 8 design work has resumed at the proposal stage. The current v2/v3 no-go remains in force: no patch to `WrapperRecord` or existing wire formats, no implementation before the local review gates above, and no automatic deletion of real data or wrapper material. The proposal draft is [`hse2_phase8_format_proposal.md`](hse2_phase8_format_proposal.md); it is not yet an approved construction.
+At review time, Phase 8 design work had resumed at the proposal stage. The v2/v3 no-go remains in force: the implementation does not patch `WrapperRecord` or existing wire formats, and no credential automatically deletes real data or wrapper material. The proposal has since been implemented as isolated v4 alternate-view functionality; it is not a deniability construction.
 
 ## 2026-11-01 Current Status
 
-The user authorized continued local implementation for self-use without third-party or independent-review gates. V4 now has isolated wire codecs, fixed-layout file create/read/update workflows, Python CLI commands, and experimental GUI create/open/replace actions. A local PyInstaller CLI EXE passed create and both-view restore checks; automated GUI round-trip coverage also passes. Full Windows Release ZIP acceptance and broader resource/property/fuzz coverage remain open. The v2/v3 no-go and all exclusions in this review remain in force; this project makes no deniability claim.
+The user authorized local implementation for self-use without third-party or independent-review gates and selected the scope “alternate-content feature, no plausible-deniability claim.” V4 has isolated wire codecs, fixed-layout file create/read/update workflows, Python CLI commands, and experimental GUI create/open/replace actions. Local tests and packaged Windows Release ZIP acceptance passed; v0.7.0 is published. Further fuzz/property exploration may improve confidence, but it is not an unfinished roadmap gate. The v2/v3 formats remain unchanged, and this project makes no deniability claim.
 
 ## References
 

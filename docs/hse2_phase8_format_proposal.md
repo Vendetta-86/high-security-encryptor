@@ -1,31 +1,31 @@
-# HSE2 Phase 8: alternate-view container proposal (review draft)
+# HSE2 Phase 8: alternate-view container design and implementation record
 
 ## Status and scope
 
-**Status: experimental self-use candidate; isolated codecs, fixed-layout file workflows, Python CLI commands, and GUI create/open/replace actions exist.** The local PyInstaller CLI EXE passed create and both-view restore smoke tests. Local automated coverage includes bounded header mutations, invalid container lengths, tampered records, cleanup, and failed atomic publication. Broader resource/fuzz coverage and official full Windows Release ZIP acceptance remain open. This candidate does not change HSE2 v2/v3 and makes no plausible-deniability or coercion-safety claim. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
+**Status: implemented experimental self-use feature, released in v0.7.0.** Isolated codecs, fixed-layout file workflows, Python CLI commands, and GUI create/open/replace actions are present. The Windows Release ZIP workflow passed the ten-EXE checks and packaged v4 create/open/replace verification. Current repository evidence records 714 tests passed and 6 skipped. Additional fuzz/property work may be added later, but official Release ZIP acceptance is complete. This feature does not change HSE2 v2/v3 and makes no plausible-deniability or coercion-safety claim. The user-visible term is **alternate view**, not hidden volume or duress protection.
 
-The current Phase 8 design review correctly rejects a visible `duress` wrapper, a second manifest/payload family, and reuse of v2/v3 for a deniability claim. This draft preserves those findings and turns the next review questions into explicit gates.
+The original Phase 8 review correctly rejected a visible `duress` wrapper, a second manifest/payload family, and reuse of v2/v3 for a deniability claim. This document records the implemented v4 alternate-view format and preserves that limitation; the historical design questions below are not pending gates for the released feature.
 
-## Proposed security claim
+## Hypothetical deniability claim (explicitly not made)
 
-Candidate claim for review: for a **single, static copy of a new-version container**, an offline observer without either credential should not be able to distinguish whether the secondary view is empty or contains files, beyond the public v4 format marker, the existence of two credential slots, fixed capacity, and total container length.
+The original proposal considered this claim: for a **single, static copy of a new-version container**, an offline observer without either credential should not be able to distinguish whether the secondary view is empty or contains files, beyond the public v4 format marker, the existence of two credential slots, fixed capacity, and total container length.
 
 This claim is not made yet. The v4 marker and two credential slots publicly reveal that the format supports two views; the proposal does not hide that capability. Repeated snapshots, host artifacts, application execution, coercion safety, key disclosure, secure deletion, and resistance to a maliciously modified application are excluded. Users must be told that filenames, logs, temporary files, backups, cloud sync, and operating-system traces can disclose opened content. No UI or documentation may promise protection from coercion.
 
-## Candidate architecture questions (deliberately unresolved)
+## Pre-implementation architecture questions (historical)
 
 1. A new format version must retain a single public header/wrapper shape. No public wrapper type, flag, record label, or inspect result may announce the second view.
 2. Each credential must authenticate and unwrap only its assigned view. Failed authentication must return one generic error and must not reveal which view exists.
 3. Both views must use the same record grammar, authenticated fields, and parsing path. No view-specific record type or count may be public.
-4. The proposal must define whether view bytes use fixed-size allocation, encrypted allocation metadata, or an alternate construction. It must analyze total length, chunk counts, update deltas, padding distribution, backups, and crash recovery. No choice is approved here.
-5. Key derivation must be domain-separated by format version, view role, and key purpose. The derivation tree, nonce uniqueness argument, authentication coverage, and key-rotation behavior must be reviewed before implementation.
+4. The implementation chose fixed-size allocation with encrypted allocation metadata. Total container length is fixed at creation; this does not hide the public two-view structure or update history across copies.
+5. Key derivation is domain-separated by format version, view role, and key purpose. The format sections below record the implemented choices; they are not proof of deniability.
 6. Opening or updating one view must never overwrite, truncate, or silently destroy the other view. Atomic update and recovery behavior must be specified for interruption at every write boundary.
 
 These constraints do not prove indistinguishability. In particular, simple concatenation, a visible second wrapper, or one-time equal-size output does not meet the proposed claim.
 
-## Concrete candidate: fixed-capacity two-view v4 (self-review draft)
+## Implemented format: fixed-capacity two-view v4 (alternate content only)
 
-This narrows the feature to **exactly two password-selected views**. Every v4 archive has two same-shaped credential slots and two same-shaped encrypted view descriptors; the format does not support a one-view v4 archive. The public format reveals that dual-view capability exists; only whether the secondary view contains data is intended to remain private.
+The feature supports **exactly two password-selected views**. Every v4 archive has two same-shaped credential slots and two same-shaped encrypted view descriptors; the format does not support a one-view v4 archive. The public format reveals that dual-view capability exists. No claim is made about an observer being unable to infer whether a view contains data.
 
 ### Public layout
 
@@ -88,30 +88,30 @@ Generated with the installed PyCryptodome 4.2.0; this is a regression vector for
 
 The file helper copies to a same-directory temporary output and patches only the selected view; a round-trip test confirms that input and peer-view bytes remain unchanged. This has not been interruption-tested at each write boundary. The repository's `atomic_output_path` uses `os.replace`, which gives atomic replacement semantics where the filesystem supports them but does not promise power-loss durability unless `HSE_FSYNC=1`. Updates always publish to a different path and preserve the input.
 
-### Local validation boundaries before stable release
+### Validated behavior and current limitations
 
 1. The format publicly reveals its v4 marker and two credential slots. It does not claim that the presence or existence of two-view support is hidden, and it does not conceal content after credential disclosure.
 2. The fixed cap is 65,536 records (up to 64 GiB of record slots), two 64 MiB descriptors, and a 63 MiB private manifest ceiling. Large-file throughput and full-copy update costs remain environment dependent; do not allocate maximum-size containers without a disk-capacity check.
 3. HKDF-SHA-256 and AES-256-GCM vectors, codecs, dual credential slots, descriptor authentication, and public-header bounds pass local tests on PyCryptodome 3.20.0 and 4.2.0. CLI and GUI workflows now have local integration coverage.
 4. Atomic source/target behavior is tested for input-reader failure, tag tampering, and simulated publish failure. This does not establish power-loss durability or behavior on every filesystem.
-5. Deterministic malformed-header and file-size cases now fail closed. Broader property/fuzz coverage and resource ceilings under hostile inputs are still open.
+5. Deterministic malformed-header, file-size, capacity, and truncation cases fail closed in local coverage. Broader property/fuzz exploration is optional follow-up hardening, not a roadmap blocker or a deniability proof.
 
-**Decision:** this remains an experimental self-use candidate, not a claim of plausible deniability. Local testing is the project's release gate; third-party certification and independent review are not roadmap requirements. Remaining work is broader resource/property/fuzz coverage and official Windows Release ZIP acceptance. The current implementation does not establish real-world deniability or coercion safety.
+**Decision:** the alternate-view feature is implemented and released as an experimental self-use capability, not a claim of plausible deniability. Local testing is the project's release gate; third-party certification and independent review are not roadmap requirements. The Windows Release ZIP acceptance is complete. Broader fuzz/property exploration is optional follow-up hardening, not a blocker for the current roadmap. The implementation does not establish real-world deniability or coercion safety.
 
-## Local self-review record
+## Historical local design-review checklist (not a pending release gate)
 
-The local review record covers the versioned wire proposal, parser/writer, threat model, test corpus, and excluded claims. It should cover:
+The self-review record for the alternate-view implementation covers the versioned wire layout, parser/writer, threat model, test corpus, and excluded claims. A future effort to pursue a deniability claim would need a new review covering:
 
 - cryptographic construction and key hierarchy, domain separation, nonce generation, AEAD limits, and authentication coverage;
 - distinguishability from public fields, ciphertext length, malformed inputs, errors, timing, backups, and repeated snapshots within the stated scope;
 - parser safety, downgrade behavior, resource limits, atomic updates, and recovery after partial writes;
 - independent implementation feasibility and a test vector format, as local analysis only.
 
-The review result must identify the reviewed commit/digest, findings, severity, and unresolved assumptions. This is an internal self-use review, not third-party certification.
+Any such future review should identify the reviewed commit/digest, findings, severity, and unresolved assumptions. It would be internal self-use review, not third-party certification.
 
-## Implementation gates
+## Local acceptance coverage and excluded claims
 
-The candidate uses a new format version and separate modules; v2/v3 readers continue to reject it. Remaining local validation covers positive and negative credential paths, tampering, truncation, field mutation, generic failure behavior, bounded fuzz/property inputs, memory/time limits, interrupted updates, and downgrade attempts. These tests can find defects but cannot establish real-world deniability outside the stated model.
+The feature uses a new format version and separate modules; v2/v3 readers continue to reject it. Local validation covers positive and negative credential paths, tampering, truncation and malformed fields, bounded resource/capacity limits, cleanup, atomic publication failure, and packaged Windows workflows. Any additional fuzz/property testing can find implementation defects but cannot establish real-world deniability. True plausible deniability, coercion resistance, and host-artifact protection remain out of scope and are not represented as incomplete feature gates.
 
 ## Source basis and limitations
 
