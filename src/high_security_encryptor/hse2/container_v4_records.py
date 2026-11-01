@@ -82,6 +82,8 @@ def _validate_location(*, slot: int, index: int) -> None:
         raise HSE2ModelError("invalid v4 view slot")
     if type(index) is not int or not 0 <= index < V4_MAX_RECORDS:
         raise HSE2ModelError("invalid v4 record index")
+    if index % 2 != slot:
+        raise HSE2ModelError("invalid v4 record index for slot")
 
 
 def _record_wrap_aad(slot: int, index: int) -> bytes:

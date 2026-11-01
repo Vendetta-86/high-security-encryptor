@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-**Status: self-use candidate; isolated codecs exist, file-level container reader/writer and product integration are not started.** This proposal explores an explicitly limited alternate-view feature in a new container version. It does not authorize changes to HSE2 v2/v3 or any claim of plausible deniability. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
+**Status: self-use candidate; isolated codecs and fixed-layout file create/read/update primitives exist, product workflows are not integrated.** This proposal explores an explicitly limited alternate-view feature in a new container version. It does not authorize changes to HSE2 v2/v3 or any claim of plausible deniability. The intended user-visible term is **alternate view**, not hidden volume or duress protection.
 
 The current Phase 8 design review correctly rejects a visible `duress` wrapper, a second manifest/payload family, and reuse of v2/v3 for a deniability claim. This draft preserves those findings and turns the next review questions into explicit gates.
 
@@ -37,7 +37,7 @@ This narrows the feature to **exactly two password-selected views**. Every v4 ar
 - Each credential slot is exactly 77 bytes: one-byte profile ID (`1` compatible, `2` hardened), 16-byte random Argon2id salt, 12-byte random GCM nonce, 32-byte ciphertext, and 16-byte tag. Both slots use the same allowlisted profile. Slot AAD is ASCII `HSE2:v4:credential:<slot>:<capacity-records>:1048576:67108864:<profile-id>:v1`. No labels, timestamps, view names, or wrapper types are present. Passwords are UTF-8 encoded without Unicode normalization; creation rejects identical encoded bytes. Unlock runs Argon2id for both slots and succeeds only if exactly one authenticates; zero or two matches produce the same generic failure.
 - Each view descriptor occupies a fixed 64 MiB region at a fixed public position. Its first 32 bytes are a random HKDF salt, followed by a 12-byte GCM nonce, then exactly 67,108,804 bytes of AES-256-GCM ciphertext and a 16-byte tag under a one-use descriptor key derived from that view root. These fields total 67,108,864 bytes. The private descriptor contains a canonical JSON manifest (maximum 63 MiB), record-index/length map, and authenticated logical lengths; random plaintext padding fills the ciphertext to its fixed public size.
 - The remaining area consists only of fixed-size records. Records referenced by either view contain AEAD ciphertext; unallocated records contain cryptographically random bytes. No plaintext occupied/free marker or per-view record count is stored.
-- The total file size is selected at creation and does not grow during updates. Proposed cap: 65,536 records of 1 MiB each (64 GiB record area); proposed manifest cap: 63 MiB so the largest record map also fits in the fixed descriptor. These are parser/resource ceilings, not promised device requirements. An update that cannot fit must fail without modifying the original. A larger capacity requires explicit export to a new archive and must be documented as a snapshot-visible operation.
+- The public capacity is an even number from 2 through 65,536 records. Even physical record indices belong to slot 0 and odd indices belong to slot 1, so each view has exactly half of the advertised record capacity and can allocate without decrypting the other descriptor. This public partition fixes the non-overlap invariant. The total file size is selected at creation and does not grow during updates. The record area is at most 64 GiB; the manifest cap is 63 MiB so the largest record map also fits in its fixed descriptor. These are parser/resource ceilings, not promised device requirements. An update that cannot fit must fail without modifying the original. A larger capacity requires explicit export to a new archive and must be documented as a snapshot-visible operation.
 
 ### Key derivation and encryption constraints
 
@@ -65,9 +65,9 @@ Each view descriptor has a fresh 32-byte HKDF salt and derives its descriptor ke
 ### Read/write behavior
 
 - Unlock tries only the selected credential slot. All failures, including wrong password, bad wrapped key, malformed descriptor and tampering, produce one generic error before any plaintext output path is created.
-- After unlock, the authenticated descriptor provides a set of record indices. Every listed index must be in range, unique within that view, and authenticate with the expected view/index AAD. The two views may not reference the same physical record.
+- After unlock, the authenticated descriptor provides a set of record indices. Every listed index must be in range, unique within that view, belong to its public parity partition, and authenticate with the expected view/index AAD. The two views cannot reference the same physical record because their index namespaces are disjoint.
 - Restore writes to staging files and commits only after the selected view has fully authenticated. The other view and its records are never modified by open or restore.
-- Adding or replacing content allocates random unused record indices and atomically writes a new fixed-size file. Existing unreferenced records are overwritten with fresh random bytes in the new output. The original remains intact on any failure.
+- Adding or replacing content allocates unused indices from that view's public parity partition and atomically writes a new fixed-size file. The writer copies the other descriptor and record area as opaque bytes, preserving the other view; changed records use fresh content keys. Old unreferenced records may remain ciphertext in the new copy, which is indistinguishable from random record bytes but is not secure deletion. The original remains intact on any failure.
 - This design does not protect against repeated snapshots, host artifacts, file-size comparison across exports, opened plaintext traces, timing/memory observation, or an attacker who knows the application. It must not be marketed as coercion-safe or as general plausible deniability.
 
 ### Deterministic primitive vector (primitive check only)
@@ -86,17 +86,17 @@ Generated with the installed PyCryptodome 4.2.0; this is a regression vector for
 | ciphertext | `9fc1f749c79556f60a2d490714566a538a72dadeb61517ab9aa26ea86667dbbb` |
 | tag | `761fa63653ab7d9d2595ad795da3c149` |
 
-The repository's `atomic_output_path` uses a same-directory temporary file followed by `os.replace`; this gives atomic replacement semantics where the filesystem supports them, but does not promise power-loss durability unless `HSE_FSYNC=1`. V4 must preserve the input and publish a new fixed-size output; it must never update an archive in place.
+The file helper copies to a same-directory temporary output and patches only the selected view; a round-trip test confirms that input and peer-view bytes remain unchanged. This has not been interruption-tested at each write boundary. The repository's `atomic_output_path` uses `os.replace`, which gives atomic replacement semantics where the filesystem supports them but does not promise power-loss durability unless `HSE_FSYNC=1`. Updates always publish to a different path and preserve the input.
 
 ### Local review questions that remain before implementation
 
 1. Is the fixed descriptor placement and identical pair of credential slots sufficient for the narrowly stated single-copy container model? The baseline is always exactly two valid views; an empty secondary view is permitted, and the feature never claims to hide that two-view support exists or to conceal content after credential disclosure.
 2. Are the 1 MiB record, 65,536-record, 64 GiB record area, two 64 MiB descriptor regions, and 63 MiB private manifest ceiling acceptable on supported Windows systems, including full-file atomic rewrite costs?
 3. **Resolved locally for isolated codecs:** HKDF-SHA-256 and AES-256-GCM primitive behavior and the byte-exact vector pass on PyCryptodome 3.20.0 (declared minimum) and 4.2.0. Record-key wrapping, fixed-size record parsing, dual credential slots, descriptor encryption, and public-header size checks have local round-trip/tamper tests. These do not validate whole-file I/O, update atomicity, or alternate-view indistinguishability.
-4. Can updates be made atomically on supported filesystems without leaving observable partial output or modifying the input file?
+4. **Partially tested locally:** the file helper preserves the input and publishes through the repository's atomic replacement helper. Process interruption at every write boundary, power-loss durability, and all supported filesystem behavior remain untested.
 5. What property tests and fuzz limits demonstrate fail-closed behavior? Which claims remain assumptions rather than tests?
 
-**Decision:** this is a concrete candidate for local design review, not an approved cryptographic construction. Primitive compatibility and its test vector are resolved locally. Questions 1, 2, 4, and 5 remain open. Before implementing a v4 parser or writer, the project must settle the resource/capacity model, precisely encode all AAD and descriptor lengths, specify interruption-safe output behavior, and define bounded parser/property tests. The prototype is limited to `container_v4_crypto.py` and does not establish container safety.
+**Decision:** this is a concrete candidate for local design review, not an approved cryptographic construction. Primitive compatibility, byte layout, AAD, record partitioning, and local fixed-file I/O tests are implemented. Questions 1, 2, and 5 remain open; interruption and filesystem coverage in question 4 are partial. Before product workflows, the project must validate resource use, establish bounded malformed-input/property tests, and decide how much local evidence is sufficient for the narrowly scoped claim. The current prototype does not establish container safety or plausible deniability.
 
 ## Local review package
 

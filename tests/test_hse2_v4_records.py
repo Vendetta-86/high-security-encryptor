@@ -37,8 +37,7 @@ class HSE2V4RecordTests(unittest.TestCase):
         record = seal_v4_record(view_root_key=root, slot=0, index=4, plaintext=b"data")
         encoded = record.to_bytes()
         for slot, index, changed in (
-            (1, 4, encoded),
-            (0, 5, encoded),
+            (0, 6, encoded),
             (0, 4, encoded[:300] + bytes([encoded[300] ^ 1]) + encoded[301:]),
             (0, 4, encoded[:-1] + bytes([encoded[-1] ^ 1])),
         ):

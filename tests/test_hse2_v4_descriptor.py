@@ -16,7 +16,7 @@ class HSE2V4DescriptorTests(unittest.TestCase):
         root = bytes(range(32))
         view = V4ViewDescriptor(
             manifest={"files": [{"path": "a.txt", "size": 3}]},
-            record_lengths={0: 3, 7: 1024},
+            record_lengths={0: 3, 6: 1024},
         )
         region = seal_v4_descriptor(
             view_root_key=root, slot=0, capacity_records=8,

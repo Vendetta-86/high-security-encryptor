@@ -41,7 +41,7 @@ class V4ViewDescriptor:
 def _validate_location(slot: int, capacity_records: int) -> None:
     if type(slot) is not int or slot not in (0, 1):
         raise HSE2ModelError("invalid v4 descriptor slot")
-    if type(capacity_records) is not int or not 1 <= capacity_records <= V4_MAX_RECORDS:
+    if type(capacity_records) is not int or not 2 <= capacity_records <= V4_MAX_RECORDS or capacity_records % 2:
         raise HSE2ModelError("invalid v4 record capacity")
 
 
@@ -87,6 +87,7 @@ def seal_v4_descriptor(
     ordered = sorted(record_lengths.items())
     if any(
         type(index) is not int or not 0 <= index < capacity_records
+        or index % 2 != slot
         or type(length) is not int or not 1 <= length <= V4_RECORD_PAYLOAD_SIZE
         for index, length in ordered
     ):
@@ -149,7 +150,8 @@ def open_v4_descriptor(
         previous = -1
         for offset in range(V4_DESCRIPTOR_HEADER.size, map_end, V4_DESCRIPTOR_RECORD.size):
             index, length = V4_DESCRIPTOR_RECORD.unpack_from(plaintext, offset)
-            if index <= previous or index >= capacity_records or not 1 <= length <= V4_RECORD_PAYLOAD_SIZE:
+            if (index <= previous or index >= capacity_records or index % 2 != slot
+                    or not 1 <= length <= V4_RECORD_PAYLOAD_SIZE):
                 raise HSE2ModelError("invalid v4 descriptor record map")
             record_lengths[index] = length
             previous = index

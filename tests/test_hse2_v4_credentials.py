@@ -27,7 +27,7 @@ class HSE2V4CredentialTests(unittest.TestCase):
         for password, ordered_slots, capacity in (
             ("wrong secret", slots, 2),
             ("first secret", (slots[1], slots[0]), 2),
-            ("first secret", slots, 3),
+            ("first secret", slots, 4),
         ):
             with self.subTest(password=password, capacity=capacity):
                 with self.assertRaisesRegex(HSE2ModelError, "authentication failed"):
@@ -37,9 +37,9 @@ class HSE2V4CredentialTests(unittest.TestCase):
         with self.assertRaises(HSE2ModelError):
             V4CredentialSlot.from_bytes(b"short")
         with self.assertRaises(HSE2ModelError):
-            create_v4_credentials("same", "same", capacity_records=1)
+            create_v4_credentials("same", "same", capacity_records=2)
         with self.assertRaises(HSE2ModelError):
-            create_v4_credentials("one", "two", capacity_records=1, profile_name="paranoid")
+            create_v4_credentials("one", "two", capacity_records=2, profile_name="paranoid")
 
 
 if __name__ == "__main__":

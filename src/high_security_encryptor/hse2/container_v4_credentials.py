@@ -54,7 +54,7 @@ def _slot_aad(*, slot: int, capacity_records: int, profile_id: int) -> bytes:
 
 
 def _check_capacity(capacity_records: int) -> None:
-    if type(capacity_records) is not int or not 1 <= capacity_records <= 65_536:
+    if type(capacity_records) is not int or not 2 <= capacity_records <= 65_536 or capacity_records % 2:
         raise HSE2ModelError("invalid v4 record capacity")
 
 

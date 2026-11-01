@@ -17,14 +17,14 @@ class HSE2V4HeaderTests(unittest.TestCase):
         slot0 = V4CredentialSlot(1, bytes(16), bytes(12), bytes(32), bytes(16))
         slot1 = V4CredentialSlot(1, bytes([1]) * 16, bytes([1]) * 12,
                                  bytes([1]) * 32, bytes([1]) * 16)
-        self.header = V4PublicHeader(3, (slot0, slot1))
+        self.header = V4PublicHeader(2, (slot0, slot1))
 
     def test_fixed_header_and_container_length(self) -> None:
         encoded = self.header.to_bytes()
         self.assertEqual(len(encoded), V4_PUBLIC_HEADER_SIZE)
         self.assertEqual(V4PublicHeader.from_bytes(encoded), self.header)
-        expected = 170 + 2 * 67_108_864 + 3 * 1_048_576
-        self.assertEqual(v4_container_size(3), expected)
+        expected = 170 + 2 * 67_108_864 + 2 * 1_048_576
+        self.assertEqual(v4_container_size(2), expected)
         validate_v4_container_size(self.header, expected)
         with self.assertRaises(HSE2ModelError):
             validate_v4_container_size(self.header, expected - 1)

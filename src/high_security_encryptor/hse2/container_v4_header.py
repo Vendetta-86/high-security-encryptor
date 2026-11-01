@@ -22,7 +22,8 @@ class V4PublicHeader:
     credential_slots: tuple[V4CredentialSlot, V4CredentialSlot]
 
     def __post_init__(self) -> None:
-        if type(self.capacity_records) is not int or not 1 <= self.capacity_records <= V4_MAX_RECORDS:
+        if (type(self.capacity_records) is not int or not 2 <= self.capacity_records <= V4_MAX_RECORDS
+                or self.capacity_records % 2):
             raise HSE2ModelError("invalid v4 record capacity")
         if not isinstance(self.credential_slots, tuple) or len(self.credential_slots) != 2:
             raise HSE2ModelError("v4 header requires two credential slots")
@@ -60,7 +61,7 @@ class V4PublicHeader:
 def v4_container_size(capacity_records: int) -> int:
     """Return the exact file size, rejecting capacities outside the fixed bound."""
 
-    if type(capacity_records) is not int or not 1 <= capacity_records <= V4_MAX_RECORDS:
+    if type(capacity_records) is not int or not 2 <= capacity_records <= V4_MAX_RECORDS or capacity_records % 2:
         raise HSE2ModelError("invalid v4 record capacity")
     return V4_PUBLIC_HEADER_SIZE + V4_DESCRIPTOR_PAIR_SIZE + capacity_records * V4_RECORD_SIZE
 
