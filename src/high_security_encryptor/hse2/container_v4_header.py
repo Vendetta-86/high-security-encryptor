@@ -68,4 +68,3 @@ def v4_container_size(capacity_records: int) -> int:
 def validate_v4_container_size(header: V4PublicHeader, actual_size: int) -> None:
     if type(actual_size) is not int or actual_size != v4_container_size(header.capacity_records):
         raise HSE2ModelError("invalid v4 container size")
-

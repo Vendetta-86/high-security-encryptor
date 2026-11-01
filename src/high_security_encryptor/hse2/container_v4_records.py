@@ -149,4 +149,3 @@ def open_v4_record(*, view_root_key: bytes, slot: int, index: int,
         return padded[:plaintext_length]
     except HSE2ModelError as exc:
         raise HSE2ModelError("v4 record authentication failed") from exc
-
