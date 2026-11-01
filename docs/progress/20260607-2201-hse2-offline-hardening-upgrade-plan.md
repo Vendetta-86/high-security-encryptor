@@ -400,14 +400,14 @@ python -m pip_audit . --progress-spinner off
 | `v0.6.2` | [~] | wrapper 管理、destroy-access |
 | `v0.6.3` | [~] | DPAPI wrapper 与 GUI 加密/恢复向导已在当前源码实现并有自动化覆盖；该版本尚未单独打包、打 tag 或发布 |
 | `v0.6.4` | [~] | HSE2 manifest 加密和元数据最小化已在当前源码实现并有自动化覆盖；该版本尚未单独打包、打 tag 或发布 |
-| `v0.7.0` | [!] | decoy / duress 暂不实现；待独立格式提案与密码学审查 |
+| `v0.7.0` | [~] | Phase 8 自用 two-view v4 候选已进入字节布局设计；需完成本地威胁模型复核、实现、回归和打包验收；v2/v3 不扩展，不承诺可否认性 |
 
 ---
 
 ## 17. 推荐开发顺序
 
 1. [x] 建立本进度计划文档
-2. [x] 写 `docs/hse2_format.md`（稳定格式冻结仍需 Phase 1 审查门槛）
+2. [x] 写 `docs/hse2_format.md`（v2/v3 作为当前稳定格式文档；新格式另行版本化）
 3. [x] 新建 `hse2/` 模块骨架
 4. [x] 实现 header 读写和认证
 5. [x] 实现 DEK / MEK 生成
@@ -425,8 +425,8 @@ python -m pip_audit . --progress-spinner off
 17. [x] 补齐 GUI 向导
 18. [x] 补齐测试
 19. [x] 写迁移文档（`docs/hse1_to_hse2_migration.md`）
-20. [~] 打包 release（alpha.9 精确 tag 构建及工件检查已通过；维护者已批准 alpha 预发布，GitHub Release 发布工作流待完成）
-21. [x] 评估 decoy / duress 是否进入下一版本：暂不进入 `v0.7.0`；缺少可审查的威胁模型和格式设计，现有计划不能支持可否认性承诺
+20. [x] alpha.9 精确 tag 构建、工件检查、预发布 Release 与资产摘要核对均已完成；`v0.6.0` 至 `v0.6.4` 稳定版本仍待按版本规划分别打包、测试和发布
+21. [~] Phase 8 改为自用 two-view v4 候选；完成本地设计审查后再实现，不宣称可否认性，不改写 v2/v3
 
 ---
 
