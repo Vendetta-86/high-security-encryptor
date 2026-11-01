@@ -13,6 +13,7 @@ from high_security_encryptor.hse2.container_v5_descriptor import (
     V5ChunkReference,
     V5FileEntry,
     V5ViewDescriptor,
+    _descriptor_aad,
     open_v5_descriptor,
     seal_v5_descriptor,
 )
@@ -287,6 +288,44 @@ class HSE2V5CodecTests(unittest.TestCase):
                 root_key=root, archive_id=archive_id, slot=0, generation=1, offset=4096,
                 blob=bytes(V5_MAX_DESCRIPTOR_SIZE + 1),
             )
+
+    def test_authenticated_malformed_manifests_are_rejected(self) -> None:
+        root = bytes(range(32))
+        archive_id = bytes(range(16))
+        offset = V5_HEADER_SIZE
+        salt = bytes(range(32))
+        nonce = bytes(range(V5_GCM_NONCE_SIZE))
+        info = b"HSE2:v5:view:0:descriptor:1:v1"
+
+        def seal_manifest(plaintext: bytes) -> bytes:
+            blob_length = V5_DESCRIPTOR_OVERHEAD + len(plaintext)
+            key = derive_v5_key(root_key=root, salt=salt, info=info)
+            sealed = seal_v5(
+                key=key,
+                nonce=nonce,
+                plaintext=plaintext,
+                aad=_descriptor_aad(archive_id, 0, 1, offset, blob_length),
+            )
+            return salt + nonce + sealed.ciphertext + sealed.tag
+
+        duplicate_key = b'{"files":[],"generation":1,"next_sequence":0,"schema":1,"slot":0,"slot":0}'
+        over_nested = b'{"x":' + b"[" * 33 + b"0" + b"]" * 33 + b"}"
+        bad_path = (
+            b'{"files":[{"chunks":[],"path":"../escape","size":0}],'
+            b'"generation":1,"next_sequence":0,"schema":1,"slot":0}'
+        )
+        for plaintext in (b"{", duplicate_key, over_nested, bad_path):
+            with self.subTest(manifest_prefix=plaintext[:24]), self.assertRaisesRegex(
+                HSE2ModelError, "v5 descriptor authentication failed"
+            ):
+                open_v5_descriptor(
+                    root_key=root,
+                    archive_id=archive_id,
+                    slot=0,
+                    generation=1,
+                    offset=offset,
+                    blob=seal_manifest(plaintext),
+                )
 
 
 if __name__ == "__main__":
