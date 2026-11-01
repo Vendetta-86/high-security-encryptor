@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import random
 import unittest
 
 from high_security_encryptor.hse2.container_v5_credentials import (
@@ -15,6 +16,7 @@ from high_security_encryptor.hse2.container_v5_descriptor import (
     seal_v5_descriptor,
 )
 from high_security_encryptor.hse2.container_v5_crypto import (
+    V5_MAX_DESCRIPTOR_SIZE,
     V5Sealed,
     derive_v5_key,
     open_v5,
@@ -160,6 +162,30 @@ class HSE2V5CodecTests(unittest.TestCase):
         for view in bad_views:
             with self.subTest(view=view), self.assertRaises(HSE2ModelError):
                 seal_v5_descriptor(root_key=root, archive_id=archive_id, view=view, offset=4096)
+
+    def test_bounded_deterministic_malformed_input_fuzz(self) -> None:
+        rng = random.Random(0x48534532)
+        root = bytes(range(32))
+        archive_id = bytes(range(16))
+        footer_size = V5_HEADER_SIZE + 2 * 60 + V5_FOOTER_SIZE
+
+        for index in range(64):
+            with self.subTest(kind="header", index=index), self.assertRaises(HSE2ModelError):
+                V5PublicHeader.from_bytes(rng.randbytes(V5_HEADER_SIZE))
+            with self.subTest(kind="footer", index=index), self.assertRaises(HSE2ModelError):
+                V5Footer.from_bytes(rng.randbytes(V5_FOOTER_SIZE), file_size=footer_size)
+            malformed_descriptor = rng.randbytes(rng.randrange(0, 512))
+            with self.subTest(kind="descriptor", index=index), self.assertRaises(HSE2ModelError):
+                open_v5_descriptor(
+                    root_key=root, archive_id=archive_id, slot=index % 2, generation=1,
+                    offset=4096, blob=malformed_descriptor,
+                )
+
+        with self.assertRaises(HSE2ModelError):
+            open_v5_descriptor(
+                root_key=root, archive_id=archive_id, slot=0, generation=1, offset=4096,
+                blob=bytes(V5_MAX_DESCRIPTOR_SIZE + 1),
+            )
 
 
 if __name__ == "__main__":

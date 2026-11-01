@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +14,7 @@ from high_security_encryptor.hse2.container_v5_descriptor import open_v5_descrip
 from high_security_encryptor.hse2.container_v5_file import V5ContainerReader
 from high_security_encryptor.hse2.container_v4_workflows import create_v4_archive
 from high_security_encryptor.hse2.container_v5_migration import compact_v5_archive, export_v4_to_v5
+from high_security_encryptor.hse2.restore_staging import _FileLock, _stage_lock_path, cleanup_stale_restore_stages
 from high_security_encryptor.hse2.container_v5_workflows import (
     create_v5_archive,
     replace_v5_view,
@@ -250,6 +254,70 @@ class HSE2V5WorkflowTests(unittest.TestCase):
             self.assertEqual(export_target.read_bytes(), b"prior export output")
             self.assertEqual(hashlib.sha256(archive.read_bytes()).digest(), source_digest)
             self.assertEqual(list(root.glob(".*.tmp")), [])
+
+    def test_crashed_restore_staging_is_cleaned_without_touching_an_active_restore(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"crash recovery payload")
+            archive = root / "archive.hse2"
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("primary view pass", "secondary view pass"),
+                view_files=((('source.txt', source),), ()),
+            )
+            target = root / "restored"
+            marker = root / "child-staging.marker"
+            child_script = """
+from pathlib import Path
+import sys
+import time
+import high_security_encryptor.hse2.container_v5_workflows as workflows
+
+archive, password, output_dir, marker = sys.argv[1:]
+original = workflows.open_v5_record
+def pause_after_stage(**kwargs):
+    Path(marker).write_text("ready", encoding="ascii")
+    time.sleep(60)
+    return original(**kwargs)
+workflows.open_v5_record = pause_after_stage
+workflows.restore_v5_archive(input_path=archive, password=password, output_dir=output_dir)
+"""
+            process = subprocess.Popen(
+                [sys.executable, "-c", child_script, str(archive), "primary view pass", str(target), str(marker)],
+                cwd=Path.cwd(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            try:
+                deadline = time.monotonic() + 15
+                while not marker.exists() and process.poll() is None and time.monotonic() < deadline:
+                    time.sleep(0.02)
+                if not marker.exists():
+                    self.fail(f"restore worker did not reach plaintext staging; exit code={process.poll()}")
+
+                # A second restore must leave the first worker's leased staging directory alone.
+                restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)
+                active_stages = list(root.glob(".restored.v5-restore-*"))
+                self.assertEqual(len(active_stages), 1)
+                self.assertEqual((target / "source.txt").read_bytes(), b"crash recovery payload")
+
+                process.terminate()
+                process.wait(timeout=5)
+                stale_stage = active_stages[0]
+                probe = _FileLock(_stage_lock_path(stale_stage), blocking=False)
+                try:
+                    probe.acquire()
+                except OSError as exc:
+                    self.fail(f"restore stage lease stayed locked after worker exit: {exc}")
+                else:
+                    probe.release()
+                with self.assertRaisesRegex(HSE2ModelError, "restore output already exists"):
+                    restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)
+                self.assertEqual(list(root.glob(".restored.v5-restore-*")), [])
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    process.wait(timeout=5)
+                cleanup_stale_restore_stages(target)
 
     def test_compaction_rewrites_only_current_views_and_reclaims_stale_records(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

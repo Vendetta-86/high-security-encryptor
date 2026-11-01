@@ -6,8 +6,6 @@ from collections.abc import Sequence
 from itertools import groupby
 import os
 from pathlib import Path, PurePosixPath
-import shutil
-import tempfile
 import unicodedata
 
 from ..atomic_io import atomic_output_path, flush_file
@@ -24,6 +22,12 @@ from .container_v5_file import V5ContainerReader
 from .container_v5_header import V5_FOOTER_SIZE, V5Footer, V5FooterEntry, V5PublicHeader
 from .container_v5_records import V5_RECORD_OVERHEAD, open_v5_record, seal_v5_record
 from .models import HSE2ModelError
+from .restore_staging import (
+    RestoreStageLease,
+    cleanup_stale_restore_stages,
+    create_restore_stage,
+    finish_restore_stage,
+)
 
 V5_MAX_FILES_PER_VIEW = 100_000
 V5_MAX_ARCHIVE_PATH_LENGTH = 4096
@@ -180,14 +184,18 @@ def _open_selected_view(reader: V5ContainerReader, password: str) -> tuple[int, 
 
 def restore_v5_archive(*, input_path: str | Path, password: str, output_dir: str | Path) -> Path:
     target = Path(output_dir)
+    try:
+        cleanup_stale_restore_stages(target)
+    except OSError as exc:
+        raise HSE2ModelError("could not safely clean abandoned v5 restore staging") from exc
     if target.exists():
         raise HSE2ModelError("restore output already exists")
     stage: Path | None = None
+    lease: RestoreStageLease | None = None
     try:
         with V5ContainerReader(input_path) as reader:
             slot, root_key, descriptor = _open_selected_view(reader, password)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            stage = Path(tempfile.mkdtemp(prefix=f".{target.name}.v5-restore-", dir=target.parent))
+            stage, lease = create_restore_stage(target)
             for item in descriptor.files:
                 destination = stage.joinpath(*PurePosixPath(item.path).parts)
                 destination.parent.mkdir(parents=True, exist_ok=True)
@@ -213,8 +221,11 @@ def restore_v5_archive(*, input_path: str | Path, password: str, output_dir: str
     except (HSE2ModelError, OSError, ValueError, RecursionError) as exc:
         raise HSE2ModelError("v5 archive authentication or restore failed") from exc
     finally:
-        if stage is not None and stage.exists():
-            shutil.rmtree(stage, ignore_errors=True)
+        if lease is not None:
+            try:
+                finish_restore_stage(target, lease, remove_stage=stage is not None)
+            except OSError as exc:
+                raise HSE2ModelError("could not clean v5 plaintext restore staging") from exc
 
 
 def replace_v5_view(
