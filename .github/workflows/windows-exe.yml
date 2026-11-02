@@ -280,6 +280,12 @@ jobs:
             exit 1
           fi
 
+      - name: Download build artifact for release upload
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.asset_name }}
+          path: dist
+
       - name: Upload release asset
         shell: bash
         run: |

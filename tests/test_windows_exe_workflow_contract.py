@@ -36,6 +36,11 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
         self.assertIn('"$GITHUB_REF_TYPE" != "tag" || "$RELEASE_TAG" != "$GITHUB_REF_NAME"', publish_job)
         self.assertIn("actions/download-artifact@v8", verify_job)
         self.assertIn("needs: [build, verify_artifact]", publish_job)
+        self.assertIn("name: Download build artifact for release upload", publish_job)
+        self.assertLess(
+            publish_job.index("name: Download build artifact for release upload"),
+            publish_job.index("name: Upload release asset"),
+        )
         self.assertIn('test -s "dist/$ASSET_NAME"', verify_job)
         self.assertIn('unzip -t "dist/$ASSET_NAME"', verify_job)
         self.assertIn('release_notes="docs/releases/$RELEASE_TAG.md"', publish_job)
