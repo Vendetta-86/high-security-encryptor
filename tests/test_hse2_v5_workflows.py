@@ -43,10 +43,10 @@ class HSE2V5WorkflowTests(unittest.TestCase):
             self.assertLess(archive.stat().st_size, 1024 * 1024)
 
             restored_primary = restore_v5_archive(
-                input_path=archive, password="primary view pass", output_dir=root / "primary-out",
+                input_path=archive, password="primary view pass", output_dir=root / "primary-out",  # pragma: allowlist secret
             )
             restored_secondary = restore_v5_archive(
-                input_path=archive, password="secondary view pass", output_dir=root / "secondary-out",
+                input_path=archive, password="secondary view pass", output_dir=root / "secondary-out",  # pragma: allowlist secret
             )
             self.assertEqual((restored_primary / "a.txt").read_bytes(), b"one byte")
             self.assertEqual((restored_primary / "empty.txt").read_bytes(), b"")
@@ -76,22 +76,22 @@ class HSE2V5WorkflowTests(unittest.TestCase):
             replace_v5_view(
                 input_path=archive,
                 output_path=updated,
-                password="primary view pass",
+                password="primary view pass",  # pragma: allowlist secret
                 view_files=(('replacement.txt', replacement),),
             )
             self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(), original_digest)
             self.assertEqual(
-                (restore_v5_archive(input_path=updated, password="primary view pass",
+                (restore_v5_archive(input_path=updated, password="primary view pass",  # pragma: allowlist secret
                                     output_dir=root / "updated-primary") / "replacement.txt").read_bytes(),
                 b"new primary data",
             )
             self.assertEqual(
-                (restore_v5_archive(input_path=updated, password="secondary view pass",
+                (restore_v5_archive(input_path=updated, password="secondary view pass",  # pragma: allowlist secret
                                     output_dir=root / "updated-secondary") / "secondary.txt").read_bytes(),
                 b"unchanged peer",
             )
             self.assertEqual(
-                (restore_v5_archive(input_path=archive, password="primary view pass",
+                (restore_v5_archive(input_path=archive, password="primary view pass",  # pragma: allowlist secret
                                     output_dir=root / "original-primary") / "primary.txt").read_bytes(),
                 b"old primary",
             )
@@ -124,7 +124,7 @@ class HSE2V5WorkflowTests(unittest.TestCase):
                 file_obj.write(bytes([byte[0] ^ 1]))
             output = root / "must-not-exist"
             with self.assertRaisesRegex(HSE2ModelError, "authentication or restore failed"):
-                restore_v5_archive(input_path=damaged, password="primary view pass", output_dir=output)
+                restore_v5_archive(input_path=damaged, password="primary view pass", output_dir=output)  # pragma: allowlist secret
             self.assertFalse(output.exists())
 
     def test_create_refuses_to_overwrite_an_input_even_with_force(self) -> None:
@@ -173,7 +173,7 @@ class HSE2V5WorkflowTests(unittest.TestCase):
                        side_effect=OSError("injected record write failure")):
                 with self.assertRaisesRegex(OSError, "injected"):
                     replace_v5_view(
-                        input_path=archive, output_path=replace_target, password="primary view pass",
+                        input_path=archive, output_path=replace_target, password="primary view pass",  # pragma: allowlist secret
                         view_files=(("new.txt", source),), overwrite=True,
                     )
 
@@ -295,7 +295,7 @@ workflows.restore_v5_archive(input_path=archive, password=password, output_dir=o
                     self.fail(f"restore worker did not reach plaintext staging; exit code={process.poll()}")
 
                 # A second restore must leave the first worker's leased staging directory alone.
-                restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)
+                restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)  # pragma: allowlist secret
                 active_stages = list(root.glob(".restored.v5-restore-*"))
                 self.assertEqual(len(active_stages), 1)
                 self.assertEqual((target / "source.txt").read_bytes(), b"crash recovery payload")
@@ -318,7 +318,7 @@ workflows.restore_v5_archive(input_path=archive, password=password, output_dir=o
                         probe.release()
                         break
                 with self.assertRaisesRegex(HSE2ModelError, "restore output already exists"):
-                    restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)
+                    restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)  # pragma: allowlist secret
                 self.assertEqual(list(root.glob(".restored.v5-restore-*")), [])
             finally:
                 if process.poll() is None:

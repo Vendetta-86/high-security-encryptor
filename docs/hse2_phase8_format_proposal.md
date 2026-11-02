@@ -86,7 +86,7 @@ Generated with the installed PyCryptodome 4.2.0; this is a regression vector for
 | ciphertext | `9fc1f749c79556f60a2d490714566a538a72dadeb61517ab9aa26ea86667dbbb` |
 | tag | `761fa63653ab7d9d2595ad795da3c149` |
 
-The file helper copies to a same-directory temporary output and patches only the selected view; a round-trip test confirms that input and peer-view bytes remain unchanged. This has not been interruption-tested at each write boundary. The repository's `atomic_output_path` uses `os.replace`, which gives atomic replacement semantics where the filesystem supports them but does not promise power-loss durability unless `HSE_FSYNC=1`. Updates always publish to a different path and preserve the input.
+The file helper copies to a same-directory temporary output and patches only the selected view; a round-trip test confirms that input and peer-view bytes remain unchanged. The repository's `atomic_output_path` uses `os.replace`, which gives atomic replacement semantics where the filesystem supports them. `HSE_FSYNC=1` requests a flush of file data before replacement, but directory-entry persistence, storage-device behavior, and recovery after power loss are not guaranteed. Updates always publish to a different path and preserve the input.
 
 ### Validated behavior and current limitations
 

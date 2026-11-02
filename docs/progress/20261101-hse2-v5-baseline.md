@@ -38,7 +38,7 @@ Each sample runs one operation in a fresh process. Values include process startu
 
 ## Interpretation and limits
 
-The smallest empty container is 484 bytes. A 64 MiB payload creates a 67,116,485-byte container. In these isolated runs, the median create working set was 98.3 MiB and the median restore working set was 98.2 MiB for that case. The range across three samples is narrow for memory, while some elapsed-time ranges show visible system noise.
+The smallest empty container is 484 bytes. A 64 MiB payload creates a 67,116,485-byte container. In these isolated runs, the median create working set was 98.3 MiB and the median restore working set was 98.2 MiB for that case. Some elapsed-time ranges show visible system noise. This original three-run capture is superseded by the ten-run report in [`20261102-hse2-v5-baseline-10run.md`](20261102-hse2-v5-baseline-10run.md).
 
 This replaces the prior combined-worker memory figure with per-operation process measurements. The earlier v4 peak-memory figure used a different measurement boundary, so it is not directly comparable to the isolated v5 values. Do not treat these observations as performance guarantees or release thresholds. Storage cache, CPU load, Python, and cryptographic library versions can change results.
 

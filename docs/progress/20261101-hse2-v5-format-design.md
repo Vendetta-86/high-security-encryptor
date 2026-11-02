@@ -120,7 +120,7 @@ Space reclamation is a separate explicit `compact/export` operation that require
 
 ### Durability boundary
 
-Same-directory staging plus `os.replace` provides atomic visibility where supported; it does not by itself prove power-loss durability. `HSE_FSYNC=1` is an existing opt-in and must be applied consistently. Phase 4 will inject failures at write, flush/fsync, replace, and cleanup boundaries and document only tested platform/filesystem behavior. V5 does not promise recovery of a corrupt source or guaranteed removal of old encrypted/plaintext blocks from SSDs, snapshots, journals, or backups.
+Same-directory staging plus `os.replace` provides atomic visibility where supported; it does not by itself prove power-loss durability. `HSE_FSYNC=1` requests a flush of file data before replacement, but directory-entry persistence and storage-device behavior are not guaranteed, so the product makes no power-loss durability claim. Phase 4 validates process interruption and injected write, flush/fsync, replace, ENOSPC, and cleanup failures. V5 does not promise recovery of a corrupt source or guaranteed removal of old encrypted/plaintext blocks from SSDs, snapshots, journals, or backups.
 
 ## 5. Compatibility and version dispatch
 

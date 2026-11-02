@@ -52,9 +52,9 @@ class HSE2V5CodecTests(unittest.TestCase):
         key = derive_v5_key(root_key=root, salt=salt, info=info)
         sealed = seal_v5(key=key, nonce=bytes(range(12)), plaintext=b"v5 vector", aad=b"HSE2:v5:test:aad")
         self.assertEqual(open_v5(key=key, sealed=sealed, aad=b"HSE2:v5:test:aad"), b"v5 vector")
-        self.assertEqual(key.hex(), "ebc6c259dd4d83a0222b4c347de7576d6b7340b47d599d94096ae9fb1ddc00c2")
-        self.assertEqual(sealed.ciphertext.hex(), "dbb33f61a30f46af38")
-        self.assertEqual(sealed.tag.hex(), "81ba9a4c135d832feb9dbee602700976")
+        self.assertEqual(key.hex(), "ebc6c259dd4d83a0222b4c347de7576d6b7340b47d599d94096ae9fb1ddc00c2")  # pragma: allowlist secret
+        self.assertEqual(sealed.ciphertext.hex(), "dbb33f61a30f46af38")  # pragma: allowlist secret
+        self.assertEqual(sealed.tag.hex(), "81ba9a4c135d832feb9dbee602700976")  # pragma: allowlist secret
         with self.assertRaises(HSE2ModelError):
             open_v5(key=key, sealed=sealed, aad=b"changed")
 
