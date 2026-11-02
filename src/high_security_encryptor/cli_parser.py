@@ -44,6 +44,8 @@ def build_cli_parser(
     hse2_v4_replace_handler: Handler | None = None,
     hse2_v5_create_handler: Handler | None = None,
     hse2_v5_restore_handler: Handler | None = None,
+    hse2_v5_validate_handler: Handler | None = None,
+    hse2_v5_preview_handler: Handler | None = None,
     hse2_v5_replace_handler: Handler | None = None,
     hse2_v5_compact_handler: Handler | None = None,
     hse2_v4_export_v5_handler: Handler | None = None,
@@ -79,7 +81,7 @@ def build_cli_parser(
         keyfile_parser.add_argument("--force", action="store_true", help="Overwrite the output keyfile if it already exists.")
         keyfile_parser.set_defaults(handler=generate_keyfile_handler)
 
-    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_archive_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler, hse2_v4_create_handler, hse2_v4_restore_handler, hse2_v4_replace_handler, hse2_v5_create_handler, hse2_v5_restore_handler, hse2_v5_replace_handler, hse2_v5_compact_handler, hse2_v4_export_v5_handler)):
+    if any((hse2_keyfile_inspect_handler, hse2_inspect_handler, hse2_validate_handler, hse2_archive_validate_handler, hse2_wrapper_add_handler, hse2_wrapper_manage_handler, hse2_access_destroy_handler, hse2_v4_create_handler, hse2_v4_restore_handler, hse2_v4_replace_handler, hse2_v5_create_handler, hse2_v5_restore_handler, hse2_v5_validate_handler, hse2_v5_preview_handler, hse2_v5_replace_handler, hse2_v5_compact_handler, hse2_v4_export_v5_handler)):
         hse2_parser = subparsers.add_parser("hse2", help="HSE2 archive and keyfile operations.")
         hse2_subparsers = hse2_parser.add_subparsers(dest="hse2_command", required=True)
         if hse2_inspect_handler is not None:
@@ -181,6 +183,23 @@ def build_cli_parser(
             v5_open_parser.add_argument("--password-stdin", action="store_true",
                                         help="Read the view password from redirected stdin (never from a terminal).")
             v5_open_parser.set_defaults(handler=hse2_v5_restore_handler)
+        if hse2_v5_validate_handler is not None:
+            v5_validate_parser = hse2_subparsers.add_parser(
+                "v5-verify", help="EXPERIMENTAL: Authenticate every live record in one v5 view without writing plaintext."
+            )
+            v5_validate_parser.add_argument("--input", required=True, help="Input v5 container path.")
+            v5_validate_parser.add_argument("--password-stdin", action="store_true",
+                                            help="Read the view password from redirected stdin (never from a terminal).")
+            v5_validate_parser.set_defaults(handler=hse2_v5_validate_handler)
+        if hse2_v5_preview_handler is not None:
+            v5_preview_parser = hse2_subparsers.add_parser(
+                "v5-preview", help="EXPERIMENTAL: Preview the selected v5 view and restore target without writing files."
+            )
+            v5_preview_parser.add_argument("--input", required=True, help="Input v5 container path.")
+            v5_preview_parser.add_argument("--output-dir", required=True, help="Proposed new restore directory.")
+            v5_preview_parser.add_argument("--password-stdin", action="store_true",
+                                           help="Read the view password from redirected stdin (never from a terminal).")
+            v5_preview_parser.set_defaults(handler=hse2_v5_preview_handler)
         if hse2_v5_replace_handler is not None:
             v5_replace_parser = hse2_subparsers.add_parser(
                 "v5-replace", help="EXPERIMENTAL: Replace one explicitly disclosed v5 view in a new copy; peer bytes are preserved (no deniability claim)."

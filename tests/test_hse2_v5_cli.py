@@ -30,6 +30,14 @@ class HSE2V5CliTests(unittest.TestCase):
             "hse2", "v5-open", "--input", "archive.hse2", "--output-dir", "restore",
         ])
         self.assertEqual(opened.hse2_command, "v5-open")
+        verified = parser.parse_args(["hse2", "v5-verify", "--input", "archive.hse2", "--password-stdin"])
+        self.assertEqual(verified.hse2_command, "v5-verify")
+        self.assertTrue(verified.password_stdin)
+        preview = parser.parse_args([
+            "hse2", "v5-preview", "--input", "archive.hse2", "--output-dir", "restore",
+        ])
+        self.assertEqual(preview.hse2_command, "v5-preview")
+        self.assertEqual(preview.output_dir, "restore")
         compact = parser.parse_args([
             "hse2", "v5-compact", "--input", "old.hse2", "--output", "compact.hse2",
         ])

@@ -34,6 +34,8 @@ HSE2_GUI_ACTIONS = (
     "v4-replace",
     "v5-create",
     "v5-open",
+    "v5-verify",
+    "v5-preview",
     "v5-replace",
     "v5-compact",
     "v4-to-v5",
@@ -61,6 +63,8 @@ HSE2_GUI_ACTION_LABELS = {
     "v4-replace": "实验性 HSE2 v4 单视图替换",
     "v5-create": "实验性 HSE2 v5 双视图创建",
     "v5-open": "实验性 HSE2 v5 单视图恢复",
+    "v5-verify": "实验性 HSE2 v5 完整校验（不写明文）",
+    "v5-preview": "实验性 HSE2 v5 恢复预览",
     "v5-replace": "实验性 HSE2 v5 单视图替换",
     "v5-compact": "实验性 HSE2 v5 双密码压缩",
     "v4-to-v5": "实验性 HSE2 v4 导出到 v5",
@@ -435,6 +439,15 @@ def build_hse2_gui_command(
         args = ["hse2", "v5-open", "--input", _require_text(input_path, "请选择 v5 容器。"),
                 "--output-dir", _require_text(output_path, "请选择新的恢复目录。")]
         plan_secrets = (_require_text(archive_password, "请输入视图密码。"),)
+        argv = tuple(args)
+    elif normalized_action == "v5-verify":
+        args = ["hse2", "v5-verify", "--input", _require_text(input_path, "请选择 v5 容器。")]
+        plan_secrets = (_require_text(archive_password, "请输入要校验视图的密码。"),)
+        argv = tuple(args)
+    elif normalized_action == "v5-preview":
+        args = ["hse2", "v5-preview", "--input", _require_text(input_path, "请选择 v5 容器。"),
+                "--output-dir", _require_text(output_path, "请选择新的恢复目录。")]
+        plan_secrets = (_require_text(archive_password, "请输入要预览视图的密码。"),)
         argv = tuple(args)
     elif normalized_action == "v5-replace":
         args = ["hse2", "v5-replace", "--input", _require_text(input_path, "请选择 v5 容器。"),

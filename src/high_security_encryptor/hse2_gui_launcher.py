@@ -240,6 +240,33 @@ class HSE2ExperimentalApp(ttk.Frame):
             return False
         elif plan.action == "v5-replace" and "--file" not in argv:
             description += " 未指定文件映射，目标视图将被清空。"
+        if plan.action == "v5-open":
+            preview_plan = HSE2GuiCommandPlan(
+                action="v5-preview",
+                argv=("hse2", "v5-preview", "--input", input_path, "--output-dir", output_path),
+                description="v5 恢复预览",
+                secret_inputs=plan.secret_inputs,
+            )
+            preview_result = _invoke_hse2_gui_command(preview_plan)
+            if preview_result.exit_code != 0:
+                if preview_result.stderr:
+                    self._append_log(preview_result.stderr)
+                messagebox.showerror("恢复预览失败", "无法认证所选 v5 视图或读取目标信息；未开始恢复。")
+                return False
+            preview_payload = _parse_json_stdout(preview_result.stdout)
+            if not isinstance(preview_payload, dict):
+                messagebox.showerror("恢复预览失败", "无法读取 v5 恢复预览结果；未开始恢复。")
+                return False
+            if preview_payload.get("output_exists") or preview_payload.get("enough_space") is False:
+                summary = _build_hse2_result_summary(preview_result.stdout)
+                if summary:
+                    self._append_log(summary)
+                messagebox.showerror("无法恢复 v5 视图", "恢复目录已存在或目标磁盘空间不足；未开始恢复。")
+                return False
+            summary = _build_hse2_result_summary(preview_result.stdout)
+            if summary:
+                self._append_log(summary)
+                description += "\n\n" + summary.strip()
         paths = f"\n\n输出：{output_path}"
         if input_path:
             paths = f"\n\n输入：{input_path}" + paths
@@ -310,6 +337,8 @@ def _build_hse2_result_summary(stdout: str) -> str:
         return _summarize_inspect(payload)
     if command == "hse2-archive-validate":
         return _summarize_archive_validation(payload)
+    if command in {"hse2 v5-verify", "hse2 v5-preview"}:
+        return _summarize_v5_result(payload)
     if command == "hse2-wrapper list":
         return _summarize_wrapper_list(payload)
     if command == "hse2-wrapper remove":
@@ -419,6 +448,34 @@ def _summarize_archive_validation(payload: dict[str, Any]) -> str:
             f"- plaintext_written：{_format_bool(payload.get('plaintext_written'))}\n",
         ]
     )
+
+
+def _summarize_v5_result(payload: dict[str, Any]) -> str:
+    lines = [
+        "\n结果摘要：\n",
+        f"- 操作：{payload.get('command', '')}\n",
+        f"- 视图：{payload.get('view_slot', '')}（generation {payload.get('view_generation', '')}）\n",
+        f"- 文件数：{payload.get('file_count', '')}\n",
+        f"- 明文总大小：{payload.get('plaintext_bytes', '')} 字节\n",
+        f"- 活动块数：{payload.get('chunk_count', payload.get('authenticated_chunks', ''))}\n",
+    ]
+    if payload.get("command") == "hse2 v5-verify":
+        lines.extend([
+            f"- 活动记录认证：{_format_bool(payload.get('payload_authenticated'))}\n",
+            f"- 明文写出：{_format_bool(payload.get('plaintext_written'))}\n",
+        ])
+    else:
+        available = payload.get("available_bytes")
+        available_text = "未知" if available is None else f"{available} 字节"
+        enough_space = payload.get("enough_space")
+        enough_text = "未知" if enough_space is None else _format_bool(enough_space)
+        lines.extend([
+            f"- 恢复目录：{payload.get('output_dir', '')}\n",
+            f"- 目标目录已存在：{_format_bool(payload.get('output_exists'))}\n",
+            f"- 目标卷可用空间：{available_text}\n",
+            f"- 当前空间足够：{enough_text}\n",
+        ])
+    return "".join(lines)
 
 
 def _summarize_wrapper_list(payload: dict[str, Any]) -> str:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,13 +18,135 @@ from high_security_encryptor.hse2.container_v5_migration import compact_v5_archi
 from high_security_encryptor.hse2.restore_staging import _FileLock, _stage_lock_path, cleanup_stale_restore_stages
 from high_security_encryptor.hse2.container_v5_workflows import (
     create_v5_archive,
+    preview_v5_restore,
     replace_v5_view,
     restore_v5_archive,
+    validate_v5_archive,
 )
 from high_security_encryptor.hse2.models import HSE2ModelError
 
 
 class HSE2V5WorkflowTests(unittest.TestCase):
+    def test_v5_verify_authenticates_payload_without_writing_plaintext(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"authenticated payload")
+            archive = root / "archive.hse2"
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("primary view pass", "secondary view pass"),
+                view_files=((('source.txt', source),), ()),
+            )
+
+            result = validate_v5_archive(input_path=archive, password="primary view pass")
+
+            self.assertTrue(result["payload_authenticated"])
+            self.assertFalse(result["plaintext_written"])
+            self.assertEqual(result["file_count"], 1)
+            self.assertEqual(result["plaintext_bytes"], len(b"authenticated payload"))
+            self.assertEqual(result["authenticated_chunks"], 1)
+            self.assertEqual(list(root.glob("restore*")), [])
+
+    def test_v5_verify_rejects_tampered_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"authenticated payload")
+            archive = root / "archive.hse2"
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("primary view pass", "secondary view pass"),
+                view_files=((('source.txt', source),), ()),
+            )
+            with V5ContainerReader(archive) as reader:
+                slot, root_key = unlock_v5_credentials("primary view pass", reader.header.credential_slots,
+                                                       archive_id=reader.header.archive_id)
+                generation, blob = reader.read_descriptor(slot)
+                descriptor = open_v5_descriptor(root_key=root_key, archive_id=reader.header.archive_id,
+                                                slot=slot, generation=generation,
+                                                offset=reader.footer.views[slot].offset, blob=blob)
+                record_offset = descriptor.files[0].chunks[0].offset
+            damaged = root / "damaged.hse2"
+            damaged.write_bytes(archive.read_bytes())
+            with damaged.open("r+b") as file_obj:
+                file_obj.seek(record_offset + 60)
+                original = file_obj.read(1)
+                file_obj.seek(record_offset + 60)
+                file_obj.write(bytes([original[0] ^ 1]))
+
+            with self.assertRaisesRegex(HSE2ModelError, "authentication"):
+                validate_v5_archive(input_path=damaged, password="primary view pass")
+            self.assertEqual(sorted(path.name for path in root.iterdir()),
+                             ["archive.hse2", "damaged.hse2", "source.txt"])
+
+    def test_v5_verify_rejects_wrong_password_and_truncated_container(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"authenticated payload")
+            archive = root / "archive.hse2"
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("primary view pass", "secondary view pass"),
+                view_files=((('source.txt', source),), ()),
+            )
+            with self.assertRaises(HSE2ModelError):
+                validate_v5_archive(input_path=archive, password="incorrect password")
+
+            truncated = root / "truncated.hse2"
+            truncated.write_bytes(archive.read_bytes()[:-1])
+            with self.assertRaises(HSE2ModelError):
+                validate_v5_archive(input_path=truncated, password="primary view pass")
+
+    def test_v5_restore_preview_reports_metadata_and_existing_target(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"preview payload")
+            archive = root / "archive.hse2"
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("primary view pass", "secondary view pass"),
+                view_files=((('source.txt', source),), ()),
+            )
+            target = root / "restore-target"
+
+            preview = preview_v5_restore(
+                input_path=archive, password="primary view pass", output_dir=target,
+            )
+
+            self.assertEqual(preview["file_count"], 1)
+            self.assertEqual(preview["plaintext_bytes"], len(b"preview payload"))
+            self.assertEqual(preview["chunk_count"], 1)
+            self.assertFalse(preview["output_exists"])
+            self.assertIsInstance(preview["available_bytes"], int)
+            self.assertFalse(target.exists())
+
+            target.mkdir()
+            preview_existing = preview_v5_restore(
+                input_path=archive, password="primary view pass", output_dir=target,
+            )
+            self.assertTrue(preview_existing["output_exists"])
+
+    def test_v5_restore_fails_preflight_when_free_space_is_insufficient(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"payload larger than mocked free space")
+            archive = root / "archive.hse2"
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("primary view pass", "secondary view pass"),
+                view_files=((('source.txt', source),), ()),
+            )
+            target = root / "restore-target"
+            with patch("high_security_encryptor.hse2.container_v5_workflows.shutil.disk_usage",
+                       return_value=shutil._ntuple_diskusage(100, 90, 10)):
+                with self.assertRaisesRegex(HSE2ModelError, "insufficient free space"):
+                    restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)
+            self.assertFalse(target.exists())
+
     def test_create_and_restore_two_independent_compact_views(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

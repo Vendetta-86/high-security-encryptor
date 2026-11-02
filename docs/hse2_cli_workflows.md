@@ -6,6 +6,21 @@ The path values below are placeholders. Replace angle-bracketed values with loca
 
 ## Create and Open
 
+For an HSE2 v5 two-view container, `v5-verify` authenticates the selected view's descriptor and every active payload record without writing restored files. `v5-preview` authenticates the selected view metadata and reports its file/byte/chunk totals, whether the proposed restore directory already exists, and the destination volume's currently available space. Preview does not authenticate every payload record; use verify when you also want a complete payload integrity check. Space can change after preview, so restore checks it again before staging output.
+
+```bash
+high-security-encryptor hse2 v5-verify \
+  --input <V5_ARCHIVE_PATH>
+
+high-security-encryptor hse2 v5-preview \
+  --input <V5_ARCHIVE_PATH> \
+  --output-dir <NEW_RESTORE_DIRECTORY>
+```
+
+Both commands prompt for the selected view password without echoing it. For automation, add `--password-stdin` and pipe the password through standard input; never put it directly in command arguments. `v5-verify` holds only one authenticated chunk at a time and reports that plaintext was not written. A successful result proves record authentication and length consistency for the selected live view; v5 does not store a plaintext digest, so this is not a comparison against an archive-stored plaintext hash. `v5-preview` requires a new destination directory. `v5-open` performs its own target and free-space preflight before it creates staging output.
+
+These commands are experimental and do not claim hidden-volume behavior, deniability, or protection against local metadata observation.
+
 Inspect an HSE2 keyfile before using it:
 
 ```bash

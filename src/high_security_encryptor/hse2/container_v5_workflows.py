@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from itertools import groupby
 import os
 from pathlib import Path, PurePosixPath
+import shutil
 import unicodedata
 
 from ..atomic_io import atomic_output_path, flush_file
@@ -31,6 +33,61 @@ from .restore_staging import (
 
 V5_MAX_FILES_PER_VIEW = 100_000
 V5_MAX_ARCHIVE_PATH_LENGTH = 4096
+
+
+@dataclass(frozen=True)
+class V5RestorePreview:
+    """Metadata needed to decide whether a v5 view can be restored safely."""
+
+    view_slot: int
+    generation: int
+    file_count: int
+    plaintext_bytes: int
+    chunk_count: int
+    output_dir: str
+    output_exists: bool
+    available_bytes: int | None
+
+    def to_dict(self) -> dict[str, object]:
+        enough_space = None if self.available_bytes is None else self.available_bytes >= self.plaintext_bytes
+        return {
+            "available_bytes": self.available_bytes,
+            "chunk_count": self.chunk_count,
+            "enough_space": enough_space,
+            "file_count": self.file_count,
+            "format_version": 5,
+            "output_dir": self.output_dir,
+            "output_exists": self.output_exists,
+            "plaintext_bytes": self.plaintext_bytes,
+            "view_generation": self.generation,
+            "view_slot": self.view_slot,
+        }
+
+
+def _restore_preview_for_descriptor(
+    *, descriptor: V5ViewDescriptor, output_dir: str | Path,
+) -> V5RestorePreview:
+    target = Path(output_dir)
+    file_count = len(descriptor.files)
+    plaintext_bytes = sum(item.size for item in descriptor.files)
+    chunk_count = sum(len(item.chunks) for item in descriptor.files)
+    existing_parent = target.expanduser().parent
+    while not existing_parent.exists() and existing_parent != existing_parent.parent:
+        existing_parent = existing_parent.parent
+    try:
+        available_bytes = shutil.disk_usage(existing_parent).free if existing_parent.exists() else None
+    except OSError:
+        available_bytes = None
+    return V5RestorePreview(
+        view_slot=descriptor.slot,
+        generation=descriptor.generation,
+        file_count=file_count,
+        plaintext_bytes=plaintext_bytes,
+        chunk_count=chunk_count,
+        output_dir=str(target),
+        output_exists=target.exists(),
+        available_bytes=available_bytes,
+    )
 
 
 def _checked_view_files(entries: Sequence[tuple[str, str | Path]]) -> list[tuple[str, Path, os.stat_result]]:
@@ -182,6 +239,54 @@ def _open_selected_view(reader: V5ContainerReader, password: str) -> tuple[int, 
     return slot, root_key, descriptor
 
 
+def preview_v5_restore(*, input_path: str | Path, password: str, output_dir: str | Path) -> dict[str, object]:
+    """Authenticate the selected descriptor and report restore size/target status without writing files."""
+
+    with V5ContainerReader(input_path) as reader:
+        _slot, _root_key, descriptor = _open_selected_view(reader, password)
+        preview = _restore_preview_for_descriptor(descriptor=descriptor, output_dir=output_dir)
+        reader.ensure_unchanged()
+    return {"command": "hse2 v5-preview", **preview.to_dict()}
+
+
+def validate_v5_archive(*, input_path: str | Path, password: str) -> dict[str, object]:
+    """Authenticate every live record in one v5 view without writing plaintext output."""
+
+    with V5ContainerReader(input_path) as reader:
+        slot, root_key, descriptor = _open_selected_view(reader, password)
+        total_plaintext_bytes = 0
+        authenticated_chunks = 0
+        for item in descriptor.files:
+            file_bytes = 0
+            for chunk in item.chunks:
+                blob = reader.read_record(offset=chunk.offset, plaintext_length=chunk.length)
+                plaintext = open_v5_record(
+                    root_key=root_key, archive_id=reader.header.archive_id, slot=slot,
+                    sequence=chunk.sequence, offset=chunk.offset,
+                    plaintext_length=chunk.length, blob=blob,
+                )
+                if len(plaintext) != chunk.length:
+                    raise HSE2ModelError("v5 authenticated record length mismatch")
+                file_bytes += len(plaintext)
+                total_plaintext_bytes += len(plaintext)
+                authenticated_chunks += 1
+                del plaintext
+            if file_bytes != item.size:
+                raise HSE2ModelError("v5 authenticated file size mismatch")
+        reader.ensure_unchanged()
+    return {
+        "authenticated_chunks": authenticated_chunks,
+        "command": "hse2 v5-verify",
+        "file_count": len(descriptor.files),
+        "format_version": 5,
+        "payload_authenticated": True,
+        "plaintext_bytes": total_plaintext_bytes,
+        "plaintext_written": False,
+        "view_generation": descriptor.generation,
+        "view_slot": slot,
+    }
+
+
 def restore_v5_archive(*, input_path: str | Path, password: str, output_dir: str | Path) -> Path:
     target = Path(output_dir)
     try:
@@ -195,6 +300,11 @@ def restore_v5_archive(*, input_path: str | Path, password: str, output_dir: str
     try:
         with V5ContainerReader(input_path) as reader:
             slot, root_key, descriptor = _open_selected_view(reader, password)
+            preview = _restore_preview_for_descriptor(descriptor=descriptor, output_dir=target)
+            if preview.output_exists:
+                raise HSE2ModelError("restore output already exists")
+            if preview.available_bytes is not None and preview.available_bytes < preview.plaintext_bytes:
+                raise HSE2ModelError("insufficient free space for v5 restore output")
             stage, lease = create_restore_stage(target)
             for item in descriptor.files:
                 destination = stage.joinpath(*PurePosixPath(item.path).parts)
@@ -218,7 +328,11 @@ def restore_v5_archive(*, input_path: str | Path, password: str, output_dir: str
             os.rename(stage, target)
             stage = None
         return target
-    except (HSE2ModelError, OSError, ValueError, RecursionError) as exc:
+    except HSE2ModelError as exc:
+        if str(exc) in {"restore output already exists", "insufficient free space for v5 restore output"}:
+            raise
+        raise HSE2ModelError("v5 archive authentication or restore failed") from exc
+    except (OSError, ValueError, RecursionError) as exc:
         raise HSE2ModelError("v5 archive authentication or restore failed") from exc
     finally:
         if lease is not None:

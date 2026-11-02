@@ -99,6 +99,12 @@ class HSE2GuiActionTests(unittest.TestCase):
         opened = build_hse2_gui_command(
             action="v5-open", input_path="archive.hse2", output_path="restored", archive_password="view-pass",
         )
+        verified = build_hse2_gui_command(
+            action="v5-verify", input_path="archive.hse2", archive_password="view-pass",
+        )
+        previewed = build_hse2_gui_command(
+            action="v5-preview", input_path="archive.hse2", output_path="restored", archive_password="view-pass",
+        )
         replaced = build_hse2_gui_command(
             action="v5-replace", input_path="archive.hse2", output_path="updated.hse2",
             archive_password="view-pass",
@@ -112,6 +118,14 @@ class HSE2GuiActionTests(unittest.TestCase):
             primary_password="first", secondary_password="second",
         )
         self.assertEqual(opened.secret_inputs, ("view-pass",))
+        self.assertEqual(verified.argv, ("hse2", "v5-verify", "--input", "archive.hse2"))
+        self.assertEqual(previewed.argv, (
+            "hse2", "v5-preview", "--input", "archive.hse2", "--output-dir", "restored",
+        ))
+        self.assertEqual(verified.secret_inputs, ("view-pass",))
+        self.assertEqual(previewed.secret_inputs, ("view-pass",))
+        for plan in (verified, previewed):
+            self.assertNotIn("view-pass", repr(plan) + " ".join(plan.argv))
         self.assertEqual(replaced.secret_inputs, ("view-pass",))
         self.assertEqual(compacted.secret_inputs, ("first", "second"))
         self.assertEqual(exported.secret_inputs, ("first", "second"))

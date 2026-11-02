@@ -77,6 +77,8 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "v4-replace": frozenset({"input_path", "output_path", "replace_file_spec", "archive_password", "force", "v4_warning"}),
     "v5-create": frozenset({"output_path", "primary_file_spec", "secondary_file_spec", "primary_password", "primary_password_confirmation", "secondary_password", "secondary_password_confirmation", "force", "v5_warning"}),
     "v5-open": frozenset({"input_path", "output_path", "archive_password", "v5_warning"}),
+    "v5-verify": frozenset({"input_path", "archive_password", "v5_warning"}),
+    "v5-preview": frozenset({"input_path", "output_path", "archive_password", "v5_warning"}),
     "v5-replace": frozenset({"input_path", "output_path", "replace_file_spec", "archive_password", "force", "v5_warning"}),
     "v5-compact": frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),
     "v4-to-v5": frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),

@@ -45,7 +45,9 @@ from .hse2_batch_rewrap import rewrap_hse2_batch
 from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_access_cli import run_destroy as run_hse2_access_destroy
 from .hse2.container_v4_workflows import create_v4_archive, replace_v4_view, restore_v4_archive
-from .hse2.container_v5_workflows import create_v5_archive, replace_v5_view, restore_v5_archive
+from .hse2.container_v5_workflows import (
+    create_v5_archive, preview_v5_restore, replace_v5_view, restore_v5_archive, validate_v5_archive,
+)
 from .hse2.container_v5_migration import compact_v5_archive, export_v4_to_v5
 from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
 from .hse2.keyfile_safety import keyfile_colocation_warning
@@ -113,6 +115,8 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_v4_replace_handler=_handle_hse2_v4_replace,
         hse2_v5_create_handler=_handle_hse2_v5_create,
         hse2_v5_restore_handler=_handle_hse2_v5_restore,
+        hse2_v5_validate_handler=_handle_hse2_v5_validate,
+        hse2_v5_preview_handler=_handle_hse2_v5_preview,
         hse2_v5_replace_handler=_handle_hse2_v5_replace,
         hse2_v5_compact_handler=_handle_hse2_v5_compact,
         hse2_v4_export_v5_handler=_handle_hse2_v4_export_v5,
@@ -431,6 +435,16 @@ def _handle_hse2_v5_restore(args: argparse.Namespace) -> dict[str, Any]:
     password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
     output = restore_v5_archive(input_path=args.input, password=password, output_dir=args.output_dir)
     return {"command": "hse2 v5-open", "format_version": 5, "output_dir": str(output)}
+
+
+def _handle_hse2_v5_validate(args: argparse.Namespace) -> dict[str, Any]:
+    password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
+    return validate_v5_archive(input_path=args.input, password=password)
+
+
+def _handle_hse2_v5_preview(args: argparse.Namespace) -> dict[str, Any]:
+    password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
+    return preview_v5_restore(input_path=args.input, password=password, output_dir=args.output_dir)
 
 
 def _handle_hse2_v5_replace(args: argparse.Namespace) -> dict[str, Any]:

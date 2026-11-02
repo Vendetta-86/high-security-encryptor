@@ -532,6 +532,46 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         self.assertIn("old.hse2", message)
         self.assertIn("new.hse2", message)
 
+    def test_v5_open_confirmation_shows_preview_and_blocks_existing_target(self) -> None:
+        plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+            action="v5-open", input_path="archive.hse2", output_path="restore",
+            archive_password="private-view-password",
+        ))
+        log = []
+        app = type("FakeApp", (), {"_append_log": lambda _self, text: log.append(text)})()
+        preview_json = json.dumps({
+            "command": "hse2 v5-preview", "view_slot": 0, "view_generation": 1,
+            "file_count": 1, "plaintext_bytes": 42, "chunk_count": 1,
+            "output_dir": "restore", "output_exists": False,
+            "available_bytes": 1000, "enough_space": True,
+        })
+        with patch(
+            "high_security_encryptor.hse2_gui_launcher._invoke_hse2_gui_command",
+            return_value=GuiCommandResult(0, preview_json, ""),
+        ) as invoke, patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.askyesno", return_value=True,
+        ) as ask:
+            self.assertTrue(HSE2ExperimentalApp._confirm_v5_action(app, plan))
+        preview_plan = invoke.call_args.args[0]
+        self.assertEqual(preview_plan.action, "v5-preview")
+        self.assertEqual(preview_plan.secret_inputs, ("private-view-password",))
+        self.assertNotIn("private-view-password", " ".join(preview_plan.argv))
+        self.assertIn("42 字节", ask.call_args.args[1])
+        self.assertTrue(any("结果摘要" in line for line in log))
+
+        occupied_json = json.dumps({**json.loads(preview_json), "output_exists": True})
+        with patch(
+            "high_security_encryptor.hse2_gui_launcher._invoke_hse2_gui_command",
+            return_value=GuiCommandResult(0, occupied_json, ""),
+        ), patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.askyesno",
+        ) as ask_again, patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.showerror",
+        ) as showerror:
+            self.assertFalse(HSE2ExperimentalApp._confirm_v5_action(app, plan))
+        ask_again.assert_not_called()
+        showerror.assert_called_once()
+
     def test_gui_v4_to_v5_export_keeps_passwords_private_and_both_views_readable(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
