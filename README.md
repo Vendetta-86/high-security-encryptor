@@ -175,6 +175,7 @@ This is a local online-attack throttle. It does not make a copied encrypted file
 - [HSE2 CLI Workflows](docs/hse2_cli_workflows.md): create/open, header backup/restore, body-offset recovery, and DPAPI CLI usage.
 - [HSE2 Threat Model](docs/hse2_threat_model.md): HSE2 assets, boundaries, wrapper material handling, header backup risks, DPAPI limits, and quickstart guidance.
 - [HSE2 Roadmap 2.0](docs/progress/20261101-hse2-roadmap-2.0.md): post-v0.8.0 priorities for alternate-view usability, compact containers, durability, and Windows release quality.
+- [HSE2 Roadmap 3.0](docs/progress/20261102-hse2-roadmap-3.0.md): proposed v5 verification, recovery preview, credential lifecycle, GUI usability, and local release gates.
 - [HSE2 GUI Integration](docs/hse2_gui_integration.md): command-builder boundary, reusable tab component, and standalone HSE2 GUI launcher.
 - [HSE2 v3 Interoperability Test Kit](docs/hse2_v3_interop_test_kit.md): fixed test vector and two-way acceptance steps for an independent v3 implementation.
 - [Phase 3 Completion](docs/phase3_completion.md): hardening, modularization, verification baseline, and compatibility notes.
