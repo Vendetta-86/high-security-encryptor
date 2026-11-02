@@ -101,6 +101,30 @@ with atomic_output_path(target) as staged:
             self.assertEqual(target.read_bytes(), b"old authenticated container")
             self.assertEqual(list(root.glob(f".{target.name}.*.tmp")), [])
 
+    def test_no_space_during_write_preserves_existing_target(self) -> None:
+        class NoSpaceWriter:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+            def write(self, data: bytes) -> int:
+                raise OSError(errno.ENOSPC, "no space left on device")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "archive.hse2"
+            target.write_bytes(b"old authenticated container")
+
+            with patch("high_security_encryptor.atomic_io.Path.open", return_value=NoSpaceWriter()):
+                with self.assertRaises(OSError) as raised:
+                    write_bytes_atomically(target, b"replacement container")
+
+            self.assertEqual(raised.exception.errno, errno.ENOSPC)
+            self.assertEqual(target.read_bytes(), b"old authenticated container")
+            self.assertEqual(list(root.glob(f".{target.name}.*.tmp")), [])
+
 
 if __name__ == "__main__":
     unittest.main()
