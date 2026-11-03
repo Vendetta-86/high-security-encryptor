@@ -13,6 +13,7 @@ from unittest.mock import patch
 from high_security_encryptor.hse2.container_v5_credentials import unlock_v5_credentials
 from high_security_encryptor.hse2.container_v5_descriptor import open_v5_descriptor
 from high_security_encryptor.hse2.container_v5_file import V5ContainerReader
+from high_security_encryptor.hse2.container_v5_header import V5_HEADER_SIZE, V5PublicHeader
 from high_security_encryptor.hse2.container_v4_workflows import create_v4_archive
 from high_security_encryptor.hse2.container_v5_migration import compact_v5_archive, export_v4_to_v5
 from high_security_encryptor.hse2.restore_staging import _FileLock, _stage_lock_path, cleanup_stale_restore_stages
@@ -21,12 +22,152 @@ from high_security_encryptor.hse2.container_v5_workflows import (
     preview_v5_restore,
     replace_v5_view,
     restore_v5_archive,
+    update_v5_view_password,
     validate_v5_archive,
 )
 from high_security_encryptor.hse2.models import HSE2ModelError
 
 
 class HSE2V5WorkflowTests(unittest.TestCase):
+    def test_v5_password_update_changes_only_selected_slot_and_preserves_source_and_peer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            primary = root / "primary.txt"
+            secondary = root / "secondary.txt"
+            primary.write_bytes(b"primary payload")
+            secondary.write_bytes(b"secondary payload")
+            source = root / "source.hse2"
+            output = root / "updated.hse2"
+            passwords = ("primary old password", "secondary password")
+            create_v5_archive(
+                output_path=source, view_passwords=passwords,
+                view_files=((('primary.txt', primary),), (('secondary.txt', secondary),)),
+            )
+            original = source.read_bytes()
+
+            update_v5_view_password(
+                input_path=source, output_path=output,
+                current_password=passwords[0], new_password="primary new password",
+            )
+
+            updated = output.read_bytes()
+            self.assertEqual(source.read_bytes(), original)
+            self.assertEqual(updated[V5_HEADER_SIZE:], original[V5_HEADER_SIZE:])
+            self.assertNotEqual(updated[:V5_HEADER_SIZE], original[:V5_HEADER_SIZE])
+            original_header = V5PublicHeader.from_bytes(original[:V5_HEADER_SIZE])
+            updated_header = V5PublicHeader.from_bytes(updated[:V5_HEADER_SIZE])
+            self.assertEqual(updated_header.credential_slots[1], original_header.credential_slots[1])
+            restored = restore_v5_archive(
+                input_path=output, password="primary new password", output_dir=root / "new-primary",  # pragma: allowlist secret
+            )
+            self.assertEqual((restored / "primary.txt").read_bytes(), b"primary payload")
+            peer_restored = restore_v5_archive(
+                input_path=output, password=passwords[1], output_dir=root / "peer",
+            )
+            self.assertEqual((peer_restored / "secondary.txt").read_bytes(), b"secondary payload")
+            with self.assertRaises(HSE2ModelError):
+                restore_v5_archive(input_path=output, password=passwords[0], output_dir=root / "old-password")
+
+    def test_v5_password_update_rejects_wrong_password_same_path_and_existing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_file = root / "source.txt"
+            source_file.write_bytes(b"payload")
+            archive = root / "source.hse2"
+            create_v5_archive(
+                output_path=archive, view_passwords=("primary password", "peer password"),
+                view_files=((('source.txt', source_file),), ()),
+            )
+            original = archive.read_bytes()
+            with self.assertRaises(HSE2ModelError):
+                update_v5_view_password(
+                    input_path=archive, output_path=root / "wrong.hse2",
+                    current_password="incorrect", new_password="replacement password",  # pragma: allowlist secret
+                )
+            with self.assertRaisesRegex(HSE2ModelError, "new output path"):
+                update_v5_view_password(
+                    input_path=archive, output_path=archive,
+                    current_password="primary password", new_password="replacement password",  # pragma: allowlist secret
+                )
+            occupied = root / "occupied.hse2"
+            occupied.write_bytes(b"preserve me")
+            with self.assertRaisesRegex(HSE2ModelError, "already exists"):
+                update_v5_view_password(
+                    input_path=archive, output_path=occupied,
+                    current_password="primary password", new_password="replacement password",  # pragma: allowlist secret
+                )
+            self.assertEqual(archive.read_bytes(), original)
+            self.assertEqual(occupied.read_bytes(), b"preserve me")
+
+    def test_v5_password_update_write_failure_keeps_source_and_removes_temporary_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_file = root / "source.txt"
+            source_file.write_bytes(b"payload")
+            archive = root / "source.hse2"
+            output = root / "updated.hse2"
+            create_v5_archive(
+                output_path=archive, view_passwords=("primary password", "peer password"),
+                view_files=((('source.txt', source_file),), ()),
+            )
+            original = archive.read_bytes()
+            with patch.object(V5ContainerReader, "copy_prefix_to", side_effect=OSError("injected copy failure")):
+                with self.assertRaises(OSError):
+                    update_v5_view_password(
+                        input_path=archive, output_path=output,
+                        current_password="primary password", new_password="replacement password",  # pragma: allowlist secret
+                    )
+            self.assertEqual(archive.read_bytes(), original)
+            self.assertFalse(output.exists())
+            self.assertEqual(list(root.glob(".updated.hse2.*.tmp")), [])
+
+    def test_v5_password_update_rejects_known_insufficient_space_before_temp_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_file = root / "source.txt"
+            source_file.write_bytes(b"payload")
+            archive = root / "source.hse2"
+            output = root / "updated.hse2"
+            create_v5_archive(
+                output_path=archive, view_passwords=("primary password", "peer password"),
+                view_files=((('source.txt', source_file),), ()),
+            )
+            original = archive.read_bytes()
+            with patch(
+                "high_security_encryptor.hse2.container_v5_workflows.shutil.disk_usage",
+                return_value=shutil._ntuple_diskusage(100, 95, 5),
+            ):
+                with self.assertRaisesRegex(HSE2ModelError, "insufficient free space"):
+                    update_v5_view_password(
+                        input_path=archive, output_path=output,
+                        current_password="primary password", new_password="new password",  # pragma: allowlist secret
+                    )
+            self.assertEqual(archive.read_bytes(), original)
+            self.assertFalse(output.exists())
+            self.assertEqual(list(root.glob(".updated.hse2.*.tmp")), [])
+
+    def test_v5_password_update_replace_failure_keeps_source_and_removes_temporary_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_file = root / "source.txt"
+            source_file.write_bytes(b"payload")
+            archive = root / "source.hse2"
+            output = root / "updated.hse2"
+            create_v5_archive(
+                output_path=archive, view_passwords=("primary password", "peer password"),
+                view_files=((('source.txt', source_file),), ()),
+            )
+            original = archive.read_bytes()
+            with patch("high_security_encryptor.atomic_io.os.replace", side_effect=OSError("injected replace failure")):
+                with self.assertRaises(OSError):
+                    update_v5_view_password(
+                        input_path=archive, output_path=output,
+                        current_password="primary password", new_password="replacement password",  # pragma: allowlist secret
+                    )
+            self.assertEqual(archive.read_bytes(), original)
+            self.assertFalse(output.exists())
+            self.assertEqual(list(root.glob(".updated.hse2.*.tmp")), [])
+
     def test_v5_verify_authenticates_payload_without_writing_plaintext(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -76,7 +217,7 @@ class HSE2V5WorkflowTests(unittest.TestCase):
                 file_obj.write(bytes([original[0] ^ 1]))
 
             with self.assertRaisesRegex(HSE2ModelError, "authentication"):
-                validate_v5_archive(input_path=damaged, password="primary view pass")
+                validate_v5_archive(input_path=damaged, password="primary view pass")  # pragma: allowlist secret
             self.assertEqual(sorted(path.name for path in root.iterdir()),
                              ["archive.hse2", "damaged.hse2", "source.txt"])
 
@@ -92,12 +233,12 @@ class HSE2V5WorkflowTests(unittest.TestCase):
                 view_files=((('source.txt', source),), ()),
             )
             with self.assertRaises(HSE2ModelError):
-                validate_v5_archive(input_path=archive, password="incorrect password")
+                validate_v5_archive(input_path=archive, password="incorrect password")  # pragma: allowlist secret
 
             truncated = root / "truncated.hse2"
             truncated.write_bytes(archive.read_bytes()[:-1])
             with self.assertRaises(HSE2ModelError):
-                validate_v5_archive(input_path=truncated, password="primary view pass")
+                validate_v5_archive(input_path=truncated, password="primary view pass")  # pragma: allowlist secret
 
     def test_v5_restore_preview_reports_metadata_and_existing_target(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -113,7 +254,7 @@ class HSE2V5WorkflowTests(unittest.TestCase):
             target = root / "restore-target"
 
             preview = preview_v5_restore(
-                input_path=archive, password="primary view pass", output_dir=target,
+                input_path=archive, password="primary view pass", output_dir=target,  # pragma: allowlist secret
             )
 
             self.assertEqual(preview["file_count"], 1)
@@ -125,7 +266,7 @@ class HSE2V5WorkflowTests(unittest.TestCase):
 
             target.mkdir()
             preview_existing = preview_v5_restore(
-                input_path=archive, password="primary view pass", output_dir=target,
+                input_path=archive, password="primary view pass", output_dir=target,  # pragma: allowlist secret
             )
             self.assertTrue(preview_existing["output_exists"])
 
@@ -144,7 +285,7 @@ class HSE2V5WorkflowTests(unittest.TestCase):
             with patch("high_security_encryptor.hse2.container_v5_workflows.shutil.disk_usage",
                        return_value=shutil._ntuple_diskusage(100, 90, 10)):
                 with self.assertRaisesRegex(HSE2ModelError, "insufficient free space"):
-                    restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)
+                    restore_v5_archive(input_path=archive, password="primary view pass", output_dir=target)  # pragma: allowlist secret
             self.assertFalse(target.exists())
 
     def test_create_and_restore_two_independent_compact_views(self) -> None:

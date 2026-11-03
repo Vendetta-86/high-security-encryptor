@@ -38,6 +38,10 @@ class HSE2V5CliTests(unittest.TestCase):
         ])
         self.assertEqual(preview.hse2_command, "v5-preview")
         self.assertEqual(preview.output_dir, "restore")
+        update = parser.parse_args([
+            "hse2", "v5-password-update", "--input", "archive.hse2", "--output", "updated.hse2",
+        ])
+        self.assertEqual(update.hse2_command, "v5-password-update")
         compact = parser.parse_args([
             "hse2", "v5-compact", "--input", "old.hse2", "--output", "compact.hse2",
         ])
@@ -81,6 +85,34 @@ class HSE2V5CliTests(unittest.TestCase):
                 ])
         self.assertEqual(result, 0)
         self.assertEqual(compact.call_args.kwargs["view_passwords"], ("primary secret", "secondary secret"))
+
+    def test_v5_password_update_reads_and_confirms_secrets_without_printing_them(self) -> None:
+        passwords = ("old primary secret", "new primary secret", "new primary secret")
+        stdout = io.StringIO()
+        with patch("sys.stdin", io.StringIO("\n".join(passwords) + "\n")), \
+                patch("high_security_encryptor.cli.update_v5_view_password", return_value=Path("updated.hse2")) as update, \
+                contextlib.redirect_stdout(stdout):
+            result = main([
+                "hse2", "v5-password-update", "--input", "archive.hse2", "--output", "updated.hse2",
+                "--passwords-stdin",
+            ])
+        self.assertEqual(result, 0)
+        report = stdout.getvalue()
+        for secret in passwords:
+            self.assertNotIn(secret, report)
+        self.assertEqual(update.call_args.kwargs["current_password"], passwords[0])
+        self.assertEqual(update.call_args.kwargs["new_password"], passwords[1])
+
+    def test_v5_password_update_rejects_confirmation_mismatch_before_workflow(self) -> None:
+        with patch("sys.stdin", io.StringIO("old\nnew\nwrong\n")), \
+                patch("high_security_encryptor.cli.update_v5_view_password") as update, \
+                contextlib.redirect_stderr(io.StringIO()):
+            result = main([
+                "hse2", "v5-password-update", "--input", "archive.hse2", "--output", "updated.hse2",
+                "--passwords-stdin",
+            ])
+        self.assertNotEqual(result, 0)
+        update.assert_not_called()
 
     def test_v4_to_v5_uses_both_passwords_and_keeps_the_input_untouched(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

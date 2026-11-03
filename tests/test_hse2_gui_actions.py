@@ -117,6 +117,11 @@ class HSE2GuiActionTests(unittest.TestCase):
             action="v4-to-v5", input_path="old-v4.hse2", output_path="new-v5.hse2",
             primary_password="first", secondary_password="second",
         )
+        updated_password = build_hse2_gui_command(
+            action="v5-password-update", input_path="archive.hse2", output_path="updated.hse2",
+            current_view_password="old-view-pass", new_view_password="new-view-pass",
+            new_view_password_confirmation="new-view-pass",
+        )
         self.assertEqual(opened.secret_inputs, ("view-pass",))
         self.assertEqual(verified.argv, ("hse2", "v5-verify", "--input", "archive.hse2"))
         self.assertEqual(previewed.argv, (
@@ -129,6 +134,26 @@ class HSE2GuiActionTests(unittest.TestCase):
         self.assertEqual(replaced.secret_inputs, ("view-pass",))
         self.assertEqual(compacted.secret_inputs, ("first", "second"))
         self.assertEqual(exported.secret_inputs, ("first", "second"))
+        self.assertEqual(updated_password.argv, (
+            "hse2", "v5-password-update", "--input", "archive.hse2", "--output", "updated.hse2",
+        ))
+        self.assertEqual(updated_password.secret_inputs, ("old-view-pass", "new-view-pass", "new-view-pass"))
+        self.assertNotIn("old-view-pass", repr(updated_password) + " ".join(updated_password.argv))
+        self.assertNotIn("new-view-pass", repr(updated_password) + " ".join(updated_password.argv))
+
+    def test_v5_password_update_requires_distinct_confirmed_new_password(self) -> None:
+        with self.assertRaisesRegex(ValueError, "确认"):
+            build_hse2_gui_command(
+                action="v5-password-update", input_path="archive.hse2", output_path="updated.hse2",
+                current_view_password="old", new_view_password="new",
+                new_view_password_confirmation="mismatch",
+            )
+        with self.assertRaisesRegex(ValueError, "不同"):
+            build_hse2_gui_command(
+                action="v5-password-update", input_path="archive.hse2", output_path="updated.hse2",
+                current_view_password="same", new_view_password="same",
+                new_view_password_confirmation="same",
+            )
 
     def test_v5_creation_requires_distinct_confirmed_view_passwords(self) -> None:
         kwargs = dict(

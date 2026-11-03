@@ -25,6 +25,21 @@ from high_security_encryptor.hse2_gui_tab import (
 
 
 class HSE2GuiTabTests(unittest.TestCase):
+    def test_v5_password_update_exposes_correct_fields_and_command(self) -> None:
+        state = HSE2GuiTabState(
+            action="v5-password-update", input_path="archive.hse2", output_path="updated.hse2",
+            current_view_password="old-password", new_view_password="new-password",
+            new_view_password_confirmation="new-password",
+        )
+        visible = visible_hse2_gui_field_keys("v5-password-update")
+        self.assertTrue({
+            "input_path", "output_path", "current_view_password",
+            "new_view_password", "new_view_password_confirmation", "v5_warning",
+        }.issubset(visible))
+        self.assertEqual(build_hse2_command_from_tab_state(state), [
+            "hse2", "v5-password-update", "--input", "archive.hse2", "--output", "updated.hse2",
+        ])
+
     def test_run_selected_action_reports_plan_validation_errors(self) -> None:
         class Variable:
             def __init__(self, value: str) -> None:

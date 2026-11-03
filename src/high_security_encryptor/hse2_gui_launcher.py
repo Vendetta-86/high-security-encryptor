@@ -116,7 +116,7 @@ class HSE2ExperimentalApp(ttk.Frame):
                 return
             if plan.action in {"v4-create", "v4-open", "v4-replace"} and not self._confirm_v4_action(plan):
                 return
-            if plan.action in {"v5-create", "v5-open", "v5-replace", "v5-compact", "v4-to-v5"} and not self._confirm_v5_action(plan):
+            if plan.action in {"v5-create", "v5-open", "v5-password-update", "v5-replace", "v5-compact", "v4-to-v5"} and not self._confirm_v5_action(plan):
                 return
             result = _invoke_hse2_gui_command(plan)
             if result.stdout:
@@ -226,6 +226,10 @@ class HSE2ExperimentalApp(ttk.Frame):
         action_details = {
             "v5-create": ("创建一个公开披露双视图的紧凑 v5 容器。", "创建实验性 HSE2 v5"),
             "v5-open": ("恢复密码对应的一个 v5 视图到新目录。", "恢复实验性 HSE2 v5 视图"),
+            "v5-password-update": (
+                "仅更新当前口令解锁的视图凭据，写入新的 v5 容器副本；活动记录、描述符和另一视图凭据保持不变。",
+                "更换实验性 HSE2 v5 单视图口令",
+            ),
             "v5-replace": ("将密码对应视图写入一个新容器副本；原容器和另一视图会保留。", "替换实验性 HSE2 v5 视图"),
             "v5-compact": ("使用两个视图密码重建新容器，以回收历史记录占用空间。", "压缩实验性 HSE2 v5"),
             "v4-to-v5": ("使用两个视图密码将 v4 两个视图显式导出到一个新的 v5 容器。", "导出 HSE2 v4 到 v5"),
@@ -240,6 +244,13 @@ class HSE2ExperimentalApp(ttk.Frame):
             return False
         elif plan.action == "v5-replace" and "--file" not in argv:
             description += " 未指定文件映射，目标视图将被清空。"
+        elif plan.action == "v5-password-update":
+            description += (
+                " 新口令必须与另一视图口令不同；此操作无法在不输入另一口令时验证这一点。"
+                "原输入档案仍可用旧口令打开，更新后的输出档案使用新口令；请分开保存并确认目标路径。"
+            )
+        if "--force" in argv and output_path and Path(output_path).exists():
+            description += " 目标输出已存在；确认后会覆盖该输出文件。"
         if plan.action == "v5-open":
             preview_plan = HSE2GuiCommandPlan(
                 action="v5-preview",

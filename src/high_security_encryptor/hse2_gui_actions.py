@@ -36,6 +36,7 @@ HSE2_GUI_ACTIONS = (
     "v5-open",
     "v5-verify",
     "v5-preview",
+    "v5-password-update",
     "v5-replace",
     "v5-compact",
     "v4-to-v5",
@@ -65,6 +66,7 @@ HSE2_GUI_ACTION_LABELS = {
     "v5-open": "实验性 HSE2 v5 单视图恢复",
     "v5-verify": "实验性 HSE2 v5 完整校验（不写明文）",
     "v5-preview": "实验性 HSE2 v5 恢复预览",
+    "v5-password-update": "实验性 HSE2 v5 单视图更换口令",
     "v5-replace": "实验性 HSE2 v5 单视图替换",
     "v5-compact": "实验性 HSE2 v5 双密码压缩",
     "v4-to-v5": "实验性 HSE2 v4 导出到 v5",
@@ -122,6 +124,9 @@ def build_hse2_gui_command(
     primary_password_confirmation: str = "",
     secondary_password: str = "",
     secondary_password_confirmation: str = "",
+    current_view_password: str = "",
+    new_view_password: str = "",
+    new_view_password_confirmation: str = "",
     replace_file_spec: str = "",
 ) -> HSE2GuiCommandPlan:
     """Build a CLI argv plan for one explicit HSE2 GUI action."""
@@ -448,6 +453,19 @@ def build_hse2_gui_command(
         args = ["hse2", "v5-preview", "--input", _require_text(input_path, "请选择 v5 容器。"),
                 "--output-dir", _require_text(output_path, "请选择新的恢复目录。")]
         plan_secrets = (_require_text(archive_password, "请输入要预览视图的密码。"),)
+        argv = tuple(args)
+    elif normalized_action == "v5-password-update":
+        if not new_view_password or new_view_password != new_view_password_confirmation:
+            raise ValueError("请填写并确认新视图口令。")
+        if not current_view_password:
+            raise ValueError("请输入当前视图口令。")
+        if new_view_password == current_view_password:
+            raise ValueError("新口令必须与当前口令不同。")
+        args = ["hse2", "v5-password-update", "--input", _require_text(input_path, "请选择 v5 容器。"),
+                "--output", _require_text(output_path, "请选择新的 v5 输出路径。")]
+        if force:
+            args.append("--force")
+        plan_secrets = (current_view_password, new_view_password, new_view_password_confirmation)
         argv = tuple(args)
     elif normalized_action == "v5-replace":
         args = ["hse2", "v5-replace", "--input", _require_text(input_path, "请选择 v5 容器。"),

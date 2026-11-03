@@ -50,6 +50,23 @@ def _slot_aad(archive_id: bytes, slot: int, profile_id: int) -> bytes:
     return f"HSE2:v5:credential:{archive_id.hex()}:{slot}:{profile_id}:v1".encode("ascii")
 
 
+def wrap_v5_root_key(
+    password: str, root_key: bytes, *, archive_id: bytes, slot: int, profile_id: int,
+) -> V5CredentialSlot:
+    """Create a fresh credential slot wrapping an existing v5 view root key."""
+
+    profile_name = _ID_PROFILES.get(profile_id)
+    if profile_name is None or not isinstance(root_key, bytes) or len(root_key) != V5_CREDENTIAL_KEY_SIZE:
+        raise HSE2ModelError("invalid v5 credential wrapping input")
+    normalize_password(password)
+    salt = secrets.token_bytes(HSE2_KDF_SALT_SIZE)
+    nonce = secrets.token_bytes(V5_CREDENTIAL_NONCE_SIZE)
+    kek = derive_kek_from_password(password, profile_name=profile_name, salt=salt).kek.value
+    sealed = seal_v5(key=kek, nonce=nonce, plaintext=root_key,
+                     aad=_slot_aad(archive_id, slot, profile_id))
+    return V5CredentialSlot(profile_id, salt, nonce, sealed.ciphertext, sealed.tag)
+
+
 def create_v5_credentials(
     password0: str, password1: str, *, archive_id: bytes, profile_name: str = "compatible",
 ) -> tuple[tuple[V5CredentialSlot, V5CredentialSlot], tuple[bytes, bytes]]:
@@ -63,12 +80,9 @@ def create_v5_credentials(
     roots = (secrets.token_bytes(32), secrets.token_bytes(32))
     slots = []
     for index, password in enumerate((password0, password1)):
-        salt = secrets.token_bytes(HSE2_KDF_SALT_SIZE)
-        nonce = secrets.token_bytes(V5_CREDENTIAL_NONCE_SIZE)
-        kek = derive_kek_from_password(password, profile_name=profile_name, salt=salt).kek.value
-        sealed = seal_v5(key=kek, nonce=nonce, plaintext=roots[index],
-                         aad=_slot_aad(archive_id, index, profile_id))
-        slots.append(V5CredentialSlot(profile_id, salt, nonce, sealed.ciphertext, sealed.tag))
+        slots.append(wrap_v5_root_key(
+            password, roots[index], archive_id=archive_id, slot=index, profile_id=profile_id,
+        ))
     return (slots[0], slots[1]), roots
 
 

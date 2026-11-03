@@ -46,7 +46,8 @@ from .hse2_config import HSE2DecryptConfig, HSE2EncryptConfig, HSE2RewrapConfig
 from .hse2_access_cli import run_destroy as run_hse2_access_destroy
 from .hse2.container_v4_workflows import create_v4_archive, replace_v4_view, restore_v4_archive
 from .hse2.container_v5_workflows import (
-    create_v5_archive, preview_v5_restore, replace_v5_view, restore_v5_archive, validate_v5_archive,
+    create_v5_archive, preview_v5_restore, replace_v5_view, restore_v5_archive,
+    update_v5_view_password, validate_v5_archive,
 )
 from .hse2.container_v5_migration import compact_v5_archive, export_v4_to_v5
 from .hse2_keyfile_rotation_config import HSE2KeyfileRotationConfig
@@ -117,6 +118,7 @@ def build_parser() -> argparse.ArgumentParser:
         hse2_v5_restore_handler=_handle_hse2_v5_restore,
         hse2_v5_validate_handler=_handle_hse2_v5_validate,
         hse2_v5_preview_handler=_handle_hse2_v5_preview,
+        hse2_v5_password_update_handler=_handle_hse2_v5_password_update,
         hse2_v5_replace_handler=_handle_hse2_v5_replace,
         hse2_v5_compact_handler=_handle_hse2_v5_compact,
         hse2_v4_export_v5_handler=_handle_hse2_v4_export_v5,
@@ -445,6 +447,23 @@ def _handle_hse2_v5_validate(args: argparse.Namespace) -> dict[str, Any]:
 def _handle_hse2_v5_preview(args: argparse.Namespace) -> dict[str, Any]:
     password = _read_v4_password_stdin(1)[0] if args.password_stdin else getpass.getpass("View password: ")
     return preview_v5_restore(input_path=args.input, password=password, output_dir=args.output_dir)
+
+
+def _handle_hse2_v5_password_update(args: argparse.Namespace) -> dict[str, Any]:
+    if args.passwords_stdin:
+        current_password, new_password, confirmation = _read_v4_password_stdin(3)
+    else:
+        current_password = getpass.getpass("Current view password: ")
+        new_password = getpass.getpass("New view password: ")
+        confirmation = getpass.getpass("Confirm new view password: ")
+    if new_password != confirmation:
+        raise CliConfigError("new view password confirmation does not match")
+    output = update_v5_view_password(
+        input_path=args.input, output_path=args.output,
+        current_password=current_password, new_password=new_password,
+        overwrite=bool(args.force),
+    )
+    return {"command": "hse2 v5-password-update", "format_version": 5, "output": str(output)}
 
 
 def _handle_hse2_v5_replace(args: argparse.Namespace) -> dict[str, Any]:

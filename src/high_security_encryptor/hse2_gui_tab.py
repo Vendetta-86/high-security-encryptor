@@ -79,6 +79,10 @@ HSE2_GUI_FIELD_VISIBILITY: dict[str, frozenset[str]] = {
     "v5-open": frozenset({"input_path", "output_path", "archive_password", "v5_warning"}),
     "v5-verify": frozenset({"input_path", "archive_password", "v5_warning"}),
     "v5-preview": frozenset({"input_path", "output_path", "archive_password", "v5_warning"}),
+    "v5-password-update": frozenset({
+        "input_path", "output_path", "current_view_password", "new_view_password",
+        "new_view_password_confirmation", "force", "v5_warning",
+    }),
     "v5-replace": frozenset({"input_path", "output_path", "replace_file_spec", "archive_password", "force", "v5_warning"}),
     "v5-compact": frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),
     "v4-to-v5": frozenset({"input_path", "output_path", "primary_password", "secondary_password", "force", "v5_warning"}),
@@ -221,6 +225,9 @@ class HSE2GuiTabState:
     primary_password_confirmation: str = field(default="", repr=False)
     secondary_password: str = field(default="", repr=False)
     secondary_password_confirmation: str = field(default="", repr=False)
+    current_view_password: str = field(default="", repr=False)
+    new_view_password: str = field(default="", repr=False)
+    new_view_password_confirmation: str = field(default="", repr=False)
     replace_file_spec: str = ""
 
 
@@ -302,6 +309,9 @@ def build_hse2_plan_from_tab_state(state: HSE2GuiTabState) -> HSE2GuiCommandPlan
         primary_password_confirmation=state.primary_password_confirmation,
         secondary_password=state.secondary_password,
         secondary_password_confirmation=state.secondary_password_confirmation,
+        current_view_password=state.current_view_password,
+        new_view_password=state.new_view_password,
+        new_view_password_confirmation=state.new_view_password_confirmation,
         replace_file_spec=state.replace_file_spec,
     )
     return plan
@@ -354,6 +364,9 @@ class HSE2ExperimentalTab(ttk.Frame):
         self.primary_password_confirmation = tk.StringVar()
         self.secondary_password = tk.StringVar()
         self.secondary_password_confirmation = tk.StringVar()
+        self.current_view_password = tk.StringVar()
+        self.new_view_password = tk.StringVar()
+        self.new_view_password_confirmation = tk.StringVar()
         self.replace_file_spec = tk.StringVar()
 
         self._field_widgets: dict[str, FieldWidgets] = {}
@@ -421,6 +434,9 @@ class HSE2ExperimentalTab(ttk.Frame):
             primary_password_confirmation=self.primary_password_confirmation.get(),
             secondary_password=self.secondary_password.get(),
             secondary_password_confirmation=self.secondary_password_confirmation.get(),
+            current_view_password=self.current_view_password.get(),
+            new_view_password=self.new_view_password.get(),
+            new_view_password_confirmation=self.new_view_password_confirmation.get(),
             replace_file_spec=self.replace_file_spec.get(),
         )
 
@@ -458,6 +474,7 @@ class HSE2ExperimentalTab(ttk.Frame):
             for secret_name in (
                 "primary_password", "primary_password_confirmation",
                 "secondary_password", "secondary_password_confirmation",
+                "current_view_password", "new_view_password", "new_view_password_confirmation",
             ):
                 secret_var = getattr(self, secret_name, None)
                 if secret_var is not None:
@@ -597,12 +614,22 @@ class HSE2ExperimentalTab(ttk.Frame):
             text=(
                 "v5 是实验性、公开披露双视图的紧凑格式，不承诺可否认性。创建/替换/压缩/迁移均写入新输出文件；"
                 "压缩和 v4→v5 导出必须提供两个不同视图密码。GUI 每个视图每次只接受一个文件映射；需要多个文件请用 CLI。"
+                "更换单个视图口令时，新口令必须与另一视图口令不同；原输入档案仍可用旧口令打开，需由你单独保管或处理。"
             ),
             wraplength=780,
             justify=tk.LEFT,
         )
         self._field_widgets["v5_warning"] = (v5_warning,)
         v5_warning.grid(row=40, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        self._field_widgets["current_view_password"] = _add_secret_row(
+            self, 41, "当前视图口令", self.current_view_password
+        )
+        self._field_widgets["new_view_password"] = _add_secret_row(
+            self, 42, "新视图口令", self.new_view_password
+        )
+        self._field_widgets["new_view_password_confirmation"] = _add_secret_row(
+            self, 43, "确认新视图口令", self.new_view_password_confirmation
+        )
 
         self._options_frame = ttk.Frame(self)
         self._options_frame.grid(row=28, column=0, columnspan=3, sticky="w", pady=(8, 0))

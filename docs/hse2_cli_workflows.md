@@ -1,6 +1,6 @@
 # HSE2 CLI Workflows
 
-HSE2 remains an explicit experimental workflow, but the core archive lifecycle is now available through focused CLI entry points. These commands do not prompt for secrets and do not store plaintext key material in summaries.
+HSE2 remains an explicit experimental workflow, but the core archive lifecycle is now available through focused CLI entry points. Commands that need passwords either prompt without echo or read them from redirected standard input; summaries do not print plaintext key material.
 
 The path values below are placeholders. Replace angle-bracketed values with local test files when running the commands.
 
@@ -20,6 +20,24 @@ high-security-encryptor hse2 v5-preview \
 Both commands prompt for the selected view password without echoing it. For automation, add `--password-stdin` and pipe the password through standard input; never put it directly in command arguments. `v5-verify` holds only one authenticated chunk at a time and reports that plaintext was not written. A successful result proves record authentication and length consistency for the selected live view; v5 does not store a plaintext digest, so this is not a comparison against an archive-stored plaintext hash. `v5-preview` requires a new destination directory. `v5-open` performs its own target and free-space preflight before it creates staging output.
 
 These commands are experimental and do not claim hidden-volume behavior, deniability, or protection against local metadata observation.
+
+## Change One v5 View Password
+
+Change the password for the view unlocked by the current password:
+
+```bash
+high-security-encryptor hse2 v5-password-update \
+  --input <CURRENT_V5_ARCHIVE> \
+  --output <UPDATED_V5_ARCHIVE>
+```
+
+The CLI asks for the current password, then asks for and confirms the new password. The operation writes a complete new archive copy. In that output, only the selected credential slot changes; the other slot, encrypted descriptors, records, and footer are copied unchanged. The source archive remains usable with the old password. The destination must be a different path and needs enough free space for another full-size container. `--force` replaces an existing destination file after the new copy has been built.
+
+Choose a new password that differs from the other view's password. Because this operation only asks for the selected view's current password, it cannot check whether the new password matches the other view. The existing source and any older copies keep their old credentials, so store the updated archive safely and verify it with the new password before deciding how to retain older copies. Do not assume old copies or backups have changed when updating this output.
+
+Automation may add `--passwords-stdin`; provide exactly three non-empty lines: current password, new password, and new password confirmation. Do not place passwords in command arguments or shell history.
+
+The workflow rejects an incorrect current password, an unchanged password, an input path used as the output, and a known insufficient-space condition. A failed copy or final replacement leaves the source archive untouched and removes the incomplete temporary output. v5 remains experimental and this operation does not add deniability or erase older copies.
 
 Inspect an HSE2 keyfile before using it:
 

@@ -12,7 +12,7 @@ import unicodedata
 
 from ..atomic_io import atomic_output_path, flush_file
 from .archive_manifest import validate_archive_path
-from .container_v5_credentials import create_v5_credentials, unlock_v5_credentials
+from .container_v5_credentials import create_v5_credentials, unlock_v5_credentials, wrap_v5_root_key
 from .container_v5_crypto import (
     V5_MAX_CHUNK_SIZE, V5_MAX_CONTAINER_SIZE, V5_MAX_LIVE_CHUNKS_PER_VIEW,
 )
@@ -24,6 +24,7 @@ from .container_v5_file import V5ContainerReader
 from .container_v5_header import V5_FOOTER_SIZE, V5Footer, V5FooterEntry, V5PublicHeader
 from .container_v5_records import V5_RECORD_OVERHEAD, open_v5_record, seal_v5_record
 from .models import HSE2ModelError
+from .password_kdf import normalize_password
 from .restore_staging import (
     RestoreStageLease,
     cleanup_stale_restore_stages,
@@ -285,6 +286,51 @@ def validate_v5_archive(*, input_path: str | Path, password: str) -> dict[str, o
         "view_generation": descriptor.generation,
         "view_slot": slot,
     }
+
+
+def update_v5_view_password(
+    *, input_path: str | Path, output_path: str | Path,
+    current_password: str, new_password: str, overwrite: bool = False,
+) -> Path:
+    """Write a new container with one credential slot rewrapped and all other bytes preserved."""
+
+    source = Path(input_path)
+    target = Path(output_path)
+    if source.resolve() == target.resolve():
+        raise HSE2ModelError("v5 password updates require a new output path")
+    if target.exists() and not overwrite:
+        raise HSE2ModelError("output already exists")
+    if normalize_password(current_password) == normalize_password(new_password):
+        raise HSE2ModelError("new v5 view password must differ from the current password")
+
+    with V5ContainerReader(source) as reader:
+        slot, root_key, _descriptor = _open_selected_view(reader, current_password)
+        credential_slots = list(reader.header.credential_slots)
+        credential_slots[slot] = wrap_v5_root_key(
+            new_password, root_key, archive_id=reader.header.archive_id,
+            slot=slot, profile_id=credential_slots[slot].profile_id,
+        )
+        updated_header = V5PublicHeader(reader.header.archive_id, tuple(credential_slots)).to_bytes()
+        reader.ensure_unchanged()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            available_bytes = shutil.disk_usage(target.parent).free
+        except OSError:
+            available_bytes = None
+        if available_bytes is not None and available_bytes < reader.file_size:
+            raise HSE2ModelError("insufficient free space for v5 password update output")
+        with atomic_output_path(target) as temp_path:
+            with temp_path.open("wb") as output:
+                body_length = reader.file_size - V5_FOOTER_SIZE
+                reader.copy_prefix_to(output, body_length)
+                output.write(reader.footer.to_bytes())
+                output.seek(0)
+                output.write(updated_header)
+                if output.seek(0, os.SEEK_END) != reader.file_size:
+                    raise HSE2ModelError("invalid v5 password update output size")
+                reader.ensure_unchanged()
+                flush_file(output)
+    return target
 
 
 def restore_v5_archive(*, input_path: str | Path, password: str, output_dir: str | Path) -> Path:

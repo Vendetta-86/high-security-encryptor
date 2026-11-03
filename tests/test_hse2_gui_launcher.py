@@ -16,6 +16,7 @@ from high_security_encryptor.gui import GuiCommandResult
 from high_security_encryptor.hse2_gui_launcher import HSE2ExperimentalApp, _build_archive_open_confirmation, _build_hse2_result_summary, _invoke_hse2_gui_command, _quote_argv, main
 from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2.container_v4_workflows import create_v4_archive
+from high_security_encryptor.hse2.container_v5_workflows import create_v5_archive
 from high_security_encryptor.hse2_gui_tab import HSE2GuiTabState, build_hse2_command_from_tab_state, build_hse2_plan_from_tab_state
 from high_security_encryptor.hse2_quickstart_gui_tab import HSE2QuickstartTab, build_hse2_quickstart_tab
 
@@ -571,6 +572,48 @@ class HSE2GuiLauncherTests(unittest.TestCase):
             self.assertFalse(HSE2ExperimentalApp._confirm_v5_action(app, plan))
         ask_again.assert_not_called()
         showerror.assert_called_once()
+
+    def test_v5_password_update_confirmation_explains_copy_and_distinct_password_rule(self) -> None:
+        plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+            action="v5-password-update", input_path="archive.hse2", output_path="updated.hse2",
+            current_view_password="old-password", new_view_password="new-password",
+            new_view_password_confirmation="new-password",
+        ))
+        with patch("high_security_encryptor.hse2_gui_launcher.messagebox.askyesno", return_value=True) as ask:
+            self.assertTrue(HSE2ExperimentalApp._confirm_v5_action(object(), plan))
+        confirmation = ask.call_args.args[1]
+        self.assertIn("另一视图口令不同", confirmation)
+        self.assertIn("原输入档案仍可用旧口令打开", confirmation)
+        self.assertIn("archive.hse2", confirmation)
+        self.assertIn("updated.hse2", confirmation)
+
+    def test_v5_password_update_gui_command_keeps_passwords_private(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            primary = base / "primary.txt"
+            peer = base / "peer.txt"
+            archive = base / "source.hse2"
+            output = base / "updated.hse2"
+            primary.write_bytes(b"primary")
+            peer.write_bytes(b"peer")
+            create_v5_archive(
+                output_path=archive,
+                view_passwords=("old-primary", "peer-password"),
+                view_files=((('primary.txt', primary),), (('peer.txt', peer),)),
+            )
+            plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+                action="v5-password-update", input_path=str(archive), output_path=str(output),
+                current_view_password="old-primary", new_view_password="new-primary",
+                new_view_password_confirmation="new-primary",
+            ))
+
+            result = _invoke_hse2_gui_command(plan)
+
+            self.assertEqual(result.exit_code, 0, result.stderr)
+            self.assertNotIn("old-primary", result.stdout + result.stderr)
+            self.assertNotIn("new-primary", result.stdout + result.stderr)
+            self.assertTrue(archive.exists())
+            self.assertTrue(output.exists())
 
     def test_gui_v4_to_v5_export_keeps_passwords_private_and_both_views_readable(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
