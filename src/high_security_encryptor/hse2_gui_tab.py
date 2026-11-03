@@ -18,7 +18,12 @@ from .dpapi_guidance import DPAPI_LOCAL_MACHINE_SCOPE_WARNING, DPAPI_WRAPPER_POR
 from .hse2.access_management import DESTROY_ACCESS_CONFIRMATION_PHRASE
 from .hse2.container_v4_crypto import V4_DESCRIPTOR_SIZE, V4_MAX_RECORDS, V4_RECORD_SIZE
 from .hse2.container_v4_header import V4_PUBLIC_HEADER_SIZE
-from .hse2_gui_actions import HSE2_GUI_ACTION_LABELS, HSE2GuiCommandPlan, build_hse2_gui_command
+from .hse2_gui_actions import (
+    HSE2_GUI_ACTION_HELP,
+    HSE2_GUI_ACTION_LABELS,
+    HSE2GuiCommandPlan,
+    build_hse2_gui_command,
+)
 
 
 RunCommand = Callable[[HSE2GuiCommandPlan], None]
@@ -255,6 +260,16 @@ def hse2_gui_action_display_label(action: str) -> str:
     return HSE2_GUI_ACTION_LABELS[hse2_gui_action_key_from_display(action)]
 
 
+def hse2_gui_action_help_text(action: str) -> str:
+    """Return beginner-facing purpose and caution text for an HSE2 action."""
+
+    normalized_action = hse2_gui_action_key_from_display(action)
+    return (
+        "本页通过现有 HSE2 工作流执行，不在界面层重新实现加密逻辑。"
+        f"当前操作：{HSE2_GUI_ACTION_LABELS[normalized_action]}：{HSE2_GUI_ACTION_HELP[normalized_action]}"
+    )
+
+
 def visible_hse2_gui_field_keys(action: str) -> frozenset[str]:
     """Return the GUI field keys that should be visible for one HSE2 action."""
 
@@ -327,6 +342,7 @@ class HSE2ExperimentalTab(ttk.Frame):
 
         self.action = tk.StringVar(value="encrypt-config")
         self.action_label = tk.StringVar(value=hse2_gui_action_display_label(self.action.get()))
+        self.action_help = tk.StringVar(value=hse2_gui_action_help_text(self.action.get()))
         self.config_path = tk.StringVar()
         self.root_path = tk.StringVar()
         self.input_path = tk.StringVar()
@@ -483,10 +499,7 @@ class HSE2ExperimentalTab(ttk.Frame):
     def _build_widgets(self) -> None:
         ttk.Label(
             self,
-            text=(
-                "HSE2 实验入口：本页只构造并运行现有 CLI 命令，不在 GUI 层重写加密逻辑。"
-                "请先准备对应 JSON 配置、keyfile 或 .hse2 容器路径。"
-            ),
+            textvariable=self.action_help,
             wraplength=780,
             justify=tk.LEFT,
         ).grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 10))
@@ -678,6 +691,7 @@ class HSE2ExperimentalTab(ttk.Frame):
         display_label = hse2_gui_action_display_label(self.action.get())
         if self.action_label.get() != display_label:
             self.action_label.set(display_label)
+        self.action_help.set(hse2_gui_action_help_text(self.action.get()))
         self._apply_action_visibility()
 
     def _apply_action_visibility(self) -> None:

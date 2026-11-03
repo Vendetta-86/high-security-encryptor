@@ -18,7 +18,7 @@
 | 主 GUI：单文件/文件夹加解密 | [第一次使用](first-run.md)、[GUI 说明](../beginner_gui_usage.md) | 单文件加密、解密和人工核对已提供；完整性校验、文件夹和错误恢复待扩展 |
 | 主 GUI：批量任务、配置检查、配置生成 | [GUI 说明](../beginner_gui_usage.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补逐步演练 |
 | 主 GUI：BitLocker 可移动存储 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补；需要说明管理员条件和恢复密钥 |
-| 独立 HSE2 GUI：归档创建、打开、校验、检查 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 现有深入说明；新手 GUI 跟练待补 |
+| 独立 HSE2 GUI：归档创建、打开、校验、检查 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 各动作已有动态用途/风险提示；新手 GUI 跟练待补 |
 | 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补逐项教程与恢复演练 |
 | HSE2 v4/v5 实验操作 | [术语索引](glossary.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 待补隔离样例演练；v5 不承诺可否认性 |
 | CLI、自动化、密码 provider | [GUI 说明](../beginner_gui_usage.md)、[CLI 工作流](../hse2_cli_workflows.md) | 有参考资料；新手交互式示例和凭据风险章节待补 |

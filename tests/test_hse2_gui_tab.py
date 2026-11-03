@@ -6,6 +6,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from high_security_encryptor.hse2_gui_actions import HSE2_GUI_ACTION_HELP, HSE2_GUI_ACTIONS
 from high_security_encryptor.hse2_gui_tab import (
     HEADER_BACKUP_RECOVERY_WARNING,
     HSE2ExperimentalTab,
@@ -16,6 +17,7 @@ from high_security_encryptor.hse2_gui_tab import (
     format_v4_capacity_summary,
     hse2_gui_action_display_label,
     hse2_gui_action_display_values,
+    hse2_gui_action_help_text,
     hse2_gui_action_key_from_display,
     hse2_kdf_profile_display_values,
     hse2_kdf_profile_key_from_display,
@@ -207,6 +209,14 @@ class HSE2GuiTabTests(unittest.TestCase):
 
     def test_action_display_label_maps_internal_action(self) -> None:
         self.assertEqual(hse2_gui_action_display_label("inspect"), "检查 HSE2 元数据")
+
+    def test_every_action_has_beginner_help_with_key_warnings(self) -> None:
+        self.assertEqual(set(HSE2_GUI_ACTIONS), set(HSE2_GUI_ACTION_HELP))
+        self.assertEqual(len(HSE2_GUI_ACTION_HELP), len(hse2_gui_action_display_values()))
+        self.assertIn("JSON 加密配置", hse2_gui_action_help_text("encrypt-config"))
+        self.assertIn("可否认性", hse2_gui_action_help_text("v5-create"))
+        self.assertIn("永久禁用", hse2_gui_action_help_text("access-destroy"))
+        self.assertIn("不写出明文", hse2_gui_action_help_text("v5-verify"))
 
     def test_action_key_from_display_accepts_localized_label(self) -> None:
         self.assertEqual(hse2_gui_action_key_from_display("检查 HSE2 元数据"), "inspect")
