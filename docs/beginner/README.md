@@ -17,8 +17,9 @@
 11. [HSE2 header backup 演练](hse2-header-backup-practice.md)：导出备份、模拟副本头部损坏并恢复到新归档。
 12. [HSE2 keyfile 轮换练习](hse2-keyfile-rotation-practice.md)：为配置式加密单文件密文更换 keyfile 并验证新副本。
 13. [HSE2 DPAPI 练习](hse2-dpapi-practice.md)：在当前 Windows 用户下创建、校验并恢复临时归档。
-14. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
-15. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
+14. [HSE2 wrapper 管理练习](hse2-wrapper-practice.md)：查看、添加备用 keyfile，并在新副本上移除旧 wrapper。
+15. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
+16. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
 
 ## 功能教程地图
 
@@ -30,7 +31,7 @@
 | 主 GUI：批量任务、配置检查、配置生成 | [批量练习](batch-practice.md)、[单独口令练习](password-practice.md)、[独立 .hse 批次练习](independent-batch.md)、[生成并检查配置](config-practice.md)、[GUI 说明](../beginner_gui_usage.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 打包/独立批次、单独文件口令和文件夹内单独加密已有跟练；错误分支待补 |
 | 主 GUI：BitLocker 可移动存储 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补；需要说明管理员条件和恢复密钥 |
 | 独立 HSE2 GUI：归档创建、打开、校验、检查 | [HSE2 归档 GUI 练习](hse2-archive-practice.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 普通 v2 归档的创建、完整校验、元数据检查和恢复已提供独立样例跟练；其他授权方式和错误恢复仍待补 |
-| 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [HSE2 keyfile GUI 练习](hse2-keyfile-practice.md)、[HSE2 keyfile 轮换练习](hse2-keyfile-rotation-practice.md)、[HSE2 DPAPI 练习](hse2-dpapi-practice.md)、[HSE2 header backup 演练](hse2-header-backup-practice.md)、[术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | keyfile 基础/轮换、DPAPI-only 归档与 header backup 导出/特定恢复已有临时样例跟练；DPAPI keyfile blob 和 wrapper 管理仍待补 |
+| 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [HSE2 keyfile GUI 练习](hse2-keyfile-practice.md)、[HSE2 keyfile 轮换练习](hse2-keyfile-rotation-practice.md)、[HSE2 DPAPI 练习](hse2-dpapi-practice.md)、[HSE2 wrapper 管理练习](hse2-wrapper-practice.md)、[HSE2 header backup 演练](hse2-header-backup-practice.md)、[术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | keyfile 基础/轮换、DPAPI-only 归档、wrapper list/add/remove 和 header backup 导出/特定恢复已有临时样例跟练；DPAPI keyfile blob、wrapper rewrap 和永久禁用访问仍待补 |
 | HSE2 v5 创建、完整校验、预览和恢复 | [v5 双视图练习](v5-practice.md) | 已提供隔离样例跟练；口令更新、替换、compact 和迁移待补 |
 | HSE2 v4/v5 其他实验操作 | [术语索引](glossary.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 待补隔离样例演练；v5 不承诺可否认性 |
 | CLI、自动化、密码 provider | [GUI 说明](../beginner_gui_usage.md)、[CLI 工作流](../hse2_cli_workflows.md) | 有参考资料；新手交互式示例和凭据风险章节待补 |
