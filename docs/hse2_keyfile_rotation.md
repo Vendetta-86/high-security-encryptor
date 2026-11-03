@@ -1,8 +1,14 @@
 # Experimental HSE2 Keyfile Rotation
 
 HSE2 keyfile rotation is a convenience wrapper around the existing HSE2 rewrap
-workflow. It rotates HSE2 files from one keyfile-backed wrapper to another
+workflow. It rotates an HSE2 single-file ciphertext created by the
+`hse2-encrypt-config` workflow from one keyfile-backed wrapper to another,
 without changing the original input file or deleting any keyfile.
+
+**Format scope:** this operation does not accept the archive container created
+by the standalone HSE2 GUI action “创建 HSE2 归档”. Both files may use the
+`.hse2` suffix, but they are different workflows and layouts. Use the new
+beginner exercise to identify and verify the supported input before rotating.
 
 ## Command
 
@@ -55,6 +61,11 @@ The command does not:
 - `continue_on_error: true` continues processing later items and reports all
   item results.
 
+## GUI
+
+The standalone HSE2 GUI exposes the “HSE2 keyfile 轮换” action. It accepts a
+rotation configuration file and runs the same command documented above.
+
 ## Scope
 
 Implemented:
@@ -72,4 +83,5 @@ Not implemented yet:
 - automatic backup naming;
 - keyfile generation as part of rotation;
 - keyfile deletion or archival;
-- GUI integration.
+- accepts only config-encrypted single-file ciphertexts; archive-container
+  rotation is not implemented.

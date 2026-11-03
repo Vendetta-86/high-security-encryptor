@@ -81,7 +81,7 @@ HSE2_GUI_ACTION_HELP = {
     "validate": "检查 HSE2 配置文件和规则，不会执行加密或解密。",
     "inspect": "查看归档结构和元数据；结果可能显示文件名、数量等信息，注意旁观者和日志。",
     "header-backup-export": "导出归档头部备份以支持特定头部恢复；它不保存口令、keyfile 或明文。",
-    "rotate-keyfile": "按配置轮换归档使用的 keyfile；准备新旧 keyfile，验证新副本能解锁后再归档旧材料。",
+    "rotate-keyfile": "按配置把 HSE2 配置式加密生成的单文件密文改用新 keyfile 并写入新副本；不适用于“创建 HSE2 归档”产物。先验证新副本，再归档旧 keyfile。",
     "generate-keyfile": "生成随机 keyfile；立即另存独立备份，丢失后可能无法解锁依赖它的归档。",
     "dpapi-protect": "用 Windows DPAPI 保护 keyfile 副本；解锁范围受当前 Windows 用户或设备范围限制。",
     "wrapper-list": "查看归档有哪些解锁 wrapper；输出是元数据，分享前检查是否泄露信息。",
