@@ -43,6 +43,7 @@ class GuiTests(unittest.TestCase):
     def test_beginner_guide_and_example_resources_exist_at_gui_resource_root(self) -> None:
         base_dir = get_gui_resource_base_dir()
         self.assertTrue((base_dir / "docs" / "beginner_gui_usage.md").is_file())
+        self.assertTrue((base_dir / "docs" / "beginner" / "config-practice.md").is_file())
         self.assertTrue((base_dir / "examples" / "beginner_encrypt_config.json").is_file())
         self.assertTrue((base_dir / "examples" / "beginner_multi_file_encrypt_config.json").is_file())
 
@@ -184,6 +185,7 @@ class GuiTests(unittest.TestCase):
         self.assertIn("文件加密", HELP_TEXT)
         self.assertIn("文件解密", HELP_TEXT)
         self.assertIn("生成配置", HELP_TEXT)
+        self.assertIn("config-practice.md", HELP_TEXT)
         self.assertIn("出现警告后退出检查", HELP_TEXT)
 
     def test_help_text_mentions_removable_storage_encryption(self) -> None:

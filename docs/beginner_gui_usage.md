@@ -2,7 +2,7 @@
 
 这份说明面向第一次使用 High Security Encryptor 图形界面的用户。
 
-从零开始请先看[新手指南首页](beginner/README.md)和[首次加密、解密练习](beginner/first-run.md)；术语解释见[术语索引](beginner/glossary.md)。
+从零开始请先看[新手指南首页](beginner/README.md)和[首次加密、解密练习](beginner/first-run.md)；要生成、检查并理解 JSON 配置，请跟做[配置生成练习](beginner/config-practice.md)；术语解释见[术语索引](beginner/glossary.md)。
 
 ## 推荐新手流程
 

@@ -78,7 +78,7 @@ PASSWORD_PROVIDER_HINT = (
 
 HELP_TEXT = """使用说明
 
-新手材料：Windows zip 根目录包含“新手必看.txt”，详细示例见 docs/beginner_gui_usage.md，示例配置见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
+新手材料：先看 docs/beginner/README.md。配置生成与检查跟练见 docs/beginner/config-practice.md；GUI 详细说明见 docs/beginner_gui_usage.md，配置示例见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
 
 快速使用
 适合临时、紧急、单次处理。选择文件或文件夹，或者把文件/文件夹直接拖进路径框，输入密码，点击“一键开始”。不需要写 JSON 配置。
@@ -1011,13 +1011,20 @@ class HighSecurityEncryptorApp(ttk.Frame):
         self.validate_exit_code_on_issues = tk.BooleanVar(value=False)
         self.validate_warnings_as_errors = tk.BooleanVar(value=False)
 
-        self._add_choice_row(frame, 0, "配置用途", self.validate_kind, _choice_label_values(CONFIG_KIND_LABELS))
-        self._add_path_row(frame, 1, "配置文件", self.validate_config, self._browse_validate_config)
-        self._add_choice_row(frame, 2, "结果格式", self.validate_format, _choice_label_values(REPORT_FORMAT_LABELS))
-        self._add_path_row(frame, 3, "结果保存到", self.validate_output, self._browse_validate_output, save=True)
+        ttk.Label(
+            frame,
+            text="这里只检查 JSON 配置是否符合规则，不会加密、解密或验证口令和文件内容。通过后仍要到“文件加密”或“文件解密”执行任务。",
+            wraplength=900,
+            justify=tk.LEFT,
+        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+
+        self._add_choice_row(frame, 1, "配置用途", self.validate_kind, _choice_label_values(CONFIG_KIND_LABELS))
+        self._add_path_row(frame, 2, "配置文件", self.validate_config, self._browse_validate_config)
+        self._add_choice_row(frame, 3, "结果格式", self.validate_format, _choice_label_values(REPORT_FORMAT_LABELS))
+        self._add_path_row(frame, 4, "结果保存到", self.validate_output, self._browse_validate_output, save=True)
 
         options = ttk.Frame(frame)
-        options.grid(row=4, column=0, columnspan=3, sticky="w", pady=(8, 0))
+        options.grid(row=5, column=0, columnspan=3, sticky="w", pady=(8, 0))
         ttk.Checkbutton(options, text="高级检查", variable=self.validate_strict).pack(side=tk.LEFT, padx=(0, 12))
         ttk.Checkbutton(options, text="显示检查结果", variable=self.validate_report).pack(side=tk.LEFT, padx=(0, 12))
         ttk.Checkbutton(options, text="只看摘要", variable=self.validate_summary_only).pack(side=tk.LEFT, padx=(0, 12))
@@ -1032,7 +1039,7 @@ class HighSecurityEncryptorApp(ttk.Frame):
             variable=self.validate_warnings_as_errors,
         ).pack(side=tk.LEFT)
 
-        ttk.Button(frame, text="检查配置", command=self._run_validate).grid(row=5, column=0, sticky="w", pady=(14, 0))
+        ttk.Button(frame, text="检查配置", command=self._run_validate).grid(row=6, column=0, sticky="w", pady=(14, 0))
 
     def _build_encrypt_tab(self, notebook: ttk.Notebook) -> None:
         frame = ttk.Frame(notebook, padding=12)
@@ -1099,11 +1106,18 @@ class HighSecurityEncryptorApp(ttk.Frame):
         self.example_kind = tk.StringVar(value=CONFIG_KIND_LABELS["encrypt"])
         self.example_output = tk.StringVar()
 
-        self._add_choice_row(frame, 0, "密码表保存方式", self.example_mode, _choice_label_values(SECURITY_MODE_LABELS))
-        self._add_choice_row(frame, 1, "配置用途", self.example_kind, _choice_label_values(CONFIG_KIND_LABELS))
-        self._add_path_row(frame, 2, "保存为", self.example_output, self._browse_example_output, save=True)
+        ttk.Label(
+            frame,
+            text="这里只会写出可编辑的 JSON 模板，不会加密或解密。模板中的路径和密码来源是示例；修改后先到“检查配置”检查，再到对应的文件加密/解密页签执行。不要把真实口令直接写进配置文件。",
+            wraplength=900,
+            justify=tk.LEFT,
+        ).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 10))
+
+        self._add_choice_row(frame, 1, "密码表保存方式", self.example_mode, _choice_label_values(SECURITY_MODE_LABELS))
+        self._add_choice_row(frame, 2, "配置用途", self.example_kind, _choice_label_values(CONFIG_KIND_LABELS))
+        self._add_path_row(frame, 3, "保存为", self.example_output, self._browse_example_output, save=True)
         ttk.Button(frame, text="生成配置文件", command=self._run_init_example).grid(
-            row=3,
+            row=4,
             column=0,
             sticky="w",
             pady=(14, 0),
