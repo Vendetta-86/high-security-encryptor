@@ -79,8 +79,9 @@ class WindowsExeWorkflowContractTests(unittest.TestCase):
 
     def test_release_includes_beginner_resources_opened_by_main_gui(self) -> None:
         workflow = (REPO_ROOT / ".github" / "workflows" / "windows-exe.yml").read_text(encoding="utf-8")
+        self.assertIn('Copy-Item "docs\\*" "$staging\\docs" -Recurse', workflow)
+        self.assertTrue((REPO_ROOT / "docs" / "beginner_gui_usage.md").is_file())
         for resource in (
-            'Copy-Item "docs\\beginner_gui_usage.md"',
             'Copy-Item "examples\\beginner_encrypt_config.json"',
             'Copy-Item "examples\\beginner_multi_file_encrypt_config.json"',
         ):
