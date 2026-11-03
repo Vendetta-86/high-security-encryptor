@@ -78,7 +78,7 @@ PASSWORD_PROVIDER_HINT = (
 
 HELP_TEXT = """使用说明
 
-新手材料：先看 docs/beginner/README.md。配置生成与检查跟练见 docs/beginner/config-practice.md；单独文件口令练习见 docs/beginner/password-practice.md；GUI 详细说明见 docs/beginner_gui_usage.md，配置示例见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
+新手材料：先看 docs/beginner/README.md。单文件/文件夹练习见 docs/beginner/first-run.md 和 docs/beginner/folder-practice.md；配置生成与检查跟练见 docs/beginner/config-practice.md；单独文件口令练习见 docs/beginner/password-practice.md；GUI 详细说明见 docs/beginner_gui_usage.md，配置示例见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
 
 快速使用
 适合临时、紧急、单次处理。选择文件或文件夹，或者把文件/文件夹直接拖进路径框，输入密码，点击“一键开始”。不需要写 JSON 配置。

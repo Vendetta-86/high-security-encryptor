@@ -54,7 +54,7 @@ The zip should contain:
 
 ## Release Verification
 
-The beginner materials in the zip start at docs/beginner/README.md and include first-run, config-generation, batch/password-mapping, and v5 exercises, a glossary, GUI reference, HSE2 CLI workflow reference, and the phase 3 feature inventory. Read the exercises with disposable sample data before using valuable files.
+The beginner materials in the zip start at docs/beginner/README.md and include first-run, folder, config-generation, batch/password-mapping, and v5 exercises, a glossary, GUI reference, HSE2 CLI workflow reference, and the phase 3 feature inventory. Read the exercises with disposable sample data before using valuable files.
 
 The v5 GUI practice is docs/beginner/v5-practice.md. It covers create, per-view verification, preview, and restore using isolated sample files; v5 remains experimental and does not provide deniability.
 
