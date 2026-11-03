@@ -12,8 +12,9 @@
 6. [单独文件口令与文件夹内口令练习](password-practice.md)：给指定文件和文件夹内文件设置不同口令，再恢复并核对。
 7. [独立 .hse 批次练习](independent-batch.md)：检查 JSON、生成多个独立密文并通过批量配置恢复。
 8. [生成并检查配置](config-practice.md)：生成 JSON 模板、认识字段，再用 GUI 检查且不执行任务。
-9. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
-10. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
+9. [HSE2 归档 GUI 练习](hse2-archive-practice.md)：创建普通 v2 归档、完整校验、检查元数据并恢复核对。
+10. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
+11. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
 
 ## 功能教程地图
 
@@ -24,7 +25,7 @@
 | 主 GUI：单文件/文件夹加解密 | [第一次使用](first-run.md)、[文件夹练习](folder-practice.md)、[GUI 说明](../beginner_gui_usage.md) | 单文件与文件夹加解密及样例人工核对已提供；一般错误恢复仍待扩展 |
 | 主 GUI：批量任务、配置检查、配置生成 | [批量练习](batch-practice.md)、[单独口令练习](password-practice.md)、[独立 .hse 批次练习](independent-batch.md)、[生成并检查配置](config-practice.md)、[GUI 说明](../beginner_gui_usage.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 打包/独立批次、单独文件口令和文件夹内单独加密已有跟练；错误分支待补 |
 | 主 GUI：BitLocker 可移动存储 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补；需要说明管理员条件和恢复密钥 |
-| 独立 HSE2 GUI：归档创建、打开、校验、检查 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 各动作已有动态用途/风险提示；新手 GUI 跟练待补 |
+| 独立 HSE2 GUI：归档创建、打开、校验、检查 | [HSE2 归档 GUI 练习](hse2-archive-practice.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 普通 v2 归档的创建、完整校验、元数据检查和恢复已提供独立样例跟练；其他授权方式和错误恢复仍待补 |
 | 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补逐项教程与恢复演练 |
 | HSE2 v5 创建、完整校验、预览和恢复 | [v5 双视图练习](v5-practice.md) | 已提供隔离样例跟练；口令更新、替换、compact 和迁移待补 |
 | HSE2 v4/v5 其他实验操作 | [术语索引](glossary.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 待补隔离样例演练；v5 不承诺可否认性 |
