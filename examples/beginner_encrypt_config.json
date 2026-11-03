@@ -4,16 +4,19 @@
     "type": "literal",
     "value": "change-this-metadata-passphrase"
   },
-  "entries": [
-    {
-      "source_path": "C:/Users/your-name/Documents/example.txt",
-      "password": {
-        "type": "literal",
-        "value": "change-this-file-passphrase"
-      }
-    }
+  "sources": [
+    "C:/Users/your-name/Documents/example.txt"
   ],
+  "source_passwords": {
+    "C:/Users/your-name/Documents/example.txt": {
+      "type": "literal",
+      "value": "change-this-file-passphrase"
+    }
+  },
   "output_dir": "C:/Users/your-name/Documents/encrypted-output",
-  "manifest_path": "C:/Users/your-name/Documents/encrypted-output/batch_manifest.hsm",
-  "template_path": "C:/Users/your-name/Documents/encrypted-output/batch_template.hsm"
+  "manifest_output_path": "C:/Users/your-name/Documents/encrypted-output/batch_manifest.hsm",
+  "password_table_output_path": "C:/Users/your-name/Documents/encrypted-output/batch_password_table.hsm",
+  "template_output_path": "C:/Users/your-name/Documents/encrypted-output/batch_template.hsm",
+  "package_as_bundle": false,
+  "write_password_table": true
 }

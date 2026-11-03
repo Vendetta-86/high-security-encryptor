@@ -4,23 +4,24 @@
     "type": "literal",
     "value": "change-this-metadata-passphrase"
   },
-  "entries": [
-    {
-      "source_path": "C:/Users/your-name/Documents/a.txt",
-      "password": {
-        "type": "literal",
-        "value": "file-a-passphrase"
-      }
-    },
-    {
-      "source_path": "C:/Users/your-name/Documents/b.txt",
-      "password": {
-        "type": "literal",
-        "value": "file-b-passphrase"
-      }
-    }
+  "sources": [
+    "C:/Users/your-name/Documents/a.txt",
+    "C:/Users/your-name/Documents/b.txt"
   ],
+  "source_passwords": {
+    "C:/Users/your-name/Documents/a.txt": {
+      "type": "literal",
+      "value": "file-a-passphrase"
+    },
+    "C:/Users/your-name/Documents/b.txt": {
+      "type": "literal",
+      "value": "file-b-passphrase"
+    }
+  },
   "output_dir": "C:/Users/your-name/Documents/encrypted-output",
-  "manifest_path": "C:/Users/your-name/Documents/encrypted-output/batch_manifest.hsm",
-  "template_path": "C:/Users/your-name/Documents/encrypted-output/batch_template.hsm"
+  "manifest_output_path": "C:/Users/your-name/Documents/encrypted-output/batch_manifest.hsm",
+  "password_table_output_path": "C:/Users/your-name/Documents/encrypted-output/batch_password_table.hsm",
+  "template_output_path": "C:/Users/your-name/Documents/encrypted-output/batch_template.hsm",
+  "package_as_bundle": false,
+  "write_password_table": true
 }
