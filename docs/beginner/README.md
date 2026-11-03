@@ -8,10 +8,11 @@
 2. [术语索引](glossary.md)：按屏幕和文档中出现的词查含义、用途、程序的大致处理方式和限制。
 3. [v5 双视图入门练习](v5-practice.md)：创建归档、分别完整校验两个视图、预览并恢复。
 4. [批量加密与解密练习](batch-practice.md)：用 GUI 创建一个兼容模式批次并按配套材料恢复。
-5. [独立 .hse 批次练习](independent-batch.md)：检查 JSON、生成多个独立密文并通过批量配置恢复。
-6. [生成并检查配置](config-practice.md)：生成 JSON 模板、认识字段，再用 GUI 检查且不执行任务。
-7. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
-8. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
+5. [单独文件口令与文件夹内口令练习](password-practice.md)：给指定文件和文件夹内文件设置不同口令，再恢复并核对。
+6. [独立 .hse 批次练习](independent-batch.md)：检查 JSON、生成多个独立密文并通过批量配置恢复。
+7. [生成并检查配置](config-practice.md)：生成 JSON 模板、认识字段，再用 GUI 检查且不执行任务。
+8. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
+9. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
 
 ## 功能教程地图
 
@@ -20,7 +21,7 @@
 | 学习主题 | 当前入口 | 教程进度 |
 |---|---|---|
 | 主 GUI：单文件/文件夹加解密 | [第一次使用](first-run.md)、[GUI 说明](../beginner_gui_usage.md) | 单文件加密、解密和人工核对已提供；完整性校验、文件夹和错误恢复待扩展 |
-| 主 GUI：批量任务、配置检查、配置生成 | [批量练习](batch-practice.md)、[独立 .hse 批次练习](independent-batch.md)、[生成并检查配置](config-practice.md)、[GUI 说明](../beginner_gui_usage.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 生成模板、认识常用字段、配置检查与执行边界已提供；单项文件口令、文件夹内单独加密和错误分支待补 |
+| 主 GUI：批量任务、配置检查、配置生成 | [批量练习](batch-practice.md)、[单独口令练习](password-practice.md)、[独立 .hse 批次练习](independent-batch.md)、[生成并检查配置](config-practice.md)、[GUI 说明](../beginner_gui_usage.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 打包/独立批次、单独文件口令和文件夹内单独加密已有跟练；错误分支待补 |
 | 主 GUI：BitLocker 可移动存储 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补；需要说明管理员条件和恢复密钥 |
 | 独立 HSE2 GUI：归档创建、打开、校验、检查 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 各动作已有动态用途/风险提示；新手 GUI 跟练待补 |
 | 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补逐项教程与恢复演练 |

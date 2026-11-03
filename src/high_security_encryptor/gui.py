@@ -78,7 +78,7 @@ PASSWORD_PROVIDER_HINT = (
 
 HELP_TEXT = """使用说明
 
-新手材料：先看 docs/beginner/README.md。配置生成与检查跟练见 docs/beginner/config-practice.md；GUI 详细说明见 docs/beginner_gui_usage.md，配置示例见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
+新手材料：先看 docs/beginner/README.md。配置生成与检查跟练见 docs/beginner/config-practice.md；单独文件口令练习见 docs/beginner/password-practice.md；GUI 详细说明见 docs/beginner_gui_usage.md，配置示例见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
 
 快速使用
 适合临时、紧急、单次处理。选择文件或文件夹，或者把文件/文件夹直接拖进路径框，输入密码，点击“一键开始”。不需要写 JSON 配置。
@@ -105,7 +105,7 @@ HELP_TEXT = """使用说明
 用于处理多个文件、多个文件夹，或运行已有加密配置。
 
 运行已有配置：选择加密 JSON 配置文件后开始加密。初次使用请先查看随包附带的 examples/beginner_encrypt_config.json，并按 docs/beginner_gui_usage.md 修改路径和密码来源。图形界面不支持 prompt 密码来源，请使用直接填写、环境变量、本地文件或命令输出。详见说明。
-多文件配置：一行一个文件或文件夹。系统会先整理为一个加密包，再用主加密密码保护整个包。需要给某个文件夹内的子文件单独加密时，填写“文件夹路径|子文件相对路径|密码”。详见说明。
+多文件配置：一行一个文件或文件夹。系统会先整理为一个加密包，再用“密码表/清单密码”保护整个包（留空时沿用主加密密码）。需要给指定文件或文件夹内子文件单独加密时，按表单格式填写口令映射；安全练习见 docs/beginner/password-practice.md。
 加密密码表：compatible 模式下，程序会自动创建加密的 batch_password_table.hsm。密码表/清单密码用于保护 batch_password_table.hsm、batch_manifest.hsm 和 batch_template.hsm。也可以手动指定密码表、manifest、template 的保存路径，不必和加密包放在同一目录。详见说明。
 
 文件解密
