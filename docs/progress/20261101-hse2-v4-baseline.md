@@ -24,4 +24,4 @@ The empty and one-byte cases both produce a 130 MiB container. The two fixed 64 
 
 The measured creation times are a single-run baseline on this machine, not an acceptance threshold. Peak working set stays near 353 MiB across cases because v4 descriptor processing and the compatible Argon2 profile dominate these samples. Repeat on the same machine after performance changes and compare multiple runs before claiming improvement. This benchmark measures create only; it does not establish update, restore, cold-start, or power-loss behavior.
 
-The executable benchmark is [`build_tools/measure_hse2_v4_baseline.py`](../../build_tools/measure_hse2_v4_baseline.py).
+The executable benchmark is [`build_tools/measure_hse2_v4_baseline.py`](https://github.com/Vendetta-86/high-security-encryptor/blob/master/build_tools/measure_hse2_v4_baseline.py).
