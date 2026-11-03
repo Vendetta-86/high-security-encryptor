@@ -24,6 +24,7 @@
 18. [HSE2 命令行练习](hse2-cli-practice.md)：在 Windows ZIP 或源码环境中创建、完整校验并恢复临时归档。
 19. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
 20. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
+21. [BitLocker To Go 可移动存储练习](bitlocker-removable-practice.md)：识别目标设备、理解恢复材料，并学习 GUI 的加密、解锁和上锁流程；实体设备操作需自行确认。
 
 ## 功能教程地图
 
@@ -33,7 +34,7 @@
 |---|---|---|
 | 主 GUI：单文件/文件夹加解密 | [第一次使用](first-run.md)、[文件夹练习](folder-practice.md)、[GUI 说明](../beginner_gui_usage.md) | 单文件与文件夹加解密及样例人工核对已提供；一般错误恢复仍待扩展 |
 | 主 GUI：批量任务、配置检查、配置生成 | [批量练习](batch-practice.md)、[单独口令练习](password-practice.md)、[独立 .hse 批次练习](independent-batch.md)、[生成并检查配置](config-practice.md)、[GUI 说明](../beginner_gui_usage.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 打包/独立批次、单独文件口令和文件夹内单独加密已有跟练；错误分支待补 |
-| 主 GUI：BitLocker 可移动存储 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补；需要说明管理员条件和恢复密钥 |
+| 主 GUI：BitLocker 可移动存储 | [BitLocker To Go 入门练习](bitlocker-removable-practice.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 已写明设备辨认、加密选项、恢复文件、解锁/上锁和常见故障；未对真实设备启用 BitLocker |
 | 独立 HSE2 GUI：归档创建、打开、校验、检查 | [HSE2 归档 GUI 练习](hse2-archive-practice.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 普通 v2 归档的创建、完整校验、元数据检查和恢复已提供独立样例跟练；其他授权方式和错误恢复仍待补 |
 | 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [HSE2 keyfile GUI 练习](hse2-keyfile-practice.md)、[HSE2 keyfile 轮换练习](hse2-keyfile-rotation-practice.md)、[HSE2 DPAPI 练习](hse2-dpapi-practice.md)、[DPAPI keyfile 练习](hse2-dpapi-keyfile-practice.md)、[HSE2 wrapper 管理练习](hse2-wrapper-practice.md)、[HSE2 wrapper 更换练习](hse2-wrapper-rewrap-practice.md)、[HSE2 永久禁用访问练习](hse2-access-destroy-practice.md)、[HSE2 header backup 演练](hse2-header-backup-practice.md)、[术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | keyfile 基础/轮换、DPAPI-only 归档、current-user DPAPI keyfile blob、wrapper list/add/remove/rewrap、隔离副本禁用访问和 header backup 导出/特定恢复已有练习；本次禁用访问已做 CLI 临时样例端到端验证，GUI 字段/动作通过自动化测试，未做桌面手动走查 |
 | HSE2 v5 创建、完整校验、预览和恢复 | [v5 双视图练习](v5-practice.md) | 已提供隔离样例跟练；口令更新、替换、compact 和迁移待补 |

@@ -35,7 +35,10 @@
 | DPAPI | Windows 的用户/设备相关保护机制，可用于保护 keyfile。 | 更换用户或设备可能影响解锁，不是跨设备通用备份。 |
 | DPAPI blob | 经 Windows DPAPI 保护的二进制材料；HSE2 `dpapi` provider 会在当前 Windows 范围内解开并用于单文件配置。 | 不能当作可移植 keyfile；保护操作不会删除原始 keyfile。 |
 | DPAPI wrapper | 用当前 Windows DPAPI 保护 HSE2 归档的解锁材料。 | 账户、设备或系统变化可能导致无法解锁；重要归档另备并测试口令或 keyfile wrapper。 |
-| BitLocker | Windows 提供的整盘或可移动驱动器加密功能。 | 保存好恢复密钥；设备管理可能需要管理员权限。 |
+| BitLocker To Go | Windows 用于 USB、SD 卡等可移动数据卷的 BitLocker 加密。 | 本项目 GUI 的加密/解锁/上锁代码要求管理员权限；保存 48 位恢复密码。见[入门练习](bitlocker-removable-practice.md)。 |
+| BitLocker 恢复密码 | BitLocker 生成的 48 位数字应急凭据，可在恢复流程中解锁卷。 | 持有者可访问盘内数据；应与设备分开保管，丢失后 Microsoft 支持无法重建。 |
+| 已用空间加密 | 启用时只加密卷中已被文件系统标记为已用的空间。 | 速度更快，但重用过的旧卷可能残留可恢复的未加密旧数据；不是安全擦除。 |
+| 自动解锁 | 将特定电脑/用户配置为自动解锁 BitLocker 数据卷。 | 便利性会减少再次输入设备密码的机会；本 GUI 默认选择禁用。 |
 
 ## 配置、校验和恢复
 
