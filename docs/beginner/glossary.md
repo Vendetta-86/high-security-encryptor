@@ -35,6 +35,7 @@
 | DPAPI | Windows 的用户/设备相关保护机制，可用于保护 keyfile。 | 更换用户或设备可能影响解锁，不是跨设备通用备份。 |
 | DPAPI blob | 经 Windows DPAPI 保护的二进制材料；HSE2 `dpapi` provider 会在当前 Windows 范围内解开并用于单文件配置。 | 不能当作可移植 keyfile；保护操作不会删除原始 keyfile。 |
 | DPAPI wrapper | 用当前 Windows DPAPI 保护 HSE2 归档的解锁材料。 | 账户、设备或系统变化可能导致无法解锁；重要归档另备并测试口令或 keyfile wrapper。 |
+| DPAPI `local_machine` scope | 把 DPAPI blob 保护绑定到创建它的 Windows 计算机，而非单一账户。 | 同机任何账户只要能读取 blob 都可能解密；仅用于信任同机所有账户的场景。见[scope 练习](dpapi-local-machine-practice.md)。 |
 | BitLocker To Go | Windows 用于 USB、SD 卡等可移动数据卷的 BitLocker 加密。 | 本项目 GUI 的加密/解锁/上锁代码要求管理员权限；保存 48 位恢复密码。见[入门练习](bitlocker-removable-practice.md)。 |
 | BitLocker 恢复密码 | BitLocker 生成的 48 位数字应急凭据，可在恢复流程中解锁卷。 | 持有者可访问盘内数据；应与设备分开保管，丢失后 Microsoft 支持无法重建。 |
 | 已用空间加密 | 启用时只加密卷中已被文件系统标记为已用的空间。 | 速度更快，但重用过的旧卷可能残留可恢复的未加密旧数据；不是安全擦除。 |
@@ -50,7 +51,7 @@
 | 配置检查 / validate-config | 按加密或解密用途检查 JSON 字段与配置规则。 | 通过不代表输入文件、口令、磁盘空间或加解密任务可用。 |
 | schema / 配置规则 | 程序用于判断配置字段名称、类型和组合是否合法的一组规则。 | 通过 schema 检查不是完整运行测试。 |
 | compatible / hardened / no-password-tables | 主 GUI 批量任务的三种密码表保存方式：完整保存、少保存一份、不保存密码表。 | 模式不同会影响恢复时要准备的材料；不是 HSE2 v4/v5 的 KDF profile，也不自动保管口令。 |
-| password provider | JSON 配置中指定程序运行时从环境变量、隐藏提示、文件、命令、keyfile 或 DPAPI 材料取得密码/解锁材料的设置。 | JSON provider 不含 stdin 类型；密码文件和环境变量不是保险库。见[CLI 密码来源练习](cli-password-provider-practice.md)。 |
+| password provider | JSON 配置中指定程序运行时从环境变量、隐藏提示、文件、命令、keyfile 或 DPAPI 材料取得密码/解锁材料的设置。 | JSON provider 不含 stdin 类型；DPAPI 可用范围取决于 blob scope；密码文件和环境变量不是保险库。见[CLI 密码来源练习](cli-password-provider-practice.md)。 |
 | stdin / 标准输入 | CLI 从管道等输入流读取文本的接口；HSE2 指定命令用 `--password-stdin` 或 `--passwords-stdin` 读取固定数量的口令行。 | 行数和顺序必须按命令；输入内容仍是进程中的明文，也不会自动接入密码保险库。 |
 | exit code / 退出码 | 命令结束时返回给 PowerShell 或自动化脚本的数字状态；本项目命令成功时返回 `0`，失败时返回非零值。 | 自动化应立刻检查 `$LASTEXITCODE`；前一步失败就停止，不要把后续输出当成成功结果。 |
 | 文件密码 | 保护某个具体文件内容的口令。 | 批次中可能存在多个文件密码，要保管好对应关系。 |

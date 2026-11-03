@@ -78,6 +78,6 @@ HSE2-DPAPI-keyfile-练习/
 - **DPAPI archive wrapper**：在“创建 HSE2 归档”时勾选 DPAPI，或在归档副本上添加 DPAPI wrapper。它把归档访问方式与 Windows 环境绑定，不需要这里的 `.dpapi` keyfile blob。
 - `current_user` 绑定当前 Windows 用户配置；更换用户、重装系统或换设备后可能无法解锁。另一份 `.dpapi` blob 不是可移植恢复副本。
 - 真实使用时要自行决定如何保管原 keyfile 与 DPAPI blob。保护操作不做安全删除；普通删除也不保证从 SSD 或备份介质彻底擦除。
-- 此练习没有模拟其他 Windows 用户、设备或 `local_machine` scope。若加密或解密失败，保留全部练习材料并先核对 DPAPI scope、JSON 路径和文件是否存在。
+- 此练习采用 `current_user`，没有模拟其他 Windows 用户或设备；单独的[local-machine scope 练习](dpapi-local-machine-practice.md)说明同机账户共享边界。若加密或解密失败，保留全部练习材料并先核对 DPAPI scope、JSON 路径和文件是否存在。
 
 完成后确认没有需要保留的练习材料，再删除整个临时练习目录。

@@ -26,7 +26,7 @@
 | `file` | 读取 UTF-8 文本文件 | 通常是明文口令文件；保护文件权限、备份和生命周期。 |
 | `command` | 启动明确的 `argv` 程序并读取其 stdout | 不调用 shell；只运行你审查过的命令。命令仍可能暴露秘密或执行其他操作。 |
 | `keyfile` | 读取本地二进制 keyfile | keyfile 本身就是解锁材料；代码要求 16 字节至 1 MiB，并需单独备份。 |
-| `dpapi` | 使用当前 Windows DPAPI 解开材料文件 | 通常绑定当前用户/设备环境；不能当作跨账户的通用备份。 |
+| `dpapi` | 使用 Windows DPAPI 解开材料文件 | 谁能解密取决于 blob scope：`current_user` 通常绑定当前账户，`local_machine` 允许本机任何账户解密；两者都不是跨设备备份。见[scope 练习](dpapi-local-machine-practice.md)。 |
 
 JSON provider 没有 `type: "stdin"`。HSE2 的 stdin 是各个 CLI 子命令提供的专用选项，输入行数和顺序由命令决定。
 
