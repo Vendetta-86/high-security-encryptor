@@ -573,6 +573,81 @@ class HSE2GuiLauncherTests(unittest.TestCase):
         ask_again.assert_not_called()
         showerror.assert_called_once()
 
+    def test_v5_open_confirmation_blocks_wrong_password_before_restore(self) -> None:
+        plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+            action="v5-open", input_path="archive.hse2", output_path="restore",
+            archive_password="incorrect-view-password",
+        ))
+        log = []
+        app = type("FakeApp", (), {"_append_log": lambda _self, text: log.append(text)})()
+        with patch(
+            "high_security_encryptor.hse2_gui_launcher._invoke_hse2_gui_command",
+            return_value=GuiCommandResult(1, "", "v5 credential authentication failed"),
+        ) as invoke, patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.askyesno",
+        ) as ask, patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.showerror",
+        ) as showerror:
+            self.assertFalse(HSE2ExperimentalApp._confirm_v5_action(app, plan))
+
+        invoke.assert_called_once()
+        ask.assert_not_called()
+        showerror.assert_called_once_with(
+            "恢复预览失败", "无法认证所选 v5 视图或读取目标信息；未开始恢复。",
+        )
+        self.assertIn("credential authentication failed", "".join(log))
+
+    def test_v5_open_confirmation_blocks_insufficient_space_before_restore(self) -> None:
+        plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+            action="v5-open", input_path="archive.hse2", output_path="restore",
+            archive_password="view-password",
+        ))
+        app = type("FakeApp", (), {"_append_log": lambda _self, _text: None})()
+        preview_json = json.dumps({
+            "command": "hse2 v5-preview", "view_slot": 0, "view_generation": 1,
+            "file_count": 1, "plaintext_bytes": 42, "chunk_count": 1,
+            "output_dir": "restore", "output_exists": False,
+            "available_bytes": 1, "enough_space": False,
+        })
+        with patch(
+            "high_security_encryptor.hse2_gui_launcher._invoke_hse2_gui_command",
+            return_value=GuiCommandResult(0, preview_json, ""),
+        ) as invoke, patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.askyesno",
+        ) as ask, patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.showerror",
+        ) as showerror:
+            self.assertFalse(HSE2ExperimentalApp._confirm_v5_action(app, plan))
+
+        invoke.assert_called_once()
+        ask.assert_not_called()
+        showerror.assert_called_once_with(
+            "无法恢复 v5 视图", "恢复目录已存在或目标磁盘空间不足；未开始恢复。",
+        )
+
+    def test_v5_open_confirmation_cancel_stops_after_read_only_preview(self) -> None:
+        plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
+            action="v5-open", input_path="archive.hse2", output_path="restore",
+            archive_password="view-password",
+        ))
+        app = type("FakeApp", (), {"_append_log": lambda _self, _text: None})()
+        preview_json = json.dumps({
+            "command": "hse2 v5-preview", "view_slot": 0, "view_generation": 1,
+            "file_count": 1, "plaintext_bytes": 42, "chunk_count": 1,
+            "output_dir": "restore", "output_exists": False,
+            "available_bytes": 1000, "enough_space": True,
+        })
+        with patch(
+            "high_security_encryptor.hse2_gui_launcher._invoke_hse2_gui_command",
+            return_value=GuiCommandResult(0, preview_json, ""),
+        ) as invoke, patch(
+            "high_security_encryptor.hse2_gui_launcher.messagebox.askyesno", return_value=False,
+        ) as ask:
+            self.assertFalse(HSE2ExperimentalApp._confirm_v5_action(app, plan))
+
+        invoke.assert_called_once()
+        ask.assert_called_once()
+
     def test_v5_password_update_confirmation_explains_copy_and_distinct_password_rule(self) -> None:
         plan = build_hse2_plan_from_tab_state(HSE2GuiTabState(
             action="v5-password-update", input_path="archive.hse2", output_path="updated.hse2",
