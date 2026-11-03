@@ -6,8 +6,9 @@
 
 1. [第一次使用：加密、解密并核对一个练习文件](first-run.md)（约 10 分钟；需要 Windows 图形界面和一个可删除的文本文件）。
 2. [术语索引](glossary.md)：按屏幕和文档中出现的词查含义、用途、程序的大致处理方式和限制。
-3. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
-4. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
+3. [v5 双视图入门练习](v5-practice.md)：创建归档、分别完整校验两个视图、预览并恢复。
+4. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
+5. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
 
 ## 功能教程地图
 
@@ -20,7 +21,8 @@
 | 主 GUI：BitLocker 可移动存储 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补；需要说明管理员条件和恢复密钥 |
 | 独立 HSE2 GUI：归档创建、打开、校验、检查 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 各动作已有动态用途/风险提示；新手 GUI 跟练待补 |
 | 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补逐项教程与恢复演练 |
-| HSE2 v4/v5 实验操作 | [术语索引](glossary.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 待补隔离样例演练；v5 不承诺可否认性 |
+| HSE2 v5 创建、完整校验、预览和恢复 | [v5 双视图练习](v5-practice.md) | 已提供隔离样例跟练；口令更新、替换、compact 和迁移待补 |
+| HSE2 v4/v5 其他实验操作 | [术语索引](glossary.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 待补隔离样例演练；v5 不承诺可否认性 |
 | CLI、自动化、密码 provider | [GUI 说明](../beginner_gui_usage.md)、[CLI 工作流](../hse2_cli_workflows.md) | 有参考资料；新手交互式示例和凭据风险章节待补 |
 
 所有面向用户的功能入口及逐项教程状态见[阶段 3 功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)。该清单中的“待补”会在对应跟练教程实际完成并核对后更新，不以计划文字代替教程。
