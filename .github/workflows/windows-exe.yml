@@ -213,6 +213,8 @@ jobs:
           $staging = "dist\release\high-security-encryptor"
           New-Item -ItemType Directory -Path $staging -Force | Out-Null
           New-Item -ItemType Directory -Path "$staging\docs" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$staging\docs\beginner" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$staging\docs\progress" -Force | Out-Null
           New-Item -ItemType Directory -Path "$staging\examples" -Force | Out-Null
           Copy-Item "dist\hse-windows-x64\high-security-encryptor.exe" "$staging\high-security-encryptor.exe"
           Copy-Item "dist\hse-windows-x64\high-security-encryptor-gui.exe" "$staging\high-security-encryptor-gui.exe"
@@ -227,7 +229,12 @@ jobs:
           Copy-Item "README.md" "$staging\README.md"
           Copy-Item "docs\release_beginner_readme_zh.txt" "$staging\新手必看.txt"
           Copy-Item "docs\windows_exe.md" "$staging\windows_exe.md"
+          Copy-Item "docs\windows_exe.md" "$staging\docs\windows_exe.md"
           Copy-Item "docs\beginner_gui_usage.md" "$staging\docs\beginner_gui_usage.md"
+          Copy-Item "docs\beginner\*" "$staging\docs\beginner" -Recurse
+          Copy-Item "docs\progress\20261102-hse2-roadmap-3.0.md" "$staging\docs\progress\20261102-hse2-roadmap-3.0.md"
+          Copy-Item "docs\progress\20261103-hse2-roadmap-3.0-phase3-feature-inventory.md" "$staging\docs\progress\20261103-hse2-roadmap-3.0-phase3-feature-inventory.md"
+          Copy-Item "docs\hse2_cli_workflows.md" "$staging\docs\hse2_cli_workflows.md"
           Copy-Item "examples\beginner_encrypt_config.json" "$staging\examples\beginner_encrypt_config.json"
           Copy-Item "examples\beginner_multi_file_encrypt_config.json" "$staging\examples\beginner_multi_file_encrypt_config.json"
           Compress-Archive -Path "$staging\*" -DestinationPath "dist\$assetName" -Force

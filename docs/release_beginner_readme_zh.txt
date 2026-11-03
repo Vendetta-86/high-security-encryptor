@@ -1,5 +1,7 @@
 新手必看
 
+第一次使用请先打开 docs/beginner/README.md，按“第一次使用”教程完成虚构文件的加密和解密练习；名词见 docs/beginner/glossary.md。
+
 第一次使用 High Security Encryptor：
 
 1. 单个文件或文件夹加密：
@@ -28,4 +30,4 @@
    示例：
    D:/资料包|合同/合同正文.docx|contract-password
 
-更多说明见：docs/beginner_gui_usage.md
+更多说明见：docs/beginner/README.md 和 docs/beginner_gui_usage.md

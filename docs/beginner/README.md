@@ -1,0 +1,33 @@
+# 零基础使用指南
+
+这组指南按“先完成一次安全的本地练习，再逐项学习功能”的顺序编写。你不需要先懂密码学或命令行。每次操作前先看清输入、输出、密码和覆盖提示；练习只使用临时样例文件与虚构密码。
+
+## 从这里开始
+
+1. [第一次使用：加密、解密并核对一个练习文件](first-run.md)（约 10 分钟；需要 Windows 图形界面和一个可删除的文本文件）。
+2. [术语索引](glossary.md)：按屏幕和文档中出现的词查含义、用途、程序的大致处理方式和限制。
+3. [图形界面使用说明](../beginner_gui_usage.md)：多文件配置、密码来源与安全模式。
+4. [Windows ZIP 说明](../windows_exe.md)：下载、解压、运行及发布包内容。
+
+## 功能教程地图
+
+功能清单记录主 GUI、独立 HSE2 GUI、命令行和 Windows ZIP 的全部用户入口。教程正在按该清单逐项补齐；“已有深入说明”不等于已完成零基础跟练。
+
+| 学习主题 | 当前入口 | 教程进度 |
+|---|---|---|
+| 主 GUI：单文件/文件夹加解密 | [第一次使用](first-run.md)、[GUI 说明](../beginner_gui_usage.md) | 单文件加密、解密和人工核对已提供；完整性校验、文件夹和错误恢复待扩展 |
+| 主 GUI：批量任务、配置检查、配置生成 | [GUI 说明](../beginner_gui_usage.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补逐步演练 |
+| 主 GUI：BitLocker 可移动存储 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补；需要说明管理员条件和恢复密钥 |
+| 独立 HSE2 GUI：归档创建、打开、校验、检查 | [功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 现有深入说明；新手 GUI 跟练待补 |
+| 独立 HSE2 GUI：keyfile、DPAPI、wrapper、header backup | [术语索引](glossary.md)、[功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md) | 待补逐项教程与恢复演练 |
+| HSE2 v4/v5 实验操作 | [术语索引](glossary.md)、[HSE2 CLI 工作流](../hse2_cli_workflows.md) | 待补隔离样例演练；v5 不承诺可否认性 |
+| CLI、自动化、密码 provider | [GUI 说明](../beginner_gui_usage.md)、[CLI 工作流](../hse2_cli_workflows.md) | 有参考资料；新手交互式示例和凭据风险章节待补 |
+
+所有面向用户的功能入口及逐项教程状态见[阶段 3 功能清单](../progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md)。该清单中的“待补”会在对应跟练教程实际完成并核对后更新，不以计划文字代替教程。
+
+## 练习安全规则
+
+- 使用临时目录和可删除的虚构资料，不要拿唯一副本或真实敏感资料练习。
+- 练习口令必须是虚构口令，不要复用真实账户密码。
+- 先确认解密目标目录和输出文件名。程序提示覆盖、替换、永久禁用访问或删除时，先停止并查阅对应教程。
+- 本地校验结果只说明该次操作达到了对应检查条件，不构成独立密码学审计、认证或安全保证。

@@ -54,6 +54,8 @@ The zip should contain:
 
 ## Release Verification
 
+The beginner materials in the zip start at docs/beginner/README.md and include a first-run exercise, glossary, GUI reference, HSE2 CLI workflow reference, and the phase 3 feature inventory. Read the exercise with disposable sample data before using valuable files.
+
 Before publishing or announcing the Windows zip:
 
 - confirm the build-only workflow artifact was produced from the intended tag and contains the expected zip;

@@ -14,6 +14,8 @@ Python 3.11 or newer is required.
 
 ## Windows EXE
 
+第一次使用请从[零基础使用指南](docs/beginner/README.md)开始；其中有逐步练习和术语解释。
+
 Windows release assets are published as zip files on GitHub Releases. Download
 the `high-security-encryptor-<tag>-windows-x64.zip` asset, extract it, and run:
 
