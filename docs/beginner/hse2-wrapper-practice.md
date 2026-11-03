@@ -59,4 +59,4 @@
 - **wrapper id**：标识归档内某条解锁记录的名称；移除时按列表中的准确值选择。
 - **添加 wrapper**：验证一种现有解锁因子后，在输出归档副本中增加一种新的解锁方式。它不是 keyfile 备份操作；新 keyfile 仍须单独备份。
 - **移除 wrapper**：验证仍可解锁归档后，在输出副本中删除指定解锁记录。若删掉最后一种可用方式，内容可能无法恢复；程序会拒绝移除最后一条 wrapper。
-- 本练习只覆盖普通 HSE2 v2 归档上的 GUI list/add/remove。配置式单文件密文的 keyfile 轮换、DPAPI keyfile blob、wrapper rewrap 和永久禁用访问是不同操作，不能互相替代。
+- 本练习只覆盖普通 HSE2 v2 归档上的 GUI list/add/remove。配置式单文件密文的 keyfile 轮换、DPAPI keyfile blob、[wrapper rewrap](hse2-wrapper-rewrap-practice.md) 和永久禁用访问是不同操作，不能互相替代。
