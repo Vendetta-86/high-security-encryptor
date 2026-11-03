@@ -35,6 +35,6 @@
 - “允许 DPAPI 解锁 wrapper”是告诉程序尝试调用本机 DPAPI，不会把当前凭据导出成可迁移密码。
 - 这个演练没有模拟更换用户、重装 Windows 或更换设备，因为那会超出临时目录测试范围。不要通过在真实账户上更改 Windows 设置来验证迁移限制。
 - 归档创建后，可以用 wrapper 管理操作增加独立口令或 keyfile 解锁方式；必须在归档副本上另行练习，并实际测试备用方式可用后，才考虑把 DPAPI-only 归档用于真实资料。
-- DPAPI 保护 keyfile 的“Windows DPAPI 保护 keyfile”动作是另一个功能；其 scope 与本练习的归档 wrapper 不同。
+- DPAPI 保护 keyfile 的“Windows DPAPI 保护 keyfile”动作是另一个功能；其 blob/provider 流程见[DPAPI keyfile 练习](hse2-dpapi-keyfile-practice.md)，与本练习的归档 wrapper 不同。
 
 完成后确认目录中无须保留的文件，再删除整个临时练习目录。

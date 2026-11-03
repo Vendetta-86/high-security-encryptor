@@ -2,6 +2,8 @@
 
 HSE2 config commands are explicit experimental entry points for single-file HSE2
 workflows. They do not replace the existing HSE1 batch config workflows.
+For a guided Windows DPAPI provider exercise, see
+`docs/beginner/hse2-dpapi-keyfile-practice.md`.
 
 ## Commands
 
@@ -89,12 +91,13 @@ Implemented:
 - HSE2 decryption config object;
 - HSE2 rewrap config object;
 - config-driven CLI commands;
+- standalone HSE2 GUI actions for running encryption/decryption config files;
 - provider-backed wrapper resolution;
 - tests for config parsing, validation, round trip, and rewrap.
 
 Not implemented yet:
 
 - multi-file HSE2 batch configs;
-- GUI integration;
+- an in-GUI form editor for these JSON configuration objects;
 - migration from HSE1 to HSE2;
 - making HSE2 the default format.

@@ -6,6 +6,9 @@ wrapper material.
 
 This is intended for local Windows workflows where wrapper material should be
 bound to the current Windows user or, optionally, the local machine.
+The standalone HSE2 GUI exposes the protect action and can run JSON encrypt/decrypt
+configs that use this provider; a guided exercise is in
+`docs/beginner/hse2-dpapi-keyfile-practice.md`.
 
 ## Protect a Local Keyfile
 
@@ -88,7 +91,9 @@ Implemented:
 
 - Windows-only DPAPI protect/unprotect helper;
 - `dpapi-protect` command;
+- standalone HSE2 GUI action for protecting a keyfile;
 - `dpapi` password-source provider;
+- standalone HSE2 GUI actions for running JSON encryption/decryption configs that use the provider;
 - current-user and local-machine scope options;
 - default overwrite refusal with `--force` override;
 - Windows round-trip tests and non-Windows unavailable-path tests.
@@ -96,6 +101,6 @@ Implemented:
 Not implemented yet:
 
 - DPAPI entropy parameter support;
-- GUI integration;
+- an in-GUI editor for DPAPI provider JSON fields;
 - automatic deletion of the original unprotected keyfile;
 - migration helper from keyfile provider to DPAPI provider.

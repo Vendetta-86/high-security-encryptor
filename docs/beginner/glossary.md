@@ -32,6 +32,7 @@
 | wrapper | 加密保护 root key 的访问封装，不同 wrapper 可对应不同凭据；wrapper id 用于识别某一条记录。 | 可列出、添加、移除或重新包装；修改时程序写入新归档副本。移除前先验证仍可用的恢复凭据。 |
 | header backup | 保存 HSE2 归档头部及主体定位/摘要元数据的材料，可用于特定头部恢复。 | 不含口令或 keyfile，不能修复加密主体损坏；必须与相应主体匹配，并与归档分开放好。 |
 | DPAPI | Windows 的用户/设备相关保护机制，可用于保护 keyfile。 | 更换用户或设备可能影响解锁，不是跨设备通用备份。 |
+| DPAPI blob | 经 Windows DPAPI 保护的二进制材料；HSE2 `dpapi` provider 会在当前 Windows 范围内解开并用于单文件配置。 | 不能当作可移植 keyfile；保护操作不会删除原始 keyfile。 |
 | DPAPI wrapper | 用当前 Windows DPAPI 保护 HSE2 归档的解锁材料。 | 账户、设备或系统变化可能导致无法解锁；重要归档另备并测试口令或 keyfile wrapper。 |
 | BitLocker | Windows 提供的整盘或可移动驱动器加密功能。 | 保存好恢复密钥；设备管理可能需要管理员权限。 |
 

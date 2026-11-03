@@ -57,12 +57,48 @@ def _bytes_from_blob(blob: DATA_BLOB) -> bytes:
     return ctypes.string_at(blob.pbData, blob.cbData)
 
 
+def _load_dpapi_apis():
+    """Set ctypes signatures for this module's DATA_BLOB before every call.
+
+    Crypt32 function objects are process-global. The standalone keyfile
+    protector also configures them with its own DATA_BLOB class, so relying on
+    whichever module configured the signature most recently is unsafe.
+    """
+
+    crypt32 = ctypes.windll.crypt32
+    blob_pointer = ctypes.POINTER(DATA_BLOB)
+    crypt32.CryptProtectData.argtypes = [
+        blob_pointer,
+        ctypes.c_wchar_p,
+        blob_pointer,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        blob_pointer,
+    ]
+    crypt32.CryptProtectData.restype = wintypes.BOOL
+    crypt32.CryptUnprotectData.argtypes = [
+        blob_pointer,
+        ctypes.POINTER(ctypes.c_wchar_p),
+        blob_pointer,
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        blob_pointer,
+    ]
+    crypt32.CryptUnprotectData.restype = wintypes.BOOL
+
+    kernel32 = ctypes.windll.kernel32
+    kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel32.LocalFree.restype = ctypes.c_void_p
+    return crypt32, kernel32
+
+
 def dpapi_protect_bytes(data: bytes, *, entropy: bytes | None = None, description: str = "HSE2") -> bytes:
     """Protect bytes with the current Windows user's DPAPI context."""
 
     _require_dpapi()
-    crypt32 = ctypes.windll.crypt32
-    kernel32 = ctypes.windll.kernel32
+    crypt32, kernel32 = _load_dpapi_apis()
     data_blob, data_buffer = _blob_from_bytes(data)
     entropy_blob, entropy_buffer = _optional_blob(entropy)
     output_blob = DATA_BLOB()
@@ -89,8 +125,7 @@ def dpapi_unprotect_bytes(protected_data: bytes, *, entropy: bytes | None = None
     """Unprotect bytes with the current Windows user's DPAPI context."""
 
     _require_dpapi()
-    crypt32 = ctypes.windll.crypt32
-    kernel32 = ctypes.windll.kernel32
+    crypt32, kernel32 = _load_dpapi_apis()
     data_blob, data_buffer = _blob_from_bytes(protected_data)
     entropy_blob, entropy_buffer = _optional_blob(entropy)
     output_blob = DATA_BLOB()

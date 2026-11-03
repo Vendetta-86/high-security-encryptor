@@ -10,10 +10,44 @@ from high_security_encryptor.hse2_create_cli import main as create_main
 from high_security_encryptor.hse2_open_cli import main as open_main
 from high_security_encryptor.hse2_wrapper_cli import main as wrapper_main
 from high_security_encryptor.hse2.access_management import list_hse2_wrappers
+from high_security_encryptor.windows_dpapi import protect_file_with_dpapi
 
 
 @unittest.skipUnless(is_dpapi_available(), "Windows DPAPI is only available on Windows")
 class HSE2DpapiCliTests(unittest.TestCase):
+    def test_keyfile_blob_and_archive_dpapi_calls_share_process_safely(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            material = base / "material.key"
+            blob = base / "material.dpapi"
+            root = base / "root"
+            root.mkdir()
+            (root / "payload.txt").write_bytes(b"DPAPI mixed API order payload")
+            archive = base / "archive.hse2"
+            restored = base / "restored"
+            material.write_bytes(b"m" * 32)
+
+            # Both helpers configure process-global CryptProtectData with
+            # different ctypes DATA_BLOB classes. The file helper runs first.
+            protect_file_with_dpapi(material, blob)
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                create_exit = create_main([
+                    "--root", str(root), "--output", str(archive), "--dpapi",
+                ])
+            self.assertEqual(create_exit, 0)
+
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                open_exit = open_main([
+                    "--input", str(archive), "--output-dir", str(restored), "--dpapi",
+                ])
+            self.assertEqual(open_exit, 0)
+            self.assertEqual((restored / "root" / "payload.txt").read_bytes(), b"DPAPI mixed API order payload")
+
+            # Exercise the reverse transition after HSE2 used its own signature.
+            second_blob = base / "second.dpapi"
+            protect_file_with_dpapi(material, second_blob)
+            self.assertTrue(second_blob.is_file())
+
     def test_dpapi_wrapper_add_keeps_independent_password_wrapper_on_windows(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)
