@@ -102,8 +102,24 @@ $encryptionMethod = $env:HSE_ENCRYPTION_METHOD
 $usedSpaceOnly = $env:HSE_USED_SPACE_ONLY -eq '1'
 $disableAutoUnlock = $env:HSE_DISABLE_AUTO_UNLOCK -ne '0'
 
+$targetRoot = $mountPoint.TrimEnd(':')
+$recoveryRoot = [System.IO.Path]::GetPathRoot([System.IO.Path]::GetFullPath($recoveryDirectory)).TrimEnd('\', '/')
+if ([string]::Equals($targetRoot, $recoveryRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "Recovery information must be saved outside the target drive $mountPoint."
+}
+
 if (-not (Test-Path -LiteralPath $recoveryDirectory)) {
     New-Item -ItemType Directory -Path $recoveryDirectory -Force | Out-Null
+}
+
+$writeProbe = Join-Path $recoveryDirectory ('.hse-recovery-write-test-' + [guid]::NewGuid().ToString('N'))
+try {
+    [System.IO.File]::WriteAllText($writeProbe, 'preflight', [System.Text.Encoding]::UTF8)
+}
+finally {
+    if (Test-Path -LiteralPath $writeProbe) {
+        Remove-Item -LiteralPath $writeProbe -Force
+    }
 }
 
 $existingVolume = Get-BitLockerVolume -MountPoint $mountPoint
@@ -112,6 +128,61 @@ if ($existingVolume.ProtectionStatus -eq 'On' -or $existingVolume.VolumeStatus -
 }
 
 $securePassword = ConvertTo-SecureString $plainPassword -AsPlainText -Force
+$volume = Add-BitLockerKeyProtector -MountPoint $mountPoint -RecoveryPasswordProtector
+$recoveryProtector = $volume.KeyProtector | Where-Object { $_.KeyProtectorType -eq 'RecoveryPassword' } | Select-Object -First 1
+if ($null -eq $recoveryProtector) {
+    $volume = Get-BitLockerVolume -MountPoint $mountPoint
+    $recoveryProtector = $volume.KeyProtector | Where-Object { $_.KeyProtectorType -eq 'RecoveryPassword' } | Select-Object -First 1
+}
+if ($null -eq $recoveryProtector) {
+    throw "Could not create a recovery password protector for $mountPoint; encryption was not started."
+}
+
+$keyProtectorId = [string]$recoveryProtector.KeyProtectorId
+$recoveryPassword = [string]$recoveryProtector.RecoveryPassword
+$recoveryFile = Join-Path $recoveryDirectory ("BitLockerRecovery-{0}-{1}.txt" -f $mountPoint.TrimEnd(':'), $keyProtectorId.Trim('{}'))
+
+$recoveryLines = @(
+    "BitLocker recovery information"
+    "Drive: $mountPoint"
+    "Key protector ID: $keyProtectorId"
+    "Recovery password: $recoveryPassword"
+)
+$recoveryWriter = $null
+$recoveryStream = $null
+$createdRecoveryFile = $false
+try {
+    $recoveryStream = [System.IO.File]::Open($recoveryFile, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+    $createdRecoveryFile = $true
+    $recoveryWriter = New-Object System.IO.StreamWriter($recoveryStream, (New-Object System.Text.UTF8Encoding($false)))
+    foreach ($line in $recoveryLines) {
+        $recoveryWriter.WriteLine($line)
+    }
+    $recoveryWriter.Flush()
+    $recoveryStream.Flush($true)
+}
+catch {
+    if ($null -ne $recoveryWriter) { $recoveryWriter.Dispose() }
+    elseif ($null -ne $recoveryStream) { $recoveryStream.Dispose() }
+    if ($createdRecoveryFile -and (Test-Path -LiteralPath $recoveryFile)) {
+        Remove-Item -LiteralPath $recoveryFile -Force -ErrorAction SilentlyContinue
+    }
+    $cleanupMessage = ''
+    if ($null -ne $recoveryProtector -and $recoveryProtector.KeyProtectorId) {
+        try {
+            Remove-BitLockerKeyProtector -MountPoint $mountPoint -KeyProtectorId $recoveryProtector.KeyProtectorId -ErrorAction Stop | Out-Null
+        }
+        catch {
+            $cleanupMessage = " The temporary recovery protector could not be removed: $($_.Exception.Message)"
+        }
+    }
+    throw "Recovery information could not be saved; BitLocker encryption was not started. $($_.Exception.Message)$cleanupMessage"
+}
+finally {
+    if ($null -ne $recoveryWriter) { $recoveryWriter.Dispose() }
+    elseif ($null -ne $recoveryStream) { $recoveryStream.Dispose() }
+}
+
 $enableParams = @{
     MountPoint = $mountPoint
     PasswordProtector = $true
@@ -124,28 +195,16 @@ if ($usedSpaceOnly) {
     $enableParams['UsedSpaceOnly'] = $true
 }
 
-Enable-BitLocker @enableParams | Out-Null
-Add-BitLockerKeyProtector -MountPoint $mountPoint -RecoveryPasswordProtector | Out-Null
-if ($disableAutoUnlock) {
-    Disable-BitLockerAutoUnlock -MountPoint $mountPoint -ErrorAction SilentlyContinue | Out-Null
+try {
+    Enable-BitLocker @enableParams | Out-Null
+    if ($disableAutoUnlock) {
+        Disable-BitLockerAutoUnlock -MountPoint $mountPoint -ErrorAction SilentlyContinue | Out-Null
+    }
+    $volume = Get-BitLockerVolume -MountPoint $mountPoint
 }
-
-$volume = Get-BitLockerVolume -MountPoint $mountPoint
-$recoveryProtector = $volume.KeyProtector | Where-Object { $_.KeyProtectorType -eq 'RecoveryPassword' } | Select-Object -First 1
-if ($null -eq $recoveryProtector) {
-    throw "The drive $mountPoint does not have a recovery password protector."
+catch {
+    throw "BitLocker reported an error after recovery information was saved to '$recoveryFile'. Keep that file and inspect the volume status before retrying. $($_.Exception.Message)"
 }
-
-$keyProtectorId = [string]$recoveryProtector.KeyProtectorId
-$recoveryPassword = [string]$recoveryProtector.RecoveryPassword
-$recoveryFile = Join-Path $recoveryDirectory ("BitLockerRecovery-{0}-{1}.txt" -f $mountPoint.TrimEnd(':'), $keyProtectorId.Trim('{}'))
-
-@(
-    "BitLocker recovery information"
-    "Drive: $mountPoint"
-    "Key protector ID: $keyProtectorId"
-    "Recovery password: $recoveryPassword"
-) | Set-Content -LiteralPath $recoveryFile -Encoding UTF8
 
 [pscustomobject]@{
     MountPoint = $mountPoint

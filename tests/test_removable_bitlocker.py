@@ -15,6 +15,22 @@ from high_security_encryptor.removable_bitlocker import (
 
 
 class RemovableBitLockerTests(unittest.TestCase):
+    def test_encrypt_saves_recovery_information_before_enabling_bitlocker(self) -> None:
+        script = removable_bitlocker.ENCRYPT_SCRIPT
+
+        destination_preflight = script.index("$writeProbe = Join-Path")
+        recovery_protector = script.index("Add-BitLockerKeyProtector -MountPoint $mountPoint -RecoveryPasswordProtector")
+        recovery_file_write = script.index("[System.IO.File]::Open($recoveryFile")
+        enable_encryption = script.index("Enable-BitLocker @enableParams")
+
+        self.assertLess(destination_preflight, recovery_protector)
+        self.assertLess(recovery_protector, recovery_file_write)
+        self.assertLess(recovery_file_write, enable_encryption)
+        self.assertIn("[System.IO.FileMode]::CreateNew", script)
+        self.assertIn("$createdRecoveryFile -and", script)
+        self.assertIn("Recovery information must be saved outside the target drive", script)
+        self.assertIn("after recovery information was saved to '$recoveryFile'", script)
+
     @patch("high_security_encryptor.removable_bitlocker.is_admin", return_value=False)
     @patch("high_security_encryptor.removable_bitlocker.subprocess.run")
     def test_list_removable_storage_devices_parses_inventory(self, run_mock, _is_admin_mock) -> None:
