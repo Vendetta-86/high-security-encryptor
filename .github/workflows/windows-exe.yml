@@ -256,8 +256,21 @@ jobs:
       - name: Verify packaged ZIP
         shell: bash
         run: |
+          set -euo pipefail
           test -s "dist/$ASSET_NAME"
           unzip -t "dist/$ASSET_NAME"
+          entries="$(unzip -Z1 "dist/$ASSET_NAME")"
+          for expected in \
+            "docs/beginner/README.md" \
+            "docs/beginner/glossary.md" \
+            "docs/beginner/first-run.md" \
+            "docs/beginner_gui_usage.md" \
+            "docs/progress/20261103-hse2-roadmap-3.0-phase3-feature-inventory.md"; do
+            if ! printf '%s\n' "$entries" | grep -Fxq "$expected"; then
+              echo "Missing beginner resource in release ZIP: $expected" >&2
+              exit 1
+            fi
+          done
           sha256sum "dist/$ASSET_NAME"
 
   publish:
