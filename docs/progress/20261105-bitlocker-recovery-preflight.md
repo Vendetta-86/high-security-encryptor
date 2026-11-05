@@ -15,6 +15,7 @@
 - Windows PowerShell AST 语法解析通过。
 - `tests.test_removable_bitlocker` 与 `tests.test_gui`：33 项通过。
 - 全量 `unittest discover -s tests`：786 项通过、6 项跳过。
+- GitHub Actions CI run [#1040](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/42009588789) 的 Windows Python 3.11/3.12/3.13 任务全部成功，包含秘密扫描、依赖审计、语法检查、全量测试和控制台入口 smoke。
 - `git diff --check` 通过。
 
 ## 限制
