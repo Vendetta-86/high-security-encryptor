@@ -29,6 +29,7 @@ from .folder_decryption import decrypt_folder_archive
 from .folder_workflow import get_folder_package_target_path, package_folder_to_encrypted_archive
 from .removable_bitlocker import (
     BitLockerActionResult,
+    BitLockerOperationError,
     RemovableStorageDevice,
     RemovableStorageInventory,
     RemovableStorageError,
@@ -582,6 +583,12 @@ def format_size_bytes(value: int | None) -> str:
 def describe_removable_device_status(device: RemovableStorageDevice) -> str:
     """Return a short BitLocker status label for the removable-device table."""
 
+    if device.bitlocker_volume_status == "EncryptionInProgress":
+        if device.bitlocker_encryption_percentage is not None:
+            return f"正在加密 {device.bitlocker_encryption_percentage}%"
+        return "正在加密"
+    if device.bitlocker_volume_status == "FullyEncrypted":
+        return "已加密"
     if device.bitlocker_protection_status == "On":
         return "已加密"
     if device.bitlocker_volume_status == "FullyDecrypted":
@@ -589,6 +596,24 @@ def describe_removable_device_status(device: RemovableStorageDevice) -> str:
     if device.bitlocker_volume_status:
         return device.bitlocker_volume_status
     return "未知"
+
+
+def describe_removable_encryption_gate(device: RemovableStorageDevice) -> str | None:
+    """Explain why an encryption start should be ignored for the selected volume."""
+
+    status = device.bitlocker_volume_status
+    if status == "EncryptionInProgress":
+        progress = (
+            f"（{device.bitlocker_encryption_percentage}%）"
+            if device.bitlocker_encryption_percentage is not None
+            else ""
+        )
+        return f"{device.mount_point} 正在进行 BitLocker 加密{progress}，请勿重复启动；保持设备连接并刷新查看进度。"
+    if status == "FullyEncrypted" or device.bitlocker_protection_status == "On":
+        return f"{device.mount_point} 已启用 BitLocker，请勿重复加密；需要访问时请使用“解锁设备”。"
+    if status and status != "FullyDecrypted":
+        return f"{device.mount_point} 当前状态为 {status}，暂不能开始加密；请勿重复操作，刷新设备状态后再处理。"
+    return None
 
 
 def describe_removable_inventory_status(inventory: RemovableStorageInventory) -> str:
@@ -1576,8 +1601,12 @@ class HighSecurityEncryptorApp(ttk.Frame):
     def _run_removable_encrypt(self) -> None:
         try:
             device = self._selected_removable_device()
-            if device.bitlocker_protection_status == "On":
-                raise ValueError("该设备已经启用 BitLocker，请直接使用“解锁设备”或系统工具管理。")
+            gate_message = describe_removable_encryption_gate(device)
+            if gate_message:
+                self.removable_status_text.set(gate_message)
+                self._append_log(f"{gate_message}\n\n")
+                self.after(100, lambda: self._refresh_removable_devices(show_message=False, write_log=False))
+                return
             password = self.removable_password.get()
             confirm_password = self.removable_password_confirm.get()
             recovery_dir = _require_path(self.removable_recovery_dir.get(), "请选择恢复信息保存目录。")
@@ -1635,6 +1664,12 @@ class HighSecurityEncryptorApp(ttk.Frame):
                 used_space_only=used_space_only,
                 disable_auto_unlock=disable_auto_unlock,
             )
+        except BitLockerOperationError as exc:
+            if "already has BitLocker protection or an active conversion state" in str(exc):
+                self.after(0, self._handle_removable_encrypt_already_active, mount_point)
+                return
+            self.after(0, self._handle_removable_action_error, "移动存储加密", str(exc))
+            return
         except Exception as exc:  # noqa: BLE001 - GUI boundary reports unexpected failures.
             self.after(0, self._handle_removable_action_error, "移动存储加密", str(exc))
             return
@@ -1718,6 +1753,13 @@ class HighSecurityEncryptorApp(ttk.Frame):
         self.removable_password.set("")
         self.removable_password_confirm.set("")
         self._append_log(f"{build_removable_action_summary(action, result)}\n\n")
+        self.after(100, lambda: self._refresh_removable_devices(show_message=False, write_log=False))
+
+    def _handle_removable_encrypt_already_active(self, mount_point: str) -> None:
+        message = f"{mount_point} 已启用 BitLocker 或正在转换中，请勿重复启动加密；刷新设备列表查看当前状态。"
+        self._is_busy = False
+        self.removable_status_text.set(message)
+        self._append_log(f"{message}\n\n")
         self.after(100, lambda: self._refresh_removable_devices(show_message=False, write_log=False))
 
     def _handle_removable_action_error(self, action: str, message: str) -> None:

@@ -1,8 +1,10 @@
 from pathlib import Path
+from dataclasses import replace
 import json
 import tempfile
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from high_security_encryptor.gui import (
     CONFIG_KIND_LABELS,
@@ -23,6 +25,7 @@ from high_security_encryptor.gui import (
     choose_multi_file_workflow,
     config_uses_prompt_provider,
     describe_removable_device_status,
+    describe_removable_encryption_gate,
     describe_removable_inventory_status,
     format_size_bytes,
     get_gui_resource_base_dir,
@@ -34,6 +37,7 @@ from high_security_encryptor.gui import (
 )
 from high_security_encryptor.removable_bitlocker import (
     BitLockerActionResult,
+    BitLockerOperationError,
     RemovableStorageDevice,
     RemovableStorageInventory,
 )
@@ -215,7 +219,7 @@ class GuiTests(unittest.TestCase):
             size_bytes=128000000000,
             free_bytes=64000000000,
             bitlocker_volume_status="EncryptionInProgress",
-            bitlocker_protection_status="On",
+            bitlocker_protection_status="Off",
             bitlocker_lock_status="Unlocked",
             bitlocker_encryption_percentage=45,
             bitlocker_encryption_method="XtsAes256",
@@ -239,11 +243,78 @@ class GuiTests(unittest.TestCase):
         )
 
         self.assertEqual(format_size_bytes(1024), "1.0 KB")
-        self.assertEqual(describe_removable_device_status(device), "已加密")
+        self.assertEqual(describe_removable_device_status(device), "正在加密 45%")
+        self.assertEqual(
+            describe_removable_encryption_gate(device),
+            "E: 正在进行 BitLocker 加密（45%），请勿重复启动；保持设备连接并刷新查看进度。",
+        )
+        fully_encrypted = replace(device, bitlocker_volume_status="FullyEncrypted")
+        self.assertIn("已启用 BitLocker", describe_removable_encryption_gate(fully_encrypted) or "")
+        fully_decrypted = replace(device, bitlocker_volume_status="FullyDecrypted", bitlocker_protection_status="Off")
+        self.assertIsNone(describe_removable_encryption_gate(fully_decrypted))
         self.assertIn("已检测到 1 个可移动存储卷", describe_removable_inventory_status(inventory))
         summary = build_removable_action_summary("移动存储加密", result)
         self.assertIn("移动存储加密完成：E:", summary)
         self.assertIn(f"恢复信息：{Path('C:/Recovery/BitLockerRecovery-E-guid.txt')}", summary)
+
+    def test_removable_encrypt_gate_reports_in_progress_without_starting_worker(self) -> None:
+        device = RemovableStorageDevice(
+            disk_number=7,
+            mount_point="F:",
+            friendly_name="USB",
+            bus_type="USB",
+            partition_style="GPT",
+            operational_status="Online",
+            volume_label="",
+            file_system="FAT32",
+            drive_type="Removable",
+            health_status="Healthy",
+            size_bytes=30_000_000_000,
+            free_bytes=10_000_000_000,
+            bitlocker_volume_status="EncryptionInProgress",
+            bitlocker_protection_status="Off",
+            bitlocker_lock_status="Unlocked",
+            bitlocker_encryption_percentage=57,
+            bitlocker_encryption_method="XtsAes256",
+            auto_unlock_enabled=False,
+        )
+        status = Mock()
+        log = Mock()
+        after = Mock()
+        app = SimpleNamespace(
+            _selected_removable_device=lambda: device,
+            removable_status_text=status,
+            _append_log=log,
+            after=after,
+        )
+
+        HighSecurityEncryptorApp._run_removable_encrypt(app)
+
+        status.set.assert_called_once_with(
+            "F: 正在进行 BitLocker 加密（57%），请勿重复启动；保持设备连接并刷新查看进度。"
+        )
+        log.assert_called_once()
+        after.assert_called_once()
+
+    @patch(
+        "high_security_encryptor.gui.enable_removable_bitlocker",
+        side_effect=BitLockerOperationError(
+            "The drive F: already has BitLocker protection or an active conversion state."
+        ),
+    )
+    def test_removable_encrypt_race_uses_informational_handler(self, _enable_mock) -> None:
+        after = Mock()
+        info_handler = Mock()
+        app = SimpleNamespace(after=after, _handle_removable_encrypt_already_active=info_handler)
+
+        HighSecurityEncryptorApp._execute_removable_encrypt_worker(
+            app, "F:", "test-only", "C:/Recovery", "XtsAes256", False, True
+        )
+
+        callback = after.call_args.args
+        self.assertEqual(callback[0], 0)
+        self.assertEqual(callback[1], info_handler)
+        self.assertEqual(callback[2], "F:")
 
     def test_make_available_path_keeps_existing_output(self) -> None:
         """Quick workflows should not overwrite existing files."""

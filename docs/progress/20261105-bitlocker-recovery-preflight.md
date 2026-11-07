@@ -14,11 +14,13 @@
 
 - Windows PowerShell AST 语法解析通过。
 - `tests.test_removable_bitlocker` 与 `tests.test_gui`：33 项通过。
-- 全量 `unittest discover -s tests`：789 项通过、6 项跳过。
+- 全量 `unittest discover -s tests`：791 项通过、6 项跳过。
 - GitHub Actions CI run [#1040](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/42009588789) 的 Windows Python 3.11/3.12/3.13 任务全部成功，包含秘密扫描、依赖审计、语法检查、全量测试和控制台入口 smoke。
 - `git diff --check` 通过。
 - 对 Windows 盘符根路径做了实际 PowerShell 语义检查，并补上目标盘符规范化回归断言；同卷路径现在会在目录创建前被拒绝。GitHub Actions run `42366387526` 的 Python 3.11/3.12/3.13 任务全部成功。
-- 修复 PowerShell 混合输出解析：从警告/提示行之后提取 JSON 结果；没有 JSON 时将权限错误归类或返回不含原始输出的安全诊断。新增三项解析回归测试覆盖上述分支；该次解析器改动的 CI 待本次提交验证。
+- 修复 PowerShell 混合输出解析：从警告/提示行之后提取 JSON 结果；没有 JSON 时将权限错误归类或返回不含原始输出的安全诊断。新增三项解析回归测试覆盖上述分支；提交 `57140a0` 的 CI run `42367550844` 已全部成功。
+- GUI 对 `EncryptionInProgress` 显示本地化进度，并在重复点击“开始加密”时改为状态栏/日志信息，不启动第二次加密或弹出失败对话框；`FullyEncrypted`/已开启保护状态显示“已启用 BitLocker，请勿重复加密”。后台检测到并发状态变化时也走同一信息路径。回归覆盖正在加密、已完成、尚未加密及状态竞态。
+- `ProtectionStatus Off` 可能与 `EncryptionInProgress` 同时出现；Microsoft 的 [Get-BitLockerVolume 示例](https://learn.microsoft.com/en-us/powershell/module/bitlocker/get-bitlockervolume?view=windowsserver2025-ps)也展示了该状态组合。不要把它单独当作加密失败或完成。
 
 ## 限制
 
