@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from high_security_encryptor import removable_bitlocker
 from high_security_encryptor.removable_bitlocker import (
+    BitLockerOperationError,
     BitLockerPermissionError,
     enable_removable_bitlocker,
     list_removable_storage_devices,
@@ -15,6 +16,32 @@ from high_security_encryptor.removable_bitlocker import (
 
 
 class RemovableBitLockerTests(unittest.TestCase):
+    @patch("high_security_encryptor.removable_bitlocker.subprocess.run")
+    def test_powershell_json_parser_ignores_preceding_warning_lines(self, run_mock) -> None:
+        run_mock.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout='WARNING: mocked warning\n{"MountPoint":"F:"}', stderr=""
+        )
+
+        self.assertEqual(removable_bitlocker._run_powershell_json("mock"), {"MountPoint": "F:"})
+
+    @patch("high_security_encryptor.removable_bitlocker.subprocess.run")
+    def test_powershell_non_json_permission_output_maps_to_permission_error(self, run_mock) -> None:
+        run_mock.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="Get-CimInstance: Access is denied", stderr=""
+        )
+
+        with self.assertRaisesRegex(BitLockerPermissionError, "管理员权限"):
+            removable_bitlocker._run_powershell_json("mock")
+
+    @patch("high_security_encryptor.removable_bitlocker.subprocess.run")
+    def test_powershell_unexpected_output_uses_safe_diagnostic(self, run_mock) -> None:
+        run_mock.return_value = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="unexpected command output", stderr=""
+        )
+
+        with self.assertRaisesRegex(BitLockerOperationError, "Check administrator rights"):
+            removable_bitlocker._run_powershell_json("mock")
+
     def test_encrypt_saves_recovery_information_before_enabling_bitlocker(self) -> None:
         script = removable_bitlocker.ENCRYPT_SCRIPT
 

@@ -532,13 +532,20 @@ def _run_powershell_json(script: str, *, extra_env: dict[str, str] | None = None
     stdout = completed.stdout.strip()
     if not stdout:
         raise BitLockerOperationError("PowerShell did not return any data.")
-    try:
-        payload = json.loads(stdout)
-    except json.JSONDecodeError as exc:
-        raise BitLockerOperationError(f"PowerShell returned invalid JSON: {exc}") from exc
-    if not isinstance(payload, dict):
-        raise BitLockerOperationError("PowerShell returned an unexpected payload.")
-    return payload
+    for line in reversed(stdout.splitlines()):
+        try:
+            payload = json.loads(line.strip())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+
+    diagnostic = completed.stderr or stdout
+    if _is_permission_error_message(diagnostic):
+        raise BitLockerPermissionError("此功能需要管理员权限。请以管理员身份重新运行程序后再试。")
+    raise BitLockerOperationError(
+        "PowerShell did not return a JSON result. Check administrator rights and BitLocker volume status before retrying."
+    )
 
 
 def _build_child_environment(extra_env: dict[str, str] | None) -> dict[str, str]:
