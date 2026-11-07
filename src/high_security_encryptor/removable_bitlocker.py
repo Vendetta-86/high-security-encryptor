@@ -102,7 +102,7 @@ $encryptionMethod = $env:HSE_ENCRYPTION_METHOD
 $usedSpaceOnly = $env:HSE_USED_SPACE_ONLY -eq '1'
 $disableAutoUnlock = $env:HSE_DISABLE_AUTO_UNLOCK -ne '0'
 
-$targetRoot = $mountPoint.TrimEnd(':')
+$targetRoot = $mountPoint.TrimEnd(':') + ':'
 $recoveryRoot = [System.IO.Path]::GetPathRoot([System.IO.Path]::GetFullPath($recoveryDirectory)).TrimEnd('\', '/')
 if ([string]::Equals($targetRoot, $recoveryRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw "Recovery information must be saved outside the target drive $mountPoint."

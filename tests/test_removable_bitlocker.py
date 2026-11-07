@@ -28,6 +28,7 @@ class RemovableBitLockerTests(unittest.TestCase):
         self.assertLess(recovery_file_write, enable_encryption)
         self.assertIn("[System.IO.FileMode]::CreateNew", script)
         self.assertIn("$createdRecoveryFile -and", script)
+        self.assertIn("$targetRoot = $mountPoint.TrimEnd(':') + ':'", script)
         self.assertIn("Recovery information must be saved outside the target drive", script)
         self.assertIn("after recovery information was saved to '$recoveryFile'", script)
 

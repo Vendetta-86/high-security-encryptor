@@ -17,6 +17,7 @@
 - 全量 `unittest discover -s tests`：786 项通过、6 项跳过。
 - GitHub Actions CI run [#1040](https://github.com/Vendetta-86/high-security-encryptor/actions/runs/42009588789) 的 Windows Python 3.11/3.12/3.13 任务全部成功，包含秘密扫描、依赖审计、语法检查、全量测试和控制台入口 smoke。
 - `git diff --check` 通过。
+- 对 Windows 盘符根路径做了实际 PowerShell 语义检查，并补上目标盘符规范化回归断言；同卷路径现在会在目录创建前被拒绝。此修正确认后需由新提交的 GitHub CI 再次验证。
 
 ## 限制
 
