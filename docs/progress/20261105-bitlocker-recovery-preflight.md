@@ -1,6 +1,6 @@
 # BitLocker To Go 恢复信息预检改进
 
-**状态：已实现并通过本地自动化验证；真实设备行为未验证。**
+**状态：已实现并通过本地自动化验证；2026-11-07 在一只 USB 设备上完成真实加密、上锁、解锁和文件访问验证。**
 
 ## 改动
 
@@ -24,6 +24,12 @@
 
 ## 限制
 
-自动化测试不触碰实体卷，只检查命令封装、脚本操作次序及 GUI 结果。BitLocker 的实际策略行为、设备移除/掉电中断和真实恢复流程仍须在可擦除测试设备上单独实测；这不构成对生产数据盘的加密建议。
+自动化测试不触碰实体卷，只检查命令封装、脚本操作次序及 GUI 结果。一次 USB 实测不能覆盖不同设备、Windows 策略、移除/掉电中断或恢复密码解锁情形；这不构成对生产数据盘的加密建议。
+
+## 真实设备验证（2026-11-07）
+
+- 用户确认 F: 已完整加密：`FullyEncrypted`、`ProtectionStatus On`、`EncryptionPercentage 100`。
+- 桌面 GUI 上锁后报告 `LockStatus Locked`，但把保护状态显示为 `Unknown`，并错误地阻止解锁。修复已提交并推送（`a715118`）：仅在明确为 `FullyDecrypted` 时预先阻止，未知状态交由 Windows 解锁命令判定。
+- 用户使用更新后的源码版完成解锁，并确认文件访问正常。正常密码解锁链路通过；本次未执行恢复密码解锁演练。
 
 实现依据：[Microsoft Enable-BitLocker 文档](https://learn.microsoft.com/en-us/powershell/module/bitlocker/enable-bitlocker?view=windowsserver2025-ps)说明常见做法是先添加恢复密码保护器并保存，再启用 BitLocker。
