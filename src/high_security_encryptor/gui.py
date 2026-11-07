@@ -1681,7 +1681,11 @@ class HighSecurityEncryptorApp(ttk.Frame):
             password = self.removable_password.get()
             if not password:
                 raise ValueError("请输入设备密码。")
-            if device.bitlocker_protection_status != "On":
+            # Locking a removable BitLocker volume can make Windows report
+            # ProtectionStatus as Unknown until the volume is unlocked again.
+            # Only block a volume that is explicitly known to be decrypted;
+            # let Unlock-BitLocker validate stale or incomplete inventory data.
+            if device.bitlocker_volume_status == "FullyDecrypted":
                 raise ValueError("该设备还没有启用 BitLocker，无法执行解锁。")
         except ValueError as exc:
             self._show_input_error(exc)

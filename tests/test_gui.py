@@ -296,6 +296,79 @@ class GuiTests(unittest.TestCase):
         log.assert_called_once()
         after.assert_called_once()
 
+    @patch("high_security_encryptor.gui.threading.Thread")
+    def test_removable_unlock_allows_locked_volume_with_unknown_protection(self, thread_mock) -> None:
+        device = RemovableStorageDevice(
+            disk_number=7,
+            mount_point="F:",
+            friendly_name="USB",
+            bus_type="USB",
+            partition_style="GPT",
+            operational_status="Online",
+            volume_label="",
+            file_system="FAT32",
+            drive_type="Removable",
+            health_status="Healthy",
+            size_bytes=30_000_000_000,
+            free_bytes=10_000_000_000,
+            bitlocker_volume_status="Unknown",
+            bitlocker_protection_status="Unknown",
+            bitlocker_lock_status="Locked",
+            bitlocker_encryption_percentage=None,
+            bitlocker_encryption_method="XtsAes256",
+            auto_unlock_enabled=False,
+        )
+        app = SimpleNamespace(
+            _selected_removable_device=lambda: device,
+            removable_password=Mock(return_value="test-password"),
+            removable_disable_auto_unlock=Mock(return_value=True),
+            _is_busy=False,
+            _append_log=Mock(),
+            _show_input_error=Mock(),
+            _execute_removable_unlock_worker=Mock(),
+        )
+
+        HighSecurityEncryptorApp._run_removable_unlock(app)
+
+        app._show_input_error.assert_not_called()
+        thread_mock.return_value.start.assert_called_once()
+        self.assertTrue(app._is_busy)
+
+    @patch("high_security_encryptor.gui.threading.Thread")
+    def test_removable_unlock_blocks_explicitly_decrypted_volume(self, thread_mock) -> None:
+        device = RemovableStorageDevice(
+            disk_number=7,
+            mount_point="F:",
+            friendly_name="USB",
+            bus_type="USB",
+            partition_style="GPT",
+            operational_status="Online",
+            volume_label="",
+            file_system="FAT32",
+            drive_type="Removable",
+            health_status="Healthy",
+            size_bytes=30_000_000_000,
+            free_bytes=10_000_000_000,
+            bitlocker_volume_status="FullyDecrypted",
+            bitlocker_protection_status="Off",
+            bitlocker_lock_status="Unlocked",
+            bitlocker_encryption_percentage=0,
+            bitlocker_encryption_method="None",
+            auto_unlock_enabled=False,
+        )
+        input_error = Mock()
+        app = SimpleNamespace(
+            _selected_removable_device=lambda: device,
+            removable_password=Mock(return_value="test-password"),
+            _is_busy=False,
+            _show_input_error=input_error,
+        )
+
+        HighSecurityEncryptorApp._run_removable_unlock(app)
+
+        input_error.assert_called_once()
+        thread_mock.assert_not_called()
+
     @patch(
         "high_security_encryptor.gui.enable_removable_bitlocker",
         side_effect=BitLockerOperationError(
