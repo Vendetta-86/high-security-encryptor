@@ -27,6 +27,8 @@ from high_security_encryptor.gui import (
     describe_removable_device_status,
     describe_removable_encryption_gate,
     describe_removable_inventory_status,
+    describe_removable_lock_gate,
+    describe_removable_unlock_gate,
     format_size_bytes,
     get_gui_resource_base_dir,
     make_available_path,
@@ -248,10 +250,47 @@ class GuiTests(unittest.TestCase):
             describe_removable_encryption_gate(device),
             "E: 正在进行 BitLocker 加密（45%），请勿重复启动；保持设备连接并刷新查看进度。",
         )
-        fully_encrypted = replace(device, bitlocker_volume_status="FullyEncrypted")
+        fully_encrypted = replace(
+            device,
+            bitlocker_volume_status="FullyEncrypted",
+            bitlocker_protection_status="On",
+        )
         self.assertIn("已启用 BitLocker", describe_removable_encryption_gate(fully_encrypted) or "")
         fully_decrypted = replace(device, bitlocker_volume_status="FullyDecrypted", bitlocker_protection_status="Off")
         self.assertIsNone(describe_removable_encryption_gate(fully_decrypted))
+        decrypting = replace(device, bitlocker_volume_status="DecryptionInProgress", bitlocker_protection_status="On")
+        self.assertEqual(describe_removable_device_status(decrypting), "正在解密")
+        self.assertIn("正在进行 BitLocker 解密", describe_removable_encryption_gate(decrypting) or "")
+        fully_encrypted_protection_off = replace(
+            device, bitlocker_volume_status="FullyEncrypted", bitlocker_protection_status="Off"
+        )
+        self.assertEqual(describe_removable_device_status(fully_encrypted_protection_off), "已加密（保护关闭）")
+        self.assertIn(
+            "保护状态为关闭",
+            describe_removable_encryption_gate(fully_encrypted_protection_off) or "",
+        )
+        fully_encrypted_protection_unknown = replace(
+            fully_encrypted_protection_off, bitlocker_protection_status="Unknown"
+        )
+        self.assertEqual(
+            describe_removable_device_status(fully_encrypted_protection_unknown),
+            "已加密（保护状态未知）",
+        )
+        self.assertIn(
+            "保护状态未知",
+            describe_removable_encryption_gate(fully_encrypted_protection_unknown) or "",
+        )
+        fully_decrypted_protection_unknown = replace(
+            fully_decrypted, bitlocker_protection_status="Unknown"
+        )
+        self.assertEqual(
+            describe_removable_device_status(fully_decrypted_protection_unknown),
+            "未加密（保护状态未知）",
+        )
+        self.assertIn(
+            "状态不一致",
+            describe_removable_encryption_gate(fully_decrypted_protection_unknown) or "",
+        )
         self.assertIn("已检测到 1 个可移动存储卷", describe_removable_inventory_status(inventory))
         summary = build_removable_action_summary("移动存储加密", result)
         self.assertIn("移动存储加密完成：E:", summary)
@@ -295,6 +334,124 @@ class GuiTests(unittest.TestCase):
         )
         log.assert_called_once()
         after.assert_called_once()
+
+    def test_removable_encrypt_gate_blocks_unknown_or_missing_state(self) -> None:
+        device = RemovableStorageDevice(
+            disk_number=7,
+            mount_point="F:",
+            friendly_name="USB",
+            bus_type="USB",
+            partition_style="GPT",
+            operational_status="Online",
+            volume_label="",
+            file_system="FAT32",
+            drive_type="Removable",
+            health_status="Healthy",
+            size_bytes=30_000_000_000,
+            free_bytes=10_000_000_000,
+            bitlocker_volume_status="Unknown",
+            bitlocker_protection_status="Unknown",
+            bitlocker_lock_status="Unlocked",
+            bitlocker_encryption_percentage=None,
+            bitlocker_encryption_method=None,
+            auto_unlock_enabled=None,
+        )
+        self.assertIn("无法确认", describe_removable_encryption_gate(device) or "")
+        self.assertEqual(describe_removable_device_status(device), "未知")
+
+        missing_state = replace(device, bitlocker_volume_status=None, bitlocker_protection_status=None)
+        self.assertIn("无法确认", describe_removable_encryption_gate(missing_state) or "")
+
+    def test_removable_encrypt_gate_blocks_decryption_conversion_without_start(self) -> None:
+        device = RemovableStorageDevice(
+            disk_number=7,
+            mount_point="F:",
+            friendly_name="USB",
+            bus_type="USB",
+            partition_style="GPT",
+            operational_status="Online",
+            volume_label="",
+            file_system="FAT32",
+            drive_type="Removable",
+            health_status="Healthy",
+            size_bytes=30_000_000_000,
+            free_bytes=10_000_000_000,
+            bitlocker_volume_status="DecryptionInProgress",
+            bitlocker_protection_status="On",
+            bitlocker_lock_status="Unlocked",
+            bitlocker_encryption_percentage=42,
+            bitlocker_encryption_method="XtsAes256",
+            auto_unlock_enabled=False,
+        )
+        status = Mock()
+        after = Mock()
+        app = SimpleNamespace(
+            _selected_removable_device=lambda: device,
+            removable_status_text=status,
+            _append_log=Mock(),
+            after=after,
+        )
+
+        HighSecurityEncryptorApp._run_removable_encrypt(app)
+
+        status.set.assert_called_once()
+        self.assertIn("正在进行 BitLocker 解密", status.set.call_args.args[0])
+        after.assert_called_once()
+
+    def test_removable_unlock_and_lock_gates_cover_safe_states(self) -> None:
+        device = RemovableStorageDevice(
+            disk_number=7,
+            mount_point="F:",
+            friendly_name="USB",
+            bus_type="USB",
+            partition_style="GPT",
+            operational_status="Online",
+            volume_label="",
+            file_system="FAT32",
+            drive_type="Removable",
+            health_status="Healthy",
+            size_bytes=30_000_000_000,
+            free_bytes=10_000_000_000,
+            bitlocker_volume_status="FullyEncrypted",
+            bitlocker_protection_status="On",
+            bitlocker_lock_status="Unlocked",
+            bitlocker_encryption_percentage=100,
+            bitlocker_encryption_method="XtsAes256",
+            auto_unlock_enabled=False,
+        )
+
+        self.assertIsNone(describe_removable_lock_gate(device))
+        self.assertIn("已解锁", describe_removable_unlock_gate(device) or "")
+
+        locked_with_unknown_protection = replace(
+            device,
+            bitlocker_volume_status="Unknown",
+            bitlocker_protection_status="Unknown",
+            bitlocker_lock_status="Locked",
+        )
+        self.assertIsNone(describe_removable_unlock_gate(locked_with_unknown_protection))
+        self.assertIn("已上锁", describe_removable_lock_gate(locked_with_unknown_protection) or "")
+
+        unknown_unlocked = replace(locked_with_unknown_protection, bitlocker_lock_status="Unlocked")
+        self.assertIn("无法确认", describe_removable_lock_gate(unknown_unlocked) or "")
+
+        already_locked = replace(device, bitlocker_lock_status="Locked")
+        self.assertIn("已上锁", describe_removable_lock_gate(already_locked) or "")
+
+        transitioning = replace(
+            device,
+            bitlocker_volume_status="DecryptionInProgress",
+            bitlocker_lock_status="Unlocked",
+        )
+        self.assertIn("转换", describe_removable_lock_gate(transitioning) or "")
+
+        decrypted = replace(
+            device,
+            bitlocker_volume_status="FullyDecrypted",
+            bitlocker_protection_status="Off",
+        )
+        self.assertIn("尚未启用", describe_removable_unlock_gate(decrypted) or "")
+        self.assertIn("尚未启用", describe_removable_lock_gate(decrypted) or "")
 
     @patch("high_security_encryptor.gui.threading.Thread")
     def test_removable_unlock_allows_locked_volume_with_unknown_protection(self, thread_mock) -> None:
@@ -356,17 +513,26 @@ class GuiTests(unittest.TestCase):
             bitlocker_encryption_method="None",
             auto_unlock_enabled=False,
         )
-        input_error = Mock()
+        status = Mock()
+        log = Mock()
+        after = Mock()
         app = SimpleNamespace(
             _selected_removable_device=lambda: device,
             removable_password=Mock(return_value="test-password"),
+            removable_status_text=status,
             _is_busy=False,
-            _show_input_error=input_error,
+            _show_input_error=Mock(),
+            _append_log=log,
+            after=after,
+            _refresh_removable_devices=Mock(),
         )
 
         HighSecurityEncryptorApp._run_removable_unlock(app)
 
-        input_error.assert_called_once()
+        status.set.assert_called_once()
+        self.assertIn("尚未启用 BitLocker", status.set.call_args.args[0])
+        log.assert_called_once()
+        after.assert_called_once()
         thread_mock.assert_not_called()
 
     @patch(

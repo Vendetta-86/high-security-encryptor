@@ -583,16 +583,34 @@ def format_size_bytes(value: int | None) -> str:
 def describe_removable_device_status(device: RemovableStorageDevice) -> str:
     """Return a short BitLocker status label for the removable-device table."""
 
-    if device.bitlocker_volume_status == "EncryptionInProgress":
+    status = (device.bitlocker_volume_status or "").strip().casefold()
+    protection = (device.bitlocker_protection_status or "").strip().casefold()
+    if status == "encryptioninprogress":
         if device.bitlocker_encryption_percentage is not None:
             return f"正在加密 {device.bitlocker_encryption_percentage}%"
         return "正在加密"
-    if device.bitlocker_volume_status == "FullyEncrypted":
+    if status == "decryptioninprogress":
+        return "正在解密"
+    if status == "encryptionpaused":
+        return "加密已暂停"
+    if status == "decryptionpaused":
+        return "解密已暂停"
+    if status == "fullyencrypted":
+        if protection == "off":
+            return "已加密（保护关闭）"
+        if protection == "unknown" or not protection:
+            return "已加密（保护状态未知）"
         return "已加密"
-    if device.bitlocker_protection_status == "On":
-        return "已加密"
-    if device.bitlocker_volume_status == "FullyDecrypted":
+    if status == "fullydecrypted":
+        if protection == "on":
+            return "状态不一致（保护已启用）"
+        if protection == "unknown" or not protection:
+            return "未加密（保护状态未知）"
         return "未加密"
+    if status == "unknown" or not status:
+        if protection == "on":
+            return "保护已启用（卷状态未知）"
+        return "未知"
     if device.bitlocker_volume_status:
         return device.bitlocker_volume_status
     return "未知"
@@ -601,19 +619,75 @@ def describe_removable_device_status(device: RemovableStorageDevice) -> str:
 def describe_removable_encryption_gate(device: RemovableStorageDevice) -> str | None:
     """Explain why an encryption start should be ignored for the selected volume."""
 
-    status = device.bitlocker_volume_status
-    if status == "EncryptionInProgress":
+    status = (device.bitlocker_volume_status or "").strip().casefold()
+    protection = (device.bitlocker_protection_status or "").strip().casefold()
+    if status == "encryptioninprogress":
         progress = (
             f"（{device.bitlocker_encryption_percentage}%）"
             if device.bitlocker_encryption_percentage is not None
             else ""
         )
         return f"{device.mount_point} 正在进行 BitLocker 加密{progress}，请勿重复启动；保持设备连接并刷新查看进度。"
-    if status == "FullyEncrypted" or device.bitlocker_protection_status == "On":
-        return f"{device.mount_point} 已启用 BitLocker，请勿重复加密；需要访问时请使用“解锁设备”。"
-    if status and status != "FullyDecrypted":
-        return f"{device.mount_point} 当前状态为 {status}，暂不能开始加密；请勿重复操作，刷新设备状态后再处理。"
+    if status == "decryptioninprogress":
+        return f"{device.mount_point} 正在进行 BitLocker 解密，当前不能开始加密；请等待转换结束并刷新状态。"
+    if status == "encryptionpaused":
+        return f"{device.mount_point} 的 BitLocker 加密已暂停；请先刷新并检查卷状态，不要重复启动加密。"
+    if status == "decryptionpaused":
+        return f"{device.mount_point} 的 BitLocker 解密已暂停；请先检查卷状态，不要启动加密。"
+    if status == "fullyencrypted":
+        if protection == "off":
+            return f"{device.mount_point} 已完成加密，但保护状态为关闭；请勿重复启动加密，先刷新并检查 BitLocker 状态。"
+        if protection == "on":
+            return f"{device.mount_point} 已启用 BitLocker，请勿重复加密；需要访问时请使用“解锁设备”。"
+        return f"{device.mount_point} 已完成加密，但保护状态未知；请勿重复启动加密，刷新并检查 BitLocker 状态。"
+    if status == "fullydecrypted":
+        if protection == "off":
+            return None
+        return f"{device.mount_point} 报告为未加密，但保护状态为 {device.bitlocker_protection_status or '未知'}；状态不一致，刷新后再处理。"
+    if protection == "on":
+        return f"{device.mount_point} 的 BitLocker 保护已启用，但卷转换状态未知；请勿重复启动加密，刷新并检查设备状态。"
+    if status == "unknown" or not status:
+        return f"无法确认 {device.mount_point} 的 BitLocker 卷状态；为避免重复加密，当前不会启动操作。请刷新设备状态后再试。"
+    if status:
+        return f"{device.mount_point} 当前状态为 {device.bitlocker_volume_status}，暂不能开始加密；请勿重复操作，刷新设备状态后再处理。"
+
+
+def describe_removable_unlock_gate(device: RemovableStorageDevice) -> str | None:
+    """Explain why an unlock request is unnecessary or unsafe for the selected volume."""
+
+    status = (device.bitlocker_volume_status or "").strip().casefold()
+    protection = (device.bitlocker_protection_status or "").strip().casefold()
+    lock_status = (device.bitlocker_lock_status or "").strip().casefold()
+    if status == "fullydecrypted":
+        if protection == "off":
+            return f"{device.mount_point} 尚未启用 BitLocker，无法执行解锁。"
+        return f"{device.mount_point} 报告为完全解密，但保护状态为 {device.bitlocker_protection_status or '未知'}；请刷新设备状态后再处理。"
+    if lock_status == "unlocked":
+        return f"{device.mount_point} 当前已解锁，无需重复解锁；可直接打开盘符。"
+    # A locked volume can have ProtectionStatus=Unknown until unlocked. Allow
+    # Windows to validate the supplied protector rather than blocking on it.
     return None
+
+
+def describe_removable_lock_gate(device: RemovableStorageDevice) -> str | None:
+    """Explain why a lock request is unnecessary or unsafe for the selected volume."""
+
+    status = (device.bitlocker_volume_status or "").strip().casefold()
+    protection = (device.bitlocker_protection_status or "").strip().casefold()
+    lock_status = (device.bitlocker_lock_status or "").strip().casefold()
+    if lock_status == "locked":
+        return f"{device.mount_point} 已上锁，无需重复操作。"
+    if status in {"encryptioninprogress", "decryptioninprogress"}:
+        return f"{device.mount_point} 正在进行 BitLocker 转换；请等待转换结束并刷新状态后再上锁。"
+    if status in {"encryptionpaused", "decryptionpaused"}:
+        return f"{device.mount_point} 的 BitLocker 转换已暂停；请先检查状态并恢复转换，再决定是否上锁。"
+    if status == "fullydecrypted":
+        return f"{device.mount_point} 尚未启用 BitLocker，无法执行上锁。"
+    if status == "fullyencrypted" and protection == "on":
+        return None
+    if status == "fullyencrypted":
+        return f"{device.mount_point} 已完成加密，但保护状态为 {device.bitlocker_protection_status or '未知'}；刷新并确认保护状态后再上锁。"
+    return f"无法确认 {device.mount_point} 已完成 BitLocker 加密；当前不会执行上锁，请刷新设备状态后再试。"
 
 
 def describe_removable_inventory_status(inventory: RemovableStorageInventory) -> str:
@@ -1678,15 +1752,19 @@ class HighSecurityEncryptorApp(ttk.Frame):
     def _run_removable_unlock(self) -> None:
         try:
             device = self._selected_removable_device()
+            # Locking a removable BitLocker volume can make Windows report
+            # ProtectionStatus as Unknown until the volume is unlocked again.
+            # A locked volume can have ProtectionStatus=Unknown until unlocked;
+            # let Unlock-BitLocker validate it while avoiding known no-op states.
+            gate_message = describe_removable_unlock_gate(device)
+            if gate_message:
+                self.removable_status_text.set(gate_message)
+                self._append_log(f"{gate_message}\n\n")
+                self.after(100, lambda: self._refresh_removable_devices(show_message=False, write_log=False))
+                return
             password = self.removable_password.get()
             if not password:
                 raise ValueError("请输入设备密码。")
-            # Locking a removable BitLocker volume can make Windows report
-            # ProtectionStatus as Unknown until the volume is unlocked again.
-            # Only block a volume that is explicitly known to be decrypted;
-            # let Unlock-BitLocker validate stale or incomplete inventory data.
-            if device.bitlocker_volume_status == "FullyDecrypted":
-                raise ValueError("该设备还没有启用 BitLocker，无法执行解锁。")
         except ValueError as exc:
             self._show_input_error(exc)
             return
@@ -1724,8 +1802,12 @@ class HighSecurityEncryptorApp(ttk.Frame):
     def _run_removable_lock(self) -> None:
         try:
             device = self._selected_removable_device()
-            if device.bitlocker_protection_status != "On":
-                raise ValueError("该设备还没有启用 BitLocker，无法执行上锁。")
+            gate_message = describe_removable_lock_gate(device)
+            if gate_message:
+                self.removable_status_text.set(gate_message)
+                self._append_log(f"{gate_message}\n\n")
+                self.after(100, lambda: self._refresh_removable_devices(show_message=False, write_log=False))
+                return
         except ValueError as exc:
             self._show_input_error(exc)
             return
