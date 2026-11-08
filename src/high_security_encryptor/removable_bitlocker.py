@@ -151,6 +151,8 @@ $recoveryLines = @(
 $recoveryWriter = $null
 $recoveryStream = $null
 $createdRecoveryFile = $false
+$recoveryWriteError = $null
+$cleanupMessage = ''
 try {
     $recoveryStream = [System.IO.File]::Open($recoveryFile, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
     $createdRecoveryFile = $true
@@ -162,25 +164,51 @@ try {
     $recoveryStream.Flush($true)
 }
 catch {
-    if ($null -ne $recoveryWriter) { $recoveryWriter.Dispose() }
-    elseif ($null -ne $recoveryStream) { $recoveryStream.Dispose() }
-    if ($createdRecoveryFile -and (Test-Path -LiteralPath $recoveryFile)) {
-        Remove-Item -LiteralPath $recoveryFile -Force -ErrorAction SilentlyContinue
+    $recoveryWriteError = $_.Exception.Message
+}
+finally {
+    try {
+        if ($null -ne $recoveryWriter) { $recoveryWriter.Dispose() }
     }
-    $cleanupMessage = ''
+    catch {
+        if ($null -eq $recoveryWriteError) {
+            $recoveryWriteError = $_.Exception.Message
+        }
+        else {
+            $cleanupMessage += " Recovery file handle cleanup failed: $($_.Exception.Message)"
+        }
+    }
+    if ($null -ne $recoveryStream) {
+        try { $recoveryStream.Dispose() }
+        catch {
+            if ($null -eq $recoveryWriteError) {
+                $recoveryWriteError = $_.Exception.Message
+            }
+            else {
+                $cleanupMessage += " Recovery file stream cleanup failed: $($_.Exception.Message)"
+            }
+        }
+    }
+}
+
+if ($null -ne $recoveryWriteError) {
+    if ($createdRecoveryFile -and (Test-Path -LiteralPath $recoveryFile)) {
+        try {
+            Remove-Item -LiteralPath $recoveryFile -Force -ErrorAction Stop
+        }
+        catch {
+            $cleanupMessage += " The incomplete recovery file '$recoveryFile' could not be removed: $($_.Exception.Message)"
+        }
+    }
     if ($null -ne $recoveryProtector -and $recoveryProtector.KeyProtectorId) {
         try {
             Remove-BitLockerKeyProtector -MountPoint $mountPoint -KeyProtectorId $recoveryProtector.KeyProtectorId -ErrorAction Stop | Out-Null
         }
         catch {
-            $cleanupMessage = " The temporary recovery protector could not be removed: $($_.Exception.Message)"
+            $cleanupMessage += " The temporary recovery protector could not be removed: $($_.Exception.Message)"
         }
     }
-    throw "Recovery information could not be saved; BitLocker encryption was not started. $($_.Exception.Message)$cleanupMessage"
-}
-finally {
-    if ($null -ne $recoveryWriter) { $recoveryWriter.Dispose() }
-    elseif ($null -ne $recoveryStream) { $recoveryStream.Dispose() }
+    throw "Recovery information could not be saved; BitLocker encryption was not started. $recoveryWriteError$cleanupMessage"
 }
 
 $enableParams = @{

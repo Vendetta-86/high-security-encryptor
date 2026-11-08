@@ -59,6 +59,41 @@ class RemovableBitLockerTests(unittest.TestCase):
         self.assertIn("Recovery information must be saved outside the target drive", script)
         self.assertIn("after recovery information was saved to '$recoveryFile'", script)
 
+    def test_recovery_write_failure_preserves_existing_files_and_never_starts_encryption(self) -> None:
+        script = removable_bitlocker.ENCRYPT_SCRIPT
+
+        create_new = script.index("[System.IO.FileMode]::CreateNew")
+        write_failure_cleanup = script.index("if ($null -ne $recoveryWriteError)")
+        cleanup_created_file = script.index("if ($createdRecoveryFile -and", write_failure_cleanup)
+        remove_protector = script.index("Remove-BitLockerKeyProtector", write_failure_cleanup)
+        fail_without_starting = script.index("Recovery information could not be saved; BitLocker encryption was not started.")
+        start_encryption = script.index("Enable-BitLocker @enableParams")
+
+        self.assertIn("$recoveryWriteError = $_.Exception.Message", script)
+        self.assertIn("$recoveryStream.Flush($true)", script)
+        self.assertLess(create_new, write_failure_cleanup)
+        self.assertLess(cleanup_created_file, remove_protector)
+        self.assertLess(remove_protector, fail_without_starting)
+        self.assertLess(fail_without_starting, start_encryption)
+        self.assertIn("Remove-Item -LiteralPath $recoveryFile -Force -ErrorAction Stop", script)
+        self.assertIn("$cleanupMessage += \" The temporary recovery protector could not be removed", script)
+
+    def test_inventory_script_only_queries_bitlocker_and_reports_state_fields(self) -> None:
+        script = removable_bitlocker.INVENTORY_SCRIPT
+
+        self.assertIn("foreach ($bitlockerVolume in Get-BitLockerVolume)", script)
+        for field in ("VolumeStatus", "ProtectionStatus", "LockStatus", "EncryptionPercentage"):
+            self.assertIn(f"{field} =", script)
+        for mutating_command in (
+            "Enable-BitLocker",
+            "Disable-BitLocker",
+            "Unlock-BitLocker",
+            "Lock-BitLocker",
+            "Add-BitLockerKeyProtector",
+            "Remove-BitLockerKeyProtector",
+        ):
+            self.assertNotIn(mutating_command, script)
+
     @patch("high_security_encryptor.removable_bitlocker.is_admin", return_value=False)
     @patch("high_security_encryptor.removable_bitlocker.subprocess.run")
     def test_list_removable_storage_devices_parses_inventory(self, run_mock, _is_admin_mock) -> None:

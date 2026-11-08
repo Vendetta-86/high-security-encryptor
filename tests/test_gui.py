@@ -1,5 +1,6 @@
 from pathlib import Path
 from dataclasses import replace
+from itertools import product
 import json
 import tempfile
 import unittest
@@ -452,6 +453,61 @@ class GuiTests(unittest.TestCase):
         )
         self.assertIn("尚未启用", describe_removable_unlock_gate(decrypted) or "")
         self.assertIn("尚未启用", describe_removable_lock_gate(decrypted) or "")
+
+    def test_removable_bitlocker_action_gates_cover_state_matrix(self) -> None:
+        device = RemovableStorageDevice(
+            disk_number=7,
+            mount_point="F:",
+            friendly_name="USB",
+            bus_type="USB",
+            partition_style="GPT",
+            operational_status="Online",
+            volume_label="",
+            file_system="FAT32",
+            drive_type="Removable",
+            health_status="Healthy",
+            size_bytes=30_000_000_000,
+            free_bytes=10_000_000_000,
+            bitlocker_volume_status=None,
+            bitlocker_protection_status=None,
+            bitlocker_lock_status=None,
+            bitlocker_encryption_percentage=None,
+            bitlocker_encryption_method=None,
+            auto_unlock_enabled=None,
+        )
+        statuses = (
+            "FullyDecrypted",
+            "EncryptionInProgress",
+            "FullyEncrypted",
+            "DecryptionInProgress",
+            "EncryptionPaused",
+            "DecryptionPaused",
+            "Unknown",
+            None,
+        )
+        protections = ("On", "Off", "Unknown", None)
+        lock_states = ("Locked", "Unlocked", "Unknown", None)
+
+        for status, protection, lock_status in product(statuses, protections, lock_states):
+            candidate = replace(
+                device,
+                bitlocker_volume_status=status,
+                bitlocker_protection_status=protection,
+                bitlocker_lock_status=lock_status,
+            )
+            with self.subTest(status=status, protection=protection, lock_status=lock_status):
+                encryption_allowed = status == "FullyDecrypted" and protection == "Off"
+                self.assertEqual(describe_removable_encryption_gate(candidate) is None, encryption_allowed)
+
+                locking_allowed = (
+                    status == "FullyEncrypted"
+                    and protection == "On"
+                    and lock_status != "Locked"
+                )
+                self.assertEqual(describe_removable_lock_gate(candidate) is None, locking_allowed)
+
+                unlocking_allowed = status != "FullyDecrypted" and lock_status != "Unlocked"
+                self.assertEqual(describe_removable_unlock_gate(candidate) is None, unlocking_allowed)
 
     @patch("high_security_encryptor.gui.threading.Thread")
     def test_removable_unlock_allows_locked_volume_with_unknown_protection(self, thread_mock) -> None:
