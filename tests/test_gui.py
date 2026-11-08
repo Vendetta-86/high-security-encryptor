@@ -423,6 +423,8 @@ class GuiTests(unittest.TestCase):
 
         self.assertIsNone(describe_removable_lock_gate(device))
         self.assertIn("已解锁", describe_removable_unlock_gate(device) or "")
+        auto_unlock_enabled = replace(device, auto_unlock_enabled=True)
+        self.assertIn("Disable-BitLockerAutoUnlock", describe_removable_lock_gate(auto_unlock_enabled) or "")
 
         locked_with_unknown_protection = replace(
             device,

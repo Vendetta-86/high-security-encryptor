@@ -677,6 +677,11 @@ def describe_removable_lock_gate(device: RemovableStorageDevice) -> str | None:
     lock_status = (device.bitlocker_lock_status or "").strip().casefold()
     if lock_status == "locked":
         return f"{device.mount_point} 已上锁，无需重复操作。"
+    if device.auto_unlock_enabled is True:
+        return (
+            f"{device.mount_point} 已启用自动解锁，Windows 当前不允许上锁。请先在管理员 PowerShell 运行 "
+            f"Disable-BitLockerAutoUnlock -MountPoint '{device.mount_point}'，刷新状态后再试。"
+        )
     if status in {"encryptioninprogress", "decryptioninprogress"}:
         return f"{device.mount_point} 正在进行 BitLocker 转换；请等待转换结束并刷新状态后再上锁。"
     if status in {"encryptionpaused", "decryptionpaused"}:
