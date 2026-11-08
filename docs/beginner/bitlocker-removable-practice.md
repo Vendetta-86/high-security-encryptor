@@ -8,8 +8,30 @@
 - **盘符 / 挂载点**：资源管理器中类似 `E:` 的卷标识。本程序仅列出检测到盘符的 USB/SD 分区；同一物理设备可能有多个分区。
 - **解锁密码**：日常打开卷时输入的密码。点击“解锁设备”只恢复当前会话的访问，不会关闭加密或删除密码。
 - **恢复密码 / 恢复密钥**：忘记解锁密码或 Windows 要求恢复时使用的应急材料。BitLocker 恢复密码是 48 位数字；知道它的人也可解锁并访问卷内数据。[查找 BitLocker 恢复密钥](https://support.microsoft.com/windows/security/encryption/find-your-bitlocker-recovery-key)
+- **密钥保护器**：允许 BitLocker 使用某种凭据解开卷密钥的记录，例如日常密码、恢复密码、外部密钥或自动解锁材料。删除保护器会撤销对应的解锁途径；操作前必须确认另一条可用恢复途径已安全保存。
 - **已用空间加密**：启用时只加密当前已使用的空间，速度较快；曾存有敏感数据的旧卷，其空闲区可能保留可恢复的旧数据。新盘以外的已有数据盘优先完整加密。[Microsoft BitLocker 规划指南](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/planning-guide)
-- **自动解锁**：在特定 Windows 电脑和账户下自动恢复访问的便利选项。该 GUI 默认勾选“禁用自动解锁”，也就是拔出后再次插入时仍需手动解锁。
+- **自动解锁**：在特定 Windows 电脑和账户下自动恢复访问的便利选项。自动解锁开启时 Windows 可能拒绝手动上锁；关闭后拔出并重新插入时仍需手动解锁。
+
+## 先检查卷状态
+
+以下查询只读取状态，不会加密、解锁或上锁。将盘符改成设备列表中已经核对的目标盘符，并在管理员 PowerShell 中运行：
+
+```powershell
+$mountPoint = 'E:'
+Get-BitLockerVolume -MountPoint $mountPoint |
+  Format-List MountPoint,VolumeStatus,ProtectionStatus,LockStatus,EncryptionPercentage,AutoUnlockEnabled
+```
+
+重点看这些字段：
+
+| 字段 | 含义 | 处理方式 |
+|---|---|---|
+| `VolumeStatus` | 加密转换进度：`FullyEncrypted` 表示已完成；`EncryptionInProgress` 表示仍在加密；`DecryptionInProgress` 表示正在解密。 | 正在转换时不要再次启动加密、格式化或拔盘；等待并刷新状态。 |
+| `ProtectionStatus` | BitLocker 保护器是否正在保护卷。 | `On` 本身不表示转换已达 100%；需同时看 `VolumeStatus` 和百分比。 |
+| `LockStatus` | 当前是否能访问卷内文件。 | `Locked` 时先用日常密码或恢复密码解锁；不要重复发出解锁请求。 |
+| `AutoUnlockEnabled` | 这台电脑是否保存该卷的自动解锁设置。 | 若为 `True`，Windows 可能拒绝上锁；按下文说明关闭后再试。 |
+
+如果命令报“拒绝访问”，不要把空白字段当成“未加密”。按电脑管理规则使用管理员 PowerShell，或停止并联系设备管理员。
 
 ## 开始前：确认目标和恢复办法
 
@@ -40,7 +62,51 @@
 1. 选中已启用 BitLocker 的目标卷。在“设备密码”中输入日常解锁密码，点击“解锁设备”。成功后密码输入框会清空。
 2. 点“打开盘符”即可在资源管理器中访问文件。解锁只恢复当前访问权限，卷仍保持 BitLocker 加密。
 3. 保存所有文件，关闭目标盘中的文件、资源管理器窗口以及可能占用该卷的程序。
-4. 点击“立即上锁”。本程序调用 `Lock-BitLocker -ForceDismount`；Windows 文档说明此参数会尝试在卷仍被使用时也锁定它。因此先关闭占用者，避免强制卸载打断写入或应用操作。[Lock-BitLocker 文档](https://learn.microsoft.com/en-us/powershell/module/bitlocker/lock-bitlocker?view=windowsserver2025-ps)
+4. 先检查 `AutoUnlockEnabled`。若为 `True`，本程序会说明原因并阻止上锁；只有你确实希望之后手动解锁时，才在管理员 PowerShell 运行：
+
+   ```powershell
+   Disable-BitLockerAutoUnlock -MountPoint $mountPoint
+   Get-BitLockerVolume -MountPoint $mountPoint |
+     Format-List MountPoint,AutoUnlockEnabled,LockStatus
+   ```
+
+   确认 `AutoUnlockEnabled` 为 `False` 后刷新 GUI。关闭自动解锁会改变这台电脑后续插入该卷时的行为。
+
+5. 保存所有文件，关闭目标盘中的文件、资源管理器窗口以及可能占用该卷的程序，再点击“立即上锁”。本程序调用 `Lock-BitLocker -ForceDismount`；Windows 文档说明此参数会尝试在卷仍被使用时也锁定它。因此先关闭占用者，避免强制卸载打断写入或应用操作。[Lock-BitLocker 文档](https://learn.microsoft.com/en-us/powershell/module/bitlocker/lock-bitlocker?view=windowsserver2025-ps)
+
+6. 点“刷新设备”，确认锁定状态为 `Locked`。安全弹出设备后再拔出。重新插入后检查状态；关闭自动解锁时，预期仍是 `Locked`，需要手动解锁。
+
+### 使用恢复密码解锁
+
+恢复密码不是日常密码。只有在恢复场景或受控测试时使用；不要把 48 位数字写进命令、脚本、截图或聊天。`Unlock-BitLocker` 的恢复密码参数需要文本，因此下面先使用隐藏输入，再只在进程内短暂转换：
+
+```powershell
+$mountPoint = 'E:'
+$secureRecoveryPassword = Read-Host -Prompt '输入 48 位恢复密码' -AsSecureString
+$passwordPointer = [IntPtr]::Zero
+$recoveryPasswordText = $null
+try {
+  $passwordPointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureRecoveryPassword)
+  $recoveryPasswordText = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($passwordPointer)
+  Unlock-BitLocker -MountPoint $mountPoint -RecoveryPassword $recoveryPasswordText
+}
+finally {
+  if ($passwordPointer -ne [IntPtr]::Zero) {
+    [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($passwordPointer)
+  }
+  $recoveryPasswordText = $null
+  if ($null -ne $secureRecoveryPassword) { $secureRecoveryPassword.Dispose() }
+}
+
+Get-BitLockerVolume -MountPoint $mountPoint |
+  Format-List MountPoint,VolumeStatus,ProtectionStatus,LockStatus,EncryptionPercentage
+```
+
+测试恢复解锁时，先确认卷状态确实是 `Locked`，然后才运行恢复命令；如果测试前卷已是 `Unlocked`，命令成功也不能证明恢复密码解锁路径有效。
+
+### 恢复密码文件丢失或暴露
+
+删除本地恢复文件只删除一份副本，不会撤销卷上的恢复密码保护器。若恢复密码暴露，应添加新的恢复密码保护器、先将新密码安全保存到目标设备以外，再按旧保护器 ID 移除旧保护器。确认新保护器仍存在后再删除旧的；不要移除最后一条有效恢复途径。[添加保护器](https://learn.microsoft.com/en-us/powershell/module/bitlocker/add-bitlockerkeyprotector?view=windowsserver2025-ps) · [移除保护器](https://learn.microsoft.com/en-us/powershell/module/bitlocker/remove-bitlockerkeyprotector?view=windowsserver2025-ps)
 5. 点“刷新设备”，确认锁定状态为 `Locked`。正常安全弹出设备后再拔出。重新插入后按需输入密码解锁。
 
 ## 出错时怎么处理
@@ -52,6 +118,8 @@
 - **状态显示转换中**：这代表加密仍在进行，不代表失败。保持供电和连接，刷新状态；不要格式化、初始化或移除该设备。
 - **启动加密时报错**：错误消息会给出已保存恢复文件的路径。保留该文件和设备原状，记录错误文本，刷新设备列表确认 BitLocker 状态；在确认转换状态前不要重复启动或格式化设备。
 - **恢复文件创建失败**：程序会在启动加密前报告失败。检查目录权限和可用空间后再试；若错误指出恢复保护器已创建，先刷新设备状态，不要盲目重复操作。
+- **立即上锁提示自动解锁已开启**：不要反复点击上锁。确认希望关闭这台电脑的自动解锁后，按上文执行 `Disable-BitLockerAutoUnlock`，刷新状态再试；如果希望保留自动解锁，就不要强行上锁。
+- **恢复密码文件被删除或泄露**：删除文件不等于撤销保护器。先添加并保存新恢复密码，再确认并移除旧保护器；如无法识别旧保护器，停止操作并查清 ID，不要删除所有恢复保护器。
 - **忘记密码**：先根据恢复密钥 ID 查找对应的 48 位恢复密码。若找不到恢复材料且卷要求恢复，Microsoft 支持不能替你重建密钥。[查找恢复密钥](https://support.microsoft.com/windows/security/encryption/find-your-bitlocker-recovery-key)
 - **想取消加密**：本页面没有“解密/关闭 BitLocker”按钮。“立即上锁”只阻断访问，不会关闭加密；不要把上锁当作解密。关闭 BitLocker 会启动解密并将卷恢复为未加密状态，应由你在确认完整备份后通过受支持的 Windows 管理界面操作。
 
