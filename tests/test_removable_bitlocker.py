@@ -1,6 +1,9 @@
 from pathlib import Path
 import json
+import os
+import shutil
 import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -93,6 +96,113 @@ class RemovableBitLockerTests(unittest.TestCase):
             "Remove-BitLockerKeyProtector",
         ):
             self.assertNotIn(mutating_command, script)
+
+    @unittest.skipUnless(shutil.which("powershell"), "Windows PowerShell is required for the isolated script harness")
+    def test_recovery_flush_failure_rolls_back_and_retry_succeeds_in_mock_harness(self) -> None:
+        script_with_injected_failure = removable_bitlocker.ENCRYPT_SCRIPT.replace(
+            "$recoveryStream.Flush($true)",
+            "throw 'INJECTED_FLUSH_FAILURE'; $recoveryStream.Flush($true)",
+            1,
+        ).replace("Import-Module BitLocker -ErrorAction Stop", "", 1)
+        retry_script = removable_bitlocker.ENCRYPT_SCRIPT.replace(
+            "Import-Module BitLocker -ErrorAction Stop", "", 1
+        )
+        harness = r"""
+$ErrorActionPreference = 'Stop'
+$script:EnableCount = 0
+$script:RemovedProtectorCount = 0
+$script:ProtectorCount = 0
+function Get-BitLockerVolume { param([string]$MountPoint)
+    [pscustomobject]@{
+        VolumeStatus = 'FullyDecrypted'
+        ProtectionStatus = 'Off'
+        LockStatus = 'Unlocked'
+        EncryptionPercentage = 0
+        EncryptionMethod = 'None'
+        AutoUnlockEnabled = $false
+        KeyProtector = @()
+    }
+}
+function Add-BitLockerKeyProtector { param([string]$MountPoint, [switch]$RecoveryPasswordProtector)
+    $script:ProtectorCount += 1
+    $protector = [pscustomobject]@{
+        KeyProtectorType = 'RecoveryPassword'
+        KeyProtectorId = ('{' + [guid]::NewGuid().ToString() + '}')
+        RecoveryPassword = '111111-222222-333333-444444-555555-666666-777777-888888'
+    }
+    [pscustomobject]@{ KeyProtector = @($protector) }
+}
+function Remove-BitLockerKeyProtector { param([string]$MountPoint, [string]$KeyProtectorId, [string]$ErrorAction); $script:RemovedProtectorCount += 1 }
+function ConvertTo-SecureString { param([string]$String, [switch]$AsPlainText, [switch]$Force); return 'mock-secure-password' }
+function Enable-BitLocker { param([string]$MountPoint, [switch]$PasswordProtector, $Password, [string]$EncryptionMethod, [switch]$UsedSpaceOnly); $script:EnableCount += 1 }
+function Disable-BitLockerAutoUnlock { param([string]$MountPoint, [string]$ErrorAction) }
+
+try {
+    __FIRST_ATTEMPT__
+}
+catch {
+    $script:FirstFailure = $_.Exception.Message
+}
+$filesAfterFailure = @(Get-ChildItem -LiteralPath $env:HSE_RECOVERY_DIRECTORY -File).Count
+$enableCountAfterFailure = $script:EnableCount
+$removedCountAfterFailure = $script:RemovedProtectorCount
+
+try {
+    __RETRY_ATTEMPT__
+}
+catch {
+    $script:RetryFailure = $_.Exception.Message
+}
+
+[pscustomobject]@{
+    FirstFailure = $script:FirstFailure
+    FilesAfterFailure = $filesAfterFailure
+    EnableCountAfterFailure = $enableCountAfterFailure
+    RemovedCountAfterFailure = $removedCountAfterFailure
+    EnableCountAfterRetry = $script:EnableCount
+    RetryFailure = $script:RetryFailure
+    RecoveryFileCountAfterRetry = @(Get-ChildItem -LiteralPath $env:HSE_RECOVERY_DIRECTORY -Filter 'BitLockerRecovery-*.txt' -File).Count
+} | ConvertTo-Json -Compress
+"""
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            recovery_directory = root / "recovery"
+            recovery_directory.mkdir()
+            harness_path = root / "recovery-failure-harness.ps1"
+            harness_path.write_text(
+                harness.replace("__FIRST_ATTEMPT__", script_with_injected_failure)
+                .replace("__RETRY_ATTEMPT__", retry_script),
+                encoding="utf-8",
+            )
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "HSE_MOUNT_POINT": "Z:",
+                    "HSE_BITLOCKER_PASSWORD": "test-only-password",
+                    "HSE_RECOVERY_DIRECTORY": str(recovery_directory),
+                    "HSE_ENCRYPTION_METHOD": "XtsAes256",
+                    "HSE_USED_SPACE_ONLY": "1",
+                    "HSE_DISABLE_AUTO_UNLOCK": "1",
+                }
+            )
+            completed = subprocess.run(
+                [shutil.which("powershell") or "powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(harness_path)],
+                capture_output=True,
+                text=True,
+                env=environment,
+                check=False,
+            )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr or completed.stdout)
+        summary = json.loads(completed.stdout.strip().splitlines()[-1])
+        self.assertIn("INJECTED_FLUSH_FAILURE", summary["FirstFailure"])
+        self.assertEqual(summary["FilesAfterFailure"], 0)
+        self.assertEqual(summary["EnableCountAfterFailure"], 0)
+        self.assertEqual(summary["RemovedCountAfterFailure"], 1)
+        self.assertEqual(summary["EnableCountAfterRetry"], 1)
+        self.assertIsNone(summary.get("RetryFailure"))
+        self.assertEqual(summary["RecoveryFileCountAfterRetry"], 1)
 
     @patch("high_security_encryptor.removable_bitlocker.is_admin", return_value=False)
     @patch("high_security_encryptor.removable_bitlocker.subprocess.run")
