@@ -1,0 +1,2 @@
+# Fixture payloads are byte-exact samples, not text for checkout normalization.
+tests/fixtures/hse2_v5/expected/** -text

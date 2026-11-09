@@ -59,7 +59,7 @@ The beginner materials in the zip start at docs/beginner/README.md and include f
 
 The workflow packages the entire `docs/` tree so links between the README, beginner materials, progress records, and technical references remain available in the extracted archive.
 
-The v5 GUI practice is docs/beginner/v5-practice.md. It covers create, per-view verification, preview, and restore using isolated sample files; v5 remains experimental and does not provide deniability.
+The v5 GUI practice is docs/beginner/v5-practice.md. It covers create, per-view verification, preview, and restore using isolated sample files. The maintenance practice at docs/beginner/v5-maintenance-practice.md covers CLI workflows and maps the eight v5 operations to their GUI fields; a separate manual desktop walkthrough remains outstanding. v5 remains experimental and does not provide deniability.
 
 Before publishing or announcing the Windows zip:
 

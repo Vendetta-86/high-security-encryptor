@@ -110,6 +110,20 @@ _HSE2_KDF_PROFILE_LABELS = {
     "paranoid": "极高安全",
 }
 
+_OUTPUT_PATH_LABELS = {
+    "archive-open": "恢复目录路径",
+    "v4-open": "恢复目录路径",
+    "v5-open": "恢复目录路径",
+    "v5-preview": "预览目标目录路径",
+}
+
+
+def output_path_label_for_action(action: str) -> str:
+    """Return a path label that reflects whether an action writes a file or directory."""
+
+    normalized_action = hse2_gui_action_key_from_display(action)
+    return _OUTPUT_PATH_LABELS.get(normalized_action, "输出文件")
+
 HEADER_BACKUP_RECOVERY_WARNING = (
     "重要：header backup 只用于恢复容器头部，不能恢复或替代解锁所需的密码、keyfile 或 DPAPI 访问条件。"
     "建议在创建归档后立即导出，并将备份与 .hse2 容器分开保存；同时继续保管原有解锁因子。"
@@ -697,6 +711,7 @@ class HSE2ExperimentalTab(ttk.Frame):
     def _apply_action_visibility(self) -> None:
         action = hse2_gui_action_key_from_display(self.action.get())
         visible_fields = visible_hse2_gui_field_keys(action)
+        self._field_widgets["output_path"][0].configure(text=output_path_label_for_action(action))
         wrapper_id_labels = {
             "wrapper-add": "新 wrapper id",
             "wrapper-remove": "要移除的 wrapper id",

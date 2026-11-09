@@ -21,6 +21,7 @@ from high_security_encryptor.hse2_gui_tab import (
     hse2_gui_action_key_from_display,
     hse2_kdf_profile_display_values,
     hse2_kdf_profile_key_from_display,
+    output_path_label_for_action,
     should_show_paranoid_profile_warning,
     visible_hse2_gui_field_keys,
 )
@@ -209,6 +210,13 @@ class HSE2GuiTabTests(unittest.TestCase):
 
     def test_action_display_label_maps_internal_action(self) -> None:
         self.assertEqual(hse2_gui_action_display_label("inspect"), "检查 HSE2 元数据")
+
+    def test_output_path_label_matches_file_or_restore_directory_action(self) -> None:
+        for action in ("archive-open", "v4-open", "v5-open"):
+            with self.subTest(action=action):
+                self.assertEqual(output_path_label_for_action(action), "恢复目录路径")
+        self.assertEqual(output_path_label_for_action("v5-preview"), "预览目标目录路径")
+        self.assertEqual(output_path_label_for_action("v5-compact"), "输出文件")
 
     def test_every_action_has_beginner_help_with_key_warnings(self) -> None:
         self.assertEqual(set(HSE2_GUI_ACTIONS), set(HSE2_GUI_ACTION_HELP))
