@@ -1,0 +1,32 @@
+{
+  "archive": {
+    "file": "complete_archive.hse2",
+    "size_bytes": 972
+  },
+  "fixture_only": true,
+  "schema": 1,
+  "views": [
+    {
+      "files": [
+        {
+          "path": "empty.txt",
+          "size_bytes": 0
+        },
+        {
+          "path": "notes.txt",
+          "size_bytes": 33
+        }
+      ],
+      "slot": 0
+    },
+    {
+      "files": [
+        {
+          "path": "backup.bin",
+          "size_bytes": 128
+        }
+      ],
+      "slot": 1
+    }
+  ]
+}

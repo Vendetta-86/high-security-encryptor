@@ -1,0 +1,4 @@
+edb1e2f3fc43d7cdc3cad8a5df88b5e4c1ba53e1049a7a1ec5de38ad9a89d448  complete_archive.hse2  # pragma: allowlist secret
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  expected/primary/empty.txt  # pragma: allowlist secret
+cebf99c38af4ed52f35a96b0e0fcabe25e51a1c0fe15e342d4839916e86f9492  expected/primary/notes.txt  # pragma: allowlist secret
+471fb943aa23c511f6f72f8d1652d9c880cfa392ad80503120547703e56a2be5  expected/secondary/backup.bin  # pragma: allowlist secret
