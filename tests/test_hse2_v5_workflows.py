@@ -611,10 +611,21 @@ workflows.restore_v5_archive(input_path=archive, password=password, output_dir=o
                 input_path=source_archive, output_path=replaced_archive, password=passwords[0],
                 view_files=(('primary.txt', new_primary),),
             )
+            replaced_digest = hashlib.sha256(replaced_archive.read_bytes()).digest()
+            with self.assertRaises(HSE2ModelError):
+                compact_v5_archive(
+                    input_path=replaced_archive, output_path=root / "wrong-compact.hse2",
+                    view_passwords=(passwords[0], "incorrect secondary password"),  # pragma: allowlist secret
+                )
+            self.assertFalse((root / "wrong-compact.hse2").exists())
+            self.assertEqual(hashlib.sha256(replaced_archive.read_bytes()).digest(), replaced_digest)
+
             compact_v5_archive(
                 input_path=replaced_archive, output_path=compacted_archive, view_passwords=passwords,
             )
+            self.assertEqual(hashlib.sha256(replaced_archive.read_bytes()).digest(), replaced_digest)
             self.assertLess(compacted_archive.stat().st_size, replaced_archive.stat().st_size)
+            self.assertEqual(list(root.glob(".wrong-compact.hse2.*.tmp")), [])
             self.assertEqual(
                 (restore_v5_archive(input_path=compacted_archive, password=passwords[0],
                                     output_dir=root / "compact-primary") / "primary.txt").read_bytes(),
@@ -642,6 +653,13 @@ workflows.restore_v5_archive(input_path=archive, password=password, output_dir=o
                 capacity_records=2,
             )
             source_digest = hashlib.sha256(source_archive.read_bytes()).hexdigest()
+            with self.assertRaises(HSE2ModelError):
+                export_v4_to_v5(
+                    input_path=source_archive, output_path=root / "wrong-export.hse2",
+                    view_passwords=(passwords[0], "incorrect secondary password"),  # pragma: allowlist secret
+                )
+            self.assertFalse((root / "wrong-export.hse2").exists())
+            self.assertEqual(hashlib.sha256(source_archive.read_bytes()).hexdigest(), source_digest)
             export_v4_to_v5(input_path=source_archive, output_path=output_archive,
                             view_passwords=passwords)
             self.assertLess(output_archive.stat().st_size, 1024 * 1024)
