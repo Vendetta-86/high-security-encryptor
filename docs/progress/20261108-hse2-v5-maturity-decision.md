@@ -3,6 +3,7 @@
 - 日期：2026-11-09
 - 对应路线图：[HSE2 Roadmap 5.0](20261108-hse2-roadmap-5.0.md)
 - 决策：**HSE2 v5 继续标记为实验性格式。**
+- 5.0 结论：阶段 0–5 的兼容性、打包和发布验收门槛均已通过；维持实验性是本项目的产品成熟度选择，不代表存在已知格式缺陷，也不以第三方审核为前提。
 
 ## 决策范围
 
@@ -15,17 +16,16 @@
 - 完整冻结归档 `tests/fixtures/hse2_v5/complete_archive.hse2` 覆盖双视图、空文件和非空二进制文件；恢复内容逐文件核对路径、大小、字节及 SHA-256，并拒绝关键 header、footer、descriptor 和 record 篡改。
 - v2/v3 固定归档和创建默认值回归通过；v4/v5 codec、工作流、边界及失败路径回归通过。创建默认值仍为 v2。
 - 本地全量回归：805 项通过、6 项跳过。`detect-secrets`、`compileall`、CLI/GUI 冒烟通过；`pip-audit` 未发现已知漏洞。该工具将项目本身列为无法从 PyPI 审计的 editable 项目，项目依赖扫描结果为无已知漏洞。
-- Windows 精确标签 workflow run `42610685648`（#46）在提交 `17233b4830b6b4f0afb0f36834e0dde0897d343e` 成功。构建、依赖审计、语法检查、805 项测试、CLI/GUI smoke、打包 v5 维护回归和下载 ZIP 校验均通过。workflow artifact 为 `high-security-encryptor-v0.8.4-windows-x64.zip`，148,340,162 bytes，SHA-256 `1c18018fafc3d8205fcce80aa51dd2a6379705d4becd12f8b987ffc20632121e`。
-- 该 ZIP 目前是 Actions workflow artifact，不是公开 GitHub Release 资产。v0.8.4 尚未发布，故当前版本的公开资产独立下载、Release API digest 和发布页内容核验仍未完成。
+- Windows 精确标签 workflow run `42621493660`（#47）在提交 `6978b8fa5c2c9db231ef9b220901387bea316dfe` 成功。构建、依赖审计、语法检查、805 项测试、CLI/GUI smoke、打包 v5 维护回归和 Actions ZIP 校验均通过。
+- 精确标签发布 run `42623252703`（#48）成功完成构建、工件校验及公开发布。v0.8.4 Release 资产 `high-security-encryptor-v0.8.4-windows-x64.zip` 大小为 148,302,074 bytes；公开资产独立下载后的 SHA-256 `fda2c9dff68e2a657c541f04eac153d435b021cbe50445c3eab305cc636f49b1` 与 Release API digest 一致。ZIP 含 120 个文件和 10 个 EXE；CLI `--help` 与两个 GUI `--smoke-test` 均返回 0。详情见 [v0.8.4 公开 Release 复核](20261109-hse2-roadmap-5.0-public-release-v0.8.4-check.md)。
 
 ## 决策理由
 
-完整格式夹具、历史格式回归、打包维护工作流及精确标签构建均有通过证据；剩余缺口是当前版本的公开 Release 资产核验。路线图 5.0 要求将公开资产独立下载并与 Release API digest 比对。由于本路线图不自动触发公开发布，当前不能把 Actions 工件视作已经发布的产品资产，也不能宣告 v5 稳定候选。
+完整格式夹具、历史格式回归、打包维护工作流、精确标签构建和公开资产核验均已通过。此结果证明所覆盖的本地格式兼容、工作流和交付行为符合路线图验收条件；它不构成密码学证明、认证或普遍安全保证。因此 v5 继续以实验性双视图备用内容格式交付，不承诺可否认性、抗胁迫、反取证或安全擦除。
 
 这是对交付证据完整度的限制，不表示已经发现 v5 功能缺陷。测试通过不代表密码学认证或普遍安全保证。
 
 ## 后续重新评估条件
 
-1. 在维护者决定发布 v0.8.4 后，从公开 GitHub Release 独立下载 ZIP，核对 API digest、完整解压清单、版本标识、教程和可执行入口，并将其与精确标签 workflow 及源码 commit 对齐记录。
-2. 确认 CLI、GUI、新手教程和发布说明持续披露实验性、双视图备用内容用途及非目标。
-3. 证据齐全后重新审议 v5 标签。完成发布验收不自动把 v5 提升为稳定，也不自动改变默认创建格式。
+1. CLI、GUI、新手教程和后续发布说明持续披露实验性、双视图备用内容用途及非目标。
+2. 若未来要将 v5 改标稳定或调整默认格式，应另行评估并记录决策；路线图 5.0 的测试和发布结果不自动触发这些变化。

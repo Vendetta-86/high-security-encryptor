@@ -294,6 +294,11 @@ jobs:
       ASSET_NAME: ${{ needs.build.outputs.asset_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Check out release notes from the selected tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref }}
+
       - name: Require the selected ref to match the release tag
         shell: bash
         run: |
