@@ -187,18 +187,7 @@ jobs:
           $secondaryPassword | & $exe hse2 v4-open --password-stdin --input $updatedContainer --output-dir $peerOutput
           if ($LASTEXITCODE -ne 0) { throw "Packaged v4 peer-open smoke failed" }
           if ((Get-FileHash (Join-Path $peerOutput "secondary.txt")).Hash -ne (Get-FileHash $secondary).Hash) { throw "Packaged v4 peer view changed" }
-          $v5Password = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)) # pragma: allowlist secret
-          $v5SecondaryPassword = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)) # pragma: allowlist secret
-          @($v5Password, $v5Password, $v5SecondaryPassword, $v5SecondaryPassword) |
-            & $exe hse2 v5-create --passwords-stdin --output (Join-Path $smokeRoot "candidate-v5.hse2") --primary-file "primary.txt=$primary" --secondary-file "secondary.txt=$secondary"
-          if ($LASTEXITCODE -ne 0) { throw "Packaged v5-create smoke failed" }
-          $v5Container = Join-Path $smokeRoot "candidate-v5.hse2"
-          $v5Password | & $exe hse2 v5-verify --password-stdin --input $v5Container
-          if ($LASTEXITCODE -ne 0) { throw "Packaged v5-verify smoke failed" }
-          $v5Restore = Join-Path $smokeRoot "v5-restored"
-          $v5Password | & $exe hse2 v5-open --password-stdin --input $v5Container --output-dir $v5Restore
-          if ($LASTEXITCODE -ne 0) { throw "Packaged v5-open smoke failed" }
-          if ((Get-FileHash (Join-Path $v5Restore "primary.txt")).Hash -ne (Get-FileHash $primary).Hash) { throw "Packaged v5 restore bytes differ" }
+          & build_tools\windows_v5_package_smoke.ps1 -ExecutablePath $exe -TempRoot $env:RUNNER_TEMP
           $expected = @(
             "high-security-encryptor-hse2-gui.exe",
             "high-security-encryptor-hse2-create.exe",
