@@ -80,8 +80,8 @@ START_TASK_GROUPS = (
     ),
     (
         "检查与学习",
-        "运行任务前检查配置，或打开随包教程和术语说明。",
-        (("validate", "检查配置"), ("help", "查看教程")),
+        "创建配置示例、运行前检查配置，或打开随包教程和术语说明。",
+        (("validate", "检查配置"), ("examples", "生成示例"), ("help", "查看教程")),
     ),
     (
         "移动存储设备",
@@ -892,6 +892,8 @@ class HighSecurityEncryptorApp(ttk.Frame):
             self._open_decrypt_multi_file_setup()
         elif target == "validate":
             self._select_main_tab("检查配置")
+        elif target == "examples":
+            self._select_main_tab("生成配置")
         elif target == "removable":
             self._select_main_tab("移动存储加密")
         elif target == "help":

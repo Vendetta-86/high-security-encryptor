@@ -58,6 +58,7 @@ class GuiTests(unittest.TestCase):
                 "encrypt_many",
                 "decrypt_many",
                 "validate",
+                "examples",
                 "removable",
                 "help",
             }.issubset(targets)
@@ -90,6 +91,17 @@ class GuiTests(unittest.TestCase):
 
         app._open_encrypt_multi_file_setup.assert_called_once_with()
         app._open_decrypt_multi_file_setup.assert_called_once_with()
+
+    def test_start_page_routes_example_generation(self) -> None:
+        notebook = Mock()
+        notebook.tabs.return_value = ["examples-tab"]
+        notebook.tab.return_value = "生成配置"
+        app = SimpleNamespace(main_notebook=notebook)
+        app._select_main_tab = lambda label: HighSecurityEncryptorApp._select_main_tab(app, label)
+
+        HighSecurityEncryptorApp._navigate_start_task(app, "examples")
+
+        notebook.select.assert_called_once_with("examples-tab")
 
     def test_start_page_rejects_unknown_task_keys(self) -> None:
         with self.assertRaises(ValueError):
