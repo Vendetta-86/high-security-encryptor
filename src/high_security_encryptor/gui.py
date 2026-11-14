@@ -66,6 +66,29 @@ QUICK_ACTION_LABELS = {
     "encrypt": "加密",
     "decrypt": "解密",
 }
+
+START_TASK_GROUPS = (
+    (
+        "单个文件或文件夹",
+        "快速处理一个文件或一个文件夹。",
+        (("quick_encrypt", "加密"), ("quick_decrypt", "解密/恢复")),
+    ),
+    (
+        "多个文件",
+        "使用批量配置处理多个文件，并检查输出和覆盖选项。",
+        (("encrypt_many", "批量加密"), ("decrypt_many", "批量解密")),
+    ),
+    (
+        "检查与学习",
+        "运行任务前检查配置，或打开随包教程和术语说明。",
+        (("validate", "检查配置"), ("help", "查看教程")),
+    ),
+    (
+        "移动存储设备",
+        "使用 Windows BitLocker；开始前核对盘符和恢复信息。",
+        (("removable", "打开设备保护"),),
+    ),
+)
 REMOVABLE_ENCRYPTION_METHOD_LABELS = {
     "XtsAes256": "XTS-AES 256 位（推荐）",
     "XtsAes128": "XTS-AES 128 位",
@@ -78,6 +101,8 @@ PASSWORD_PROVIDER_HINT = (
 )
 
 HELP_TEXT = """使用说明
+
+开始页提供单文件/文件夹加密解密、多文件配置、移动存储、配置检查、教程和 HSE2 高级功能的入口。你可以按想完成的任务选择，不需要先记住页面名称。
 
 新手材料：先看 docs/beginner/README.md。单文件/文件夹练习见 docs/beginner/first-run.md 和 docs/beginner/folder-practice.md；配置生成与检查跟练见 docs/beginner/config-practice.md；单独文件口令练习见 docs/beginner/password-practice.md；GUI 详细说明见 docs/beginner_gui_usage.md，配置示例见 examples/beginner_encrypt_config.json 和 examples/beginner_multi_file_encrypt_config.json。
 
@@ -798,6 +823,88 @@ class HighSecurityEncryptorApp(ttk.Frame):
         self._build_validate_tab(notebook)
         self._build_examples_tab(notebook)
         self._build_help_tab(notebook)
+        self._build_start_tab(notebook)
+
+    def _build_start_tab(self, notebook: ttk.Notebook) -> None:
+        frame = ttk.Frame(notebook, padding=16)
+        notebook.insert(0, frame, text="开始")
+        frame.columnconfigure(0, weight=1)
+
+        ttk.Label(frame, text="你想完成什么？", font=("TkDefaultFont", 16, "bold")).grid(
+            row=0, column=0, sticky="w", pady=(0, 4)
+        )
+        ttk.Label(
+            frame,
+            text="选择一个任务进入对应页面。每项说明了适用场景；执行前仍请核对来源、目标位置和密码。",
+            wraplength=760,
+            justify=tk.LEFT,
+        ).grid(row=1, column=0, sticky="w", pady=(0, 14))
+
+        cards = ttk.Frame(frame)
+        cards.grid(row=2, column=0, sticky="new")
+        cards.columnconfigure(0, weight=1)
+        cards.columnconfigure(1, weight=1)
+
+        for index, (title, description, actions) in enumerate(START_TASK_GROUPS):
+            card = ttk.LabelFrame(cards, text=title, padding=10)
+            row, column = divmod(index, 2)
+            card.grid(row=row, column=column, sticky="nsew", padx=5, pady=5)
+            card.columnconfigure(0, weight=1)
+            ttk.Label(card, text=description, wraplength=340, justify=tk.LEFT).grid(
+                row=0, column=0, sticky="w", pady=(0, 8)
+            )
+            action_row = ttk.Frame(card)
+            action_row.grid(row=1, column=0, sticky="w")
+            for target, button_text in actions:
+                ttk.Button(
+                    action_row,
+                    text=button_text,
+                    command=lambda key=target: self._navigate_start_task(key),
+                ).pack(side=tk.LEFT, padx=(0, 6))
+
+        if callable(getattr(self, "_open_hse2_experimental_gui", None)):
+            row = (len(START_TASK_GROUPS) + 1) // 2
+            card = ttk.LabelFrame(cards, text="HSE2 归档与高级操作（实验功能）", padding=10)
+            card.grid(row=row, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
+            card.columnconfigure(0, weight=1)
+            ttk.Label(
+                card,
+                text="管理 HSE2 归档、检查与恢复。v4/v5 等双视图功能仍属实验性，不代表可否认性或抗胁迫。",
+                wraplength=700,
+                justify=tk.LEFT,
+            ).grid(row=0, column=0, sticky="w", pady=(0, 8))
+            ttk.Button(
+                card,
+                text="打开 HSE2 工具",
+                command=self._open_hse2_experimental_gui,
+            ).grid(row=1, column=0, sticky="w")
+
+        notebook.select(frame)
+
+    def _navigate_start_task(self, target: str) -> None:
+        if target in {"quick_encrypt", "quick_decrypt"}:
+            action = "decrypt" if target == "quick_decrypt" else "encrypt"
+            self.quick_action.set(QUICK_ACTION_LABELS[action])
+            self._select_main_tab("快速使用")
+        elif target == "encrypt_many":
+            self._open_encrypt_multi_file_setup()
+        elif target == "decrypt_many":
+            self._open_decrypt_multi_file_setup()
+        elif target == "validate":
+            self._select_main_tab("检查配置")
+        elif target == "removable":
+            self._select_main_tab("移动存储加密")
+        elif target == "help":
+            self._select_main_tab("说明")
+        else:
+            raise ValueError(f"Unknown start task: {target}")
+
+    def _select_main_tab(self, label: str) -> None:
+        for tab_id in self.main_notebook.tabs():
+            if self.main_notebook.tab(tab_id, "text") == label:
+                self.main_notebook.select(tab_id)
+                return
+        raise LookupError(f"The GUI tab is unavailable: {label}")
 
     def _build_quick_tab(self, notebook: ttk.Notebook) -> None:
         frame = ttk.Frame(notebook, padding=12)

@@ -12,8 +12,10 @@ from high_security_encryptor.gui import (
     GuiCommandResult,
     HELP_TEXT,
     HighSecurityEncryptorApp,
+    QUICK_ACTION_LABELS,
     REPORT_FORMAT_LABELS,
     SECURITY_MODE_LABELS,
+    START_TASK_GROUPS,
     build_removable_action_summary,
     build_file_decryption_config_payload,
     build_file_decryption_config_plan,
@@ -47,6 +49,52 @@ from high_security_encryptor.removable_bitlocker import (
 
 
 class GuiTests(unittest.TestCase):
+    def test_start_page_lists_core_user_tasks(self) -> None:
+        targets = {target for _, _, actions in START_TASK_GROUPS for target, _ in actions}
+        self.assertTrue(
+            {
+                "quick_encrypt",
+                "quick_decrypt",
+                "encrypt_many",
+                "decrypt_many",
+                "validate",
+                "removable",
+                "help",
+            }.issubset(targets)
+        )
+        self.assertIn("开始页提供", HELP_TEXT)
+
+    def test_start_page_routes_single_file_tasks_to_the_expected_action(self) -> None:
+        notebook = Mock()
+        notebook.tabs.return_value = ["quick-tab"]
+        notebook.tab.return_value = "快速使用"
+        app = SimpleNamespace(
+            quick_action=Mock(),
+            main_notebook=notebook,
+        )
+        app._select_main_tab = lambda label: HighSecurityEncryptorApp._select_main_tab(app, label)
+
+        HighSecurityEncryptorApp._navigate_start_task(app, "quick_decrypt")
+
+        app.quick_action.set.assert_called_once_with(QUICK_ACTION_LABELS["decrypt"])
+        notebook.select.assert_called_once_with("quick-tab")
+
+    def test_start_page_routes_existing_multi_file_and_help_workflows(self) -> None:
+        app = SimpleNamespace(
+            _open_encrypt_multi_file_setup=Mock(),
+            _open_decrypt_multi_file_setup=Mock(),
+        )
+
+        HighSecurityEncryptorApp._navigate_start_task(app, "encrypt_many")
+        HighSecurityEncryptorApp._navigate_start_task(app, "decrypt_many")
+
+        app._open_encrypt_multi_file_setup.assert_called_once_with()
+        app._open_decrypt_multi_file_setup.assert_called_once_with()
+
+    def test_start_page_rejects_unknown_task_keys(self) -> None:
+        with self.assertRaises(ValueError):
+            HighSecurityEncryptorApp._navigate_start_task(SimpleNamespace(), "unknown")
+
     def test_beginner_guide_and_example_resources_exist_at_gui_resource_root(self) -> None:
         base_dir = get_gui_resource_base_dir()
         self.assertTrue((base_dir / "docs" / "beginner_gui_usage.md").is_file())
