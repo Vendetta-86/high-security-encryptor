@@ -23,6 +23,7 @@ from high_security_encryptor.gui import (
     build_file_encryption_config_plan,
     build_validation_result_guidance,
     build_batch_args,
+    build_quick_task_guidance,
     build_init_example_args,
     build_validate_config_args,
     choose_multi_file_workflow,
@@ -106,6 +107,30 @@ class GuiTests(unittest.TestCase):
     def test_start_page_rejects_unknown_task_keys(self) -> None:
         with self.assertRaises(ValueError):
             HighSecurityEncryptorApp._navigate_start_task(SimpleNamespace(), "unknown")
+
+    def test_quick_task_guidance_explains_inputs_and_outputs(self) -> None:
+        encrypt = build_quick_task_guidance("encrypt")
+        decrypt = build_quick_task_guidance("decrypt")
+
+        self.assertIn("主加密密码", encrypt)
+        self.assertIn("来源旁边", encrypt)
+        self.assertIn("不覆盖原文件", encrypt)
+        self.assertIn("相同的主加密密码", decrypt)
+        self.assertIn("新目录", decrypt)
+        self.assertIn("不会被覆盖", decrypt)
+        with self.assertRaises(ValueError):
+            build_quick_task_guidance("unknown")
+
+    def test_quick_guidance_refreshes_when_task_changes(self) -> None:
+        label = Mock()
+        app = SimpleNamespace(
+            quick_action=SimpleNamespace(get=lambda: QUICK_ACTION_LABELS["decrypt"]),
+            quick_guidance=label,
+        )
+
+        HighSecurityEncryptorApp._refresh_quick_guidance(app)
+
+        label.configure.assert_called_once_with(text=build_quick_task_guidance("decrypt"))
 
     def test_beginner_guide_and_example_resources_exist_at_gui_resource_root(self) -> None:
         base_dir = get_gui_resource_base_dir()

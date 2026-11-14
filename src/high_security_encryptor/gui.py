@@ -89,6 +89,30 @@ START_TASK_GROUPS = (
         (("removable", "打开设备保护"),),
     ),
 )
+
+QUICK_TASK_GUIDANCE = {
+    "encrypt": (
+        "加密的作用：把所选文件或文件夹内容转换为受密码保护的文件。\n"
+        "需要准备：要加密的来源，以及一个你能记住的主加密密码（加密时输入两次确认）。\n"
+        "输出位置：默认在来源旁边；若文件名已存在，程序会改用可用名称，不覆盖原文件。"
+    ),
+    "decrypt": (
+        "解密的作用：使用创建加密文件时的主密码验证并恢复内容。\n"
+        "需要准备：加密文件，以及与加密时相同的主加密密码；解密时无需再次确认密码。\n"
+        "输出位置：普通文件恢复到同目录；文件夹恢复到新目录。已存在的输出不会被覆盖。"
+    ),
+}
+
+
+def build_quick_task_guidance(action: str) -> str:
+    """Explain the quick encrypt/decrypt task before the user starts it."""
+
+    try:
+        return QUICK_TASK_GUIDANCE[action]
+    except KeyError as exc:
+        raise ValueError("请选择加密或解密。") from exc
+
+
 REMOVABLE_ENCRYPTION_METHOD_LABELS = {
     "XtsAes256": "XTS-AES 256 位（推荐）",
     "XtsAes128": "XTS-AES 128 位",
@@ -962,8 +986,23 @@ class HighSecurityEncryptorApp(ttk.Frame):
             side=tk.LEFT,
             padx=(8, 0),
         )
+
+        self.quick_guidance = ttk.Label(frame, wraplength=760, justify=tk.LEFT)
+        self.quick_guidance.grid(row=7, column=0, columnspan=4, sticky="w", pady=(14, 0))
+        self.quick_action.trace_add("write", self._refresh_quick_guidance)
+        self._refresh_quick_guidance()
+
         self._enable_drop_target(frame, self._handle_quick_drop)
         self._enable_drop_target(source_entry, self._handle_quick_drop)
+
+    def _refresh_quick_guidance(self, *_args: Any) -> None:
+        action = next(
+            (key for key, label in QUICK_ACTION_LABELS.items() if label == self.quick_action.get()),
+            None,
+        )
+        if action is None:
+            return
+        self.quick_guidance.configure(text=build_quick_task_guidance(action))
 
     def _build_file_encrypt_config_tab(self, notebook: ttk.Notebook, *, tab_text: str = "多文件配置") -> ttk.Frame:
         frame = ttk.Frame(notebook, padding=10)
